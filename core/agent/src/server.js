@@ -247,6 +247,27 @@ function buildContaAzulResponsePreview(rawText) {
   return safeText.length <= 1200 ? safeText : `${safeText.slice(0, 1197)}...`;
 }
 
+function readFirstEnvValue(keys) {
+  for (const key of keys) {
+    const value = String(process.env[key] || "").trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+function buildRenderServiceUrl(req, serviceName) {
+  const host = String(req.get("host") || "").split(",")[0].trim().toLowerCase().split(":")[0];
+  if (!host.endsWith(".onrender.com")) return "";
+
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim().toLowerCase();
+  const protocol = forwardedProto || "https";
+  return `${protocol}://${serviceName}.onrender.com`;
+}
+
+function resolveModuleUrl(req, envKeys, renderServiceName) {
+  return readFirstEnvValue(envKeys) || buildRenderServiceUrl(req, renderServiceName);
+}
+
 async function readContaAzulResponse(response) {
   const rawText = await response.text();
   const preview = buildContaAzulResponsePreview(rawText);
@@ -962,7 +983,7 @@ function sendAppPage(req, res) {
 app.get("/", sendHomePage);
 app.get("/fpa", sendAppPage);
 app.get("/cobrancas", (req, res) => {
-  const cobrancasUrl = String(process.env.COBRANCAS_URL || process.env.BOT_COBRANCA_URL || "").trim();
+  const cobrancasUrl = resolveModuleUrl(req, ["COBRANCAS_URL", "BOT_COBRANCA_URL"], "bot-cobranca");
   if (cobrancasUrl) {
     res.redirect(302, cobrancasUrl);
     return;
@@ -985,6 +1006,12 @@ app.get("/cobrancas", (req, res) => {
   `);
 });
 app.get("/extrator", (req, res) => {
+  const extratorUrl = resolveModuleUrl(req, ["EXTRATOR_URL", "BOT_EXTRATOR_URL"], "bot-extrator");
+  if (extratorUrl) {
+    res.redirect(302, extratorUrl);
+    return;
+  }
+
   res.type("html").send(`
     <!doctype html>
     <html lang="pt-BR">
@@ -995,8 +1022,7 @@ app.get("/extrator", (req, res) => {
       </head>
       <body style="font-family: system-ui, sans-serif; margin: 40px; line-height: 1.5;">
         <h1>Bot Extrator</h1>
-        <p>Este modulo roda como worker no Render e nao possui painel web proprio.</p>
-        <p>Configure <code>LOGIN_EMAIL</code>, <code>LOGIN_PASSWORD</code>, <code>GOOGLE_SERVICE_ACCOUNT_JSON</code> e <code>SPREADSHEET_ID</code> no servico <code>bot-extrator</code>.</p>
+        <p>Defina a variavel de ambiente <code>EXTRATOR_URL</code> com a URL do servico <code>bot-extrator</code> no Render.</p>
         <p><a href="/">Voltar ao Colli Finance OS</a></p>
       </body>
     </html>

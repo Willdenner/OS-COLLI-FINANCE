@@ -21,6 +21,18 @@ test("servidor nao entrega a home estatica antes do Basic Auth", async () => {
   assert.match(server, /express\.static\(STATIC_DIR,\s*\{\s*index:\s*false\s*\}\)/);
 });
 
+test("servidor resolve links dos modulos web pelo Render ou por variaveis", async () => {
+  const server = await fs.readFile(path.join(__dirname, "..", "src", "server.js"), "utf8");
+
+  assert.match(server, /function buildRenderServiceUrl/);
+  assert.match(server, /COBRANCAS_URL/);
+  assert.match(server, /BOT_COBRANCA_URL/);
+  assert.match(server, /bot-cobranca/);
+  assert.match(server, /EXTRATOR_URL/);
+  assert.match(server, /BOT_EXTRATOR_URL/);
+  assert.match(server, /bot-extrator/);
+});
+
 test("pagina FP&A nao usa aspas tipograficas em atributos HTML", async () => {
   const html = await fs.readFile(path.join(__dirname, "..", "src", "static", "fpa.html"), "utf8");
 

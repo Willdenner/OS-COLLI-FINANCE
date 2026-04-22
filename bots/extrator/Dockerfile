@@ -2,6 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+ENV PORT=10000
+
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
@@ -13,4 +15,6 @@ RUN python -m playwright install --with-deps chromium
 
 COPY . .
 
-CMD ["python", "main.py"]
+EXPOSE 10000
+
+CMD ["python", "server.py"]
