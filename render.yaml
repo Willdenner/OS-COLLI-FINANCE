@@ -3,13 +3,12 @@ services:
   # ══════════════════════════════════════════════
   # AGENTE FP&A — Orquestrador Central
   # ══════════════════════════════════════════════
-  - type: worker                        # worker = roda em background, sem HTTP
+  - type: worker
     name: fpsa-agent
-    runtime: python
-    rootDir: core
-    buildCommand: pip install -r requirements.txt
-    startCommand: python -m agent.main
-    plan: starter                        # Nunca dorme
+    runtime: docker
+    dockerfilePath: ./core/Dockerfile
+    dockerContext: .                     # Raiz — permite acessar shared/
+    plan: starter
     envVars:
       - key: SERVICE_NAME
         value: fpsa-agent
@@ -50,10 +49,9 @@ services:
   # ══════════════════════════════════════════════
   - type: worker
     name: bot-extrator
-    runtime: python
-    rootDir: bots/extrator
-    buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
+    runtime: docker
+    dockerfilePath: ./bots/extrator/Dockerfile
+    dockerContext: .
     plan: starter
     envVars:
       - key: SERVICE_NAME
@@ -79,12 +77,11 @@ services:
   # ══════════════════════════════════════════════
   # BOT COBRANÇA — WhatsApp + Régua
   # ══════════════════════════════════════════════
-  - type: web                            # web = precisa de porta HTTP para webhooks
+  - type: web
     name: bot-cobranca
-    runtime: python
-    rootDir: bots/cobranca
-    buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
+    runtime: docker
+    dockerfilePath: ./bots/cobranca/Dockerfile
+    dockerContext: .
     plan: starter
     envVars:
       - key: SERVICE_NAME
