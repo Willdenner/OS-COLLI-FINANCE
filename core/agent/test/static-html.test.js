@@ -29,6 +29,9 @@ test("servidor resolve links dos modulos web pelo Render ou por variaveis", asyn
   assert.doesNotMatch(renderYaml, /name: analista-fpa/);
   assert.match(server, /async function proxyCobrancasModule/);
   assert.match(server, /async function proxyExtratorModule/);
+  assert.match(server, /DEFAULT_COBRANCAS_URL = "https:\/\/bot-cobranca-25qf\.onrender\.com"/);
+  assert.match(server, /DEFAULT_EXTRATOR_URL = "https:\/\/bot-extrator\.onrender\.com"/);
+  assert.match(server, /function resolveProxyBaseUrl/);
   assert.match(server, /function buildInternalModuleAuthorizationHeader/);
   assert.match(server, /applyInternalModuleAuthorization\(buildProxyHeaders\(req\)\)/);
   assert.match(server, /rewriteCobrancasHtml/);
@@ -42,10 +45,9 @@ test("servidor resolve links dos modulos web pelo Render ou por variaveis", asyn
   assert.match(server, /EXTRATOR_URL/);
   assert.match(server, /BOT_EXTRATOR_URL/);
   assert.doesNotMatch(server, /bot-cobranca\.onrender\.com/);
-  assert.doesNotMatch(server, /bot-extrator\.onrender\.com/);
   assert.match(renderYaml, /key: COBRANCAS_INTERNAL_URL[\s\S]*fromService:[\s\S]*name: bot-cobranca[\s\S]*property: hostport/);
-  assert.match(renderYaml, /key: COBRANCAS_URL[\s\S]*fromService:[\s\S]*name: bot-cobranca[\s\S]*envVarKey: RENDER_EXTERNAL_URL/);
-  assert.match(renderYaml, /key: EXTRATOR_URL[\s\S]*fromService:[\s\S]*name: bot-extrator[\s\S]*envVarKey: RENDER_EXTERNAL_URL/);
+  assert.match(renderYaml, /key: COBRANCAS_URL\s*\n\s*value: https:\/\/bot-cobranca-25qf\.onrender\.com/);
+  assert.match(renderYaml, /key: EXTRATOR_URL\s*\n\s*value: https:\/\/bot-extrator\.onrender\.com/);
   assert.match(renderYaml, /key: EXTRATOR_INTERNAL_URL[\s\S]*fromService:[\s\S]*name: bot-extrator[\s\S]*property: hostport/);
 });
 

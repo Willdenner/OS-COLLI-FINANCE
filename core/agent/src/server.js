@@ -84,6 +84,8 @@ const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 const STATIC_DIR = path.join(__dirname, "static");
 const HOME_INDEX = path.join(STATIC_DIR, "index.html");
 const FPA_INDEX = path.join(STATIC_DIR, "fpa.html");
+const DEFAULT_COBRANCAS_URL = "https://bot-cobranca-25qf.onrender.com";
+const DEFAULT_EXTRATOR_URL = "https://bot-extrator.onrender.com";
 
 function nowIso() {
   return new Date().toISOString();
@@ -259,6 +261,16 @@ function resolveModuleUrl(envKeys) {
   return readFirstEnvValue(envKeys);
 }
 
+function resolveProxyBaseUrl(config) {
+  const externalBaseUrl = normalizeProxyBaseUrl(resolveModuleUrl(config.externalEnvKeys));
+  if (externalBaseUrl) return externalBaseUrl;
+
+  const internalBaseUrl = normalizeProxyBaseUrl(readFirstEnvValue(config.internalEnvKeys));
+  if (internalBaseUrl) return internalBaseUrl;
+
+  return normalizeProxyBaseUrl(config.defaultExternalUrl);
+}
+
 function normalizeProxyBaseUrl(rawValue) {
   const value = String(rawValue || "").trim().replace(/\/+$/, "");
   if (!value) return "";
@@ -356,21 +368,15 @@ function sendModuleNotConfigured(res, { title, description, envName }) {
 }
 
 async function proxyModule(req, res, config) {
-  const internalBaseUrl = normalizeProxyBaseUrl(readFirstEnvValue(config.internalEnvKeys));
-  if (!internalBaseUrl) {
-    const externalUrl = resolveModuleUrl(config.externalEnvKeys);
-    if (externalUrl) {
-      res.redirect(302, externalUrl);
-      return;
-    }
-
+  const moduleBaseUrl = resolveProxyBaseUrl(config);
+  if (!moduleBaseUrl) {
     sendModuleNotConfigured(res, config.notConfigured);
     return;
   }
 
   const suffix = req.originalUrl.slice(config.mountPath.length) || "/";
   const targetPath = suffix === "/" ? "/" : suffix;
-  const targetUrl = new URL(targetPath, `${internalBaseUrl}/`);
+  const targetUrl = new URL(targetPath, `${moduleBaseUrl}/`);
   const proxyOptions = {
     method: req.method,
     headers: applyInternalModuleAuthorization(buildProxyHeaders(req)),
@@ -399,6 +405,7 @@ async function proxyCobrancasModule(req, res) {
     mountPath: "/cobrancas",
     internalEnvKeys: ["COBRANCAS_INTERNAL_URL", "BOT_COBRANCA_INTERNAL_URL"],
     externalEnvKeys: ["COBRANCAS_URL", "BOT_COBRANCA_URL"],
+    defaultExternalUrl: DEFAULT_COBRANCAS_URL,
     rewriteHtml: rewriteCobrancasHtml,
     notConfigured: {
       title: "Modulo de cobrancas nao configurado",
@@ -413,6 +420,7 @@ async function proxyExtratorModule(req, res) {
     mountPath: "/extrator",
     internalEnvKeys: ["EXTRATOR_INTERNAL_URL", "BOT_EXTRATOR_INTERNAL_URL"],
     externalEnvKeys: ["EXTRATOR_URL", "BOT_EXTRATOR_URL"],
+    defaultExternalUrl: DEFAULT_EXTRATOR_URL,
     rewriteHtml: rewriteExtratorHtml,
     notConfigured: {
       title: "Bot Extrator nao configurado",

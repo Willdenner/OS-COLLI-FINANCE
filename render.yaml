@@ -29,20 +29,14 @@ services:
       - key: LOVABLE_WEBHOOK_SECRET
         sync: false
       - key: COBRANCAS_URL
-        fromService:
-          name: bot-cobranca
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
+        value: https://bot-cobranca-25qf.onrender.com
       - key: COBRANCAS_INTERNAL_URL
         fromService:
           name: bot-cobranca
           type: web
           property: hostport
       - key: EXTRATOR_URL
-        fromService:
-          name: bot-extrator
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
+        value: https://bot-extrator.onrender.com
       - key: EXTRATOR_INTERNAL_URL
         fromService:
           name: bot-extrator
