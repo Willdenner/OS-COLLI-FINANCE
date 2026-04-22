@@ -32,9 +32,15 @@ services:
       - key: LOVABLE_WEBHOOK_SECRET
         sync: false
       - key: COBRANCAS_URL
-        sync: false
+        fromService:
+          name: bot-cobranca
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
       - key: EXTRATOR_URL
-        sync: false
+        fromService:
+          name: bot-extrator
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
 
   - type: web
     name: bot-extrator

@@ -255,17 +255,8 @@ function readFirstEnvValue(keys) {
   return "";
 }
 
-function buildRenderServiceUrl(req, serviceName) {
-  const host = String(req.get("host") || "").split(",")[0].trim().toLowerCase().split(":")[0];
-  if (!host.endsWith(".onrender.com")) return "";
-
-  const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim().toLowerCase();
-  const protocol = forwardedProto || "https";
-  return `${protocol}://${serviceName}.onrender.com`;
-}
-
-function resolveModuleUrl(req, envKeys, renderServiceName) {
-  return readFirstEnvValue(envKeys) || buildRenderServiceUrl(req, renderServiceName);
+function resolveModuleUrl(envKeys) {
+  return readFirstEnvValue(envKeys);
 }
 
 async function readContaAzulResponse(response) {
@@ -983,7 +974,7 @@ function sendAppPage(req, res) {
 app.get("/", sendHomePage);
 app.get("/fpa", sendAppPage);
 app.get("/cobrancas", (req, res) => {
-  const cobrancasUrl = resolveModuleUrl(req, ["COBRANCAS_URL", "BOT_COBRANCA_URL"], "bot-cobranca");
+  const cobrancasUrl = resolveModuleUrl(["COBRANCAS_URL", "BOT_COBRANCA_URL"]);
   if (cobrancasUrl) {
     res.redirect(302, cobrancasUrl);
     return;
@@ -1006,7 +997,7 @@ app.get("/cobrancas", (req, res) => {
   `);
 });
 app.get("/extrator", (req, res) => {
-  const extratorUrl = resolveModuleUrl(req, ["EXTRATOR_URL", "BOT_EXTRATOR_URL"], "bot-extrator");
+  const extratorUrl = resolveModuleUrl(["EXTRATOR_URL", "BOT_EXTRATOR_URL"]);
   if (extratorUrl) {
     res.redirect(302, extratorUrl);
     return;

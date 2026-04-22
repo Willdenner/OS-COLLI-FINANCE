@@ -23,14 +23,16 @@ test("servidor nao entrega a home estatica antes do Basic Auth", async () => {
 
 test("servidor resolve links dos modulos web pelo Render ou por variaveis", async () => {
   const server = await fs.readFile(path.join(__dirname, "..", "src", "server.js"), "utf8");
+  const renderYaml = await fs.readFile(path.join(__dirname, "..", "..", "..", "render.yaml"), "utf8");
 
-  assert.match(server, /function buildRenderServiceUrl/);
   assert.match(server, /COBRANCAS_URL/);
   assert.match(server, /BOT_COBRANCA_URL/);
-  assert.match(server, /bot-cobranca/);
   assert.match(server, /EXTRATOR_URL/);
   assert.match(server, /BOT_EXTRATOR_URL/);
-  assert.match(server, /bot-extrator/);
+  assert.doesNotMatch(server, /bot-cobranca\.onrender\.com/);
+  assert.doesNotMatch(server, /bot-extrator\.onrender\.com/);
+  assert.match(renderYaml, /key: COBRANCAS_URL[\s\S]*fromService:[\s\S]*name: bot-cobranca[\s\S]*envVarKey: RENDER_EXTERNAL_URL/);
+  assert.match(renderYaml, /key: EXTRATOR_URL[\s\S]*fromService:[\s\S]*name: bot-extrator[\s\S]*envVarKey: RENDER_EXTERNAL_URL/);
 });
 
 test("pagina FP&A nao usa aspas tipograficas em atributos HTML", async () => {
