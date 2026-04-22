@@ -6,7 +6,7 @@ services:
   - type: worker
     name: fpsa-agent
     runtime: docker
-    dockerfilePath: ./core/Dockerfile
+    dockerfilePath: core/Dockerfile
     dockerContext: .                     # Raiz — permite acessar shared/
     plan: starter
     envVars:
@@ -50,7 +50,7 @@ services:
   - type: worker
     name: bot-extrator
     runtime: docker
-    dockerfilePath: ./bots/extrator/Dockerfile
+    dockerfilePath: bots/extrator/Dockerfile
     dockerContext: .
     plan: starter
     envVars:
@@ -80,7 +80,7 @@ services:
   - type: web
     name: bot-cobranca
     runtime: docker
-    dockerfilePath: ./bots/cobranca/Dockerfile
+    dockerfilePath: bots/cobranca/Dockerfile
     dockerContext: .
     plan: starter
     envVars:
