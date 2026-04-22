@@ -1,7 +1,10 @@
 import asyncio
 import argparse
 import logging
+import os
+import shlex
 import sys
+from pathlib import Path
 
 from playwright.async_api import async_playwright
 from scraper.auth import login
@@ -17,6 +20,30 @@ logging.basicConfig(
 )
 logger = logging.getLogger("agente-finance")
 
+DEFAULT_CHROMIUM_ARGS = [
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--disable-extensions",
+    "--no-zygote",
+]
+
+
+def build_chromium_launch_options(headless: bool) -> dict:
+    """Build Playwright launch options for Render/container environments."""
+    options = {
+        "headless": headless,
+        "args": DEFAULT_CHROMIUM_ARGS + shlex.split(os.getenv("PLAYWRIGHT_CHROMIUM_ARGS", "")),
+    }
+    executable_path = (
+        os.getenv("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH")
+        or os.getenv("CHROMIUM_EXECUTABLE_PATH")
+        or ""
+    ).strip()
+    if executable_path:
+        options["executable_path"] = executable_path
+    return options
+
 
 async def run(headless: bool = True, skip_export: bool = False):
     """Fluxo principal do bot."""
@@ -31,7 +58,7 @@ async def run(headless: bool = True, skip_export: bool = False):
         sys.exit(1)
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=headless)
+        browser = await p.chromium.launch(**build_chromium_launch_options(headless))
         context = await browser.new_context(
             viewport={"width": 1920, "height": 1080},
             locale="pt-BR",
@@ -110,6 +137,7 @@ async def run(headless: bool = True, skip_export: bool = False):
         except Exception as e:
             logger.error(f"Erro durante execução: {e}", exc_info=True)
             # Salvar screenshot para debug
+            Path("screenshots").mkdir(parents=True, exist_ok=True)
             await page.screenshot(path="screenshots/error.png")
             logger.info("Screenshot de erro salvo em screenshots/error.png")
         finally:
