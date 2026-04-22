@@ -1,15 +1,37 @@
-FROM python:3.11-slim
+FROM node:20-slim
+
+ENV NODE_ENV=production \
+    PORT=3000 \
+    BOT_DATA_DIR=/app/data \
+    CHROME_EXECUTABLE_PATH=/usr/bin/chromium \
+    PUPPETEER_SKIP_DOWNLOAD=true \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-    gcc \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    chromium \
+    dumb-init \
+    fonts-liberation \
+  && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY package*.json .
 
-COPY . .
+RUN npm ci --omit=dev \
+  && npm cache clean --force
 
-CMD ["python", "main.py"]
+COPY src src
+COPY database database
+COPY README.md .
+COPY .env.example .
+
+RUN mkdir -p /app/data/uploads /app/data/.wwebjs_auth
+
+EXPOSE 3000
+
+VOLUME ["/app/data/uploads", "/app/data/.wwebjs_auth"]
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "src/server.js"]

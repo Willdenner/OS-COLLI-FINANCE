@@ -12,15 +12,15 @@ RUN apt-get update \
     dumb-init \
   && rm -rf /var/lib/apt/lists/*
 
-COPY package*.json ./
+COPY package*.json .
 
 RUN npm ci --omit=dev \
   && npm cache clean --force
 
-COPY src ./src
-COPY database ./database
-COPY README.md ./
-COPY .env.example ./
+COPY src src
+COPY database database
+COPY README.md .
+COPY .env.example .
 
 RUN mkdir -p /app/data
 
