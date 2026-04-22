@@ -40,6 +40,15 @@ test("servidor resolve links dos modulos web pelo Render ou por variaveis", asyn
   assert.match(renderYaml, /key: EXTRATOR_URL[\s\S]*fromService:[\s\S]*name: bot-extrator[\s\S]*envVarKey: RENDER_EXTERNAL_URL/);
 });
 
+test("Blueprint do Render compartilha Basic Auth gerado entre os servicos web", async () => {
+  const renderYaml = await fs.readFile(path.join(__dirname, "..", "..", "..", "render.yaml"), "utf8");
+
+  assert.match(renderYaml, /envVarGroups:[\s\S]*name: colli-admin-auth[\s\S]*key: ADMIN_USER[\s\S]*value: admin/);
+  assert.match(renderYaml, /envVarGroups:[\s\S]*name: colli-admin-auth[\s\S]*key: ADMIN_PASSWORD[\s\S]*generateValue: true/);
+  assert.equal((renderYaml.match(/fromGroup: colli-admin-auth/g) || []).length, 3);
+  assert.doesNotMatch(renderYaml, /key: ADMIN_PASSWORD\s*\n\s*sync: false/);
+});
+
 test("pagina FP&A nao usa aspas tipograficas em atributos HTML", async () => {
   const html = await fs.readFile(path.join(__dirname, "..", "src", "static", "fpa.html"), "utf8");
 

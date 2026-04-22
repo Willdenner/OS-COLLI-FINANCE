@@ -13,10 +13,7 @@ services:
         value: "10000"
       - key: NODE_ENV
         value: production
-      - key: ADMIN_USER
-        sync: false
-      - key: ADMIN_PASSWORD
-        sync: false
+      - fromGroup: colli-admin-auth
       - key: BOT_DATA_DIR
         value: /app/data
       - key: DATABASE_URL
@@ -59,10 +56,7 @@ services:
         value: bot-extrator
       - key: PORT
         value: "10000"
-      - key: ADMIN_USER
-        sync: false
-      - key: ADMIN_PASSWORD
-        sync: false
+      - fromGroup: colli-admin-auth
       - key: REDIS_URL
         fromService:
           name: colli-redis
@@ -105,10 +99,7 @@ services:
         value: "10000"
       - key: NODE_ENV
         value: production
-      - key: ADMIN_USER
-        sync: false
-      - key: ADMIN_PASSWORD
-        sync: false
+      - fromGroup: colli-admin-auth
       - key: BOT_DATA_DIR
         value: /app/data
       - key: REDIS_URL
@@ -128,6 +119,14 @@ services:
     plan: starter
     maxmemoryPolicy: allkeys-lru
     ipAllowList: []
+
+envVarGroups:
+  - name: colli-admin-auth
+    envVars:
+      - key: ADMIN_USER
+        value: admin
+      - key: ADMIN_PASSWORD
+        generateValue: true
 
 databases:
   - name: colli-postgres
