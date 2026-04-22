@@ -1,13 +1,13 @@
 services:
 
-  # ══════════════════════════════════════════════
-  # AGENTE FP&A — Orquestrador Central
-  # ══════════════════════════════════════════════
+  # ==============================================
+  # AGENTE FP&A - Orquestrador Central
+  # ==============================================
   - type: worker
     name: fpsa-agent
     runtime: docker
     dockerfilePath: core/Dockerfile
-    dockerContext: .                     # Raiz — permite acessar shared/
+    dockerContext: .
     plan: starter
     envVars:
       - key: SERVICE_NAME
@@ -44,9 +44,9 @@ services:
       - key: LOG_LEVEL
         value: INFO
 
-  # ══════════════════════════════════════════════
-  # BOT EXTRATOR — CRM V4 → Sheets → Sistema
-  # ══════════════════════════════════════════════
+  # ==============================================
+  # BOT EXTRATOR - CRM V4 -> Sheets -> Sistema
+  # ==============================================
   - type: worker
     name: bot-extrator
     runtime: docker
@@ -74,9 +74,9 @@ services:
       - key: LOG_LEVEL
         value: INFO
 
-  # ══════════════════════════════════════════════
-  # BOT COBRANÇA — WhatsApp + Régua
-  # ══════════════════════════════════════════════
+  # ==============================================
+  # BOT COBRANÇA - WhatsApp + Régua
+  # ==============================================
   - type: web
     name: bot-cobranca
     runtime: docker
@@ -108,9 +108,9 @@ services:
       - key: PORT
         value: "10000"                   # Porta padrão do Render
 
-  # ══════════════════════════════════════════════
-  # REDIS — Event Bus
-  # ══════════════════════════════════════════════
+  # ==============================================
+  # REDIS - Event Bus
+  # ==============================================
   - type: redis
     name: colli-redis
     plan: starter
@@ -118,9 +118,9 @@ services:
 
 databases:
 
-  # ══════════════════════════════════════════════
-  # POSTGRES — Banco de dados
-  # ══════════════════════════════════════════════
+  # ==============================================
+  # POSTGRES - Banco de dados
+  # ==============================================
   - name: colli-postgres
     plan: starter                        # 1GB, backups diários
     databaseName: colli_finance
