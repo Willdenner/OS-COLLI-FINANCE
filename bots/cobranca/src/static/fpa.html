@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>V4 · Analista FP&A</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Open+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      :root {
+        --brand: #16c784;
+        --brand-dark: #0ea56b;
+        --brand-soft: rgba(22, 199, 132, 0.12);
+        --brand-border: rgba(22, 199, 132, 0.25);
+        --accent: #3aa0ff;
+        --accent-soft: rgba(58, 160, 255, 0.12);
+        --danger: #ff5d5d;
+        --danger-soft: rgba(255, 93, 93, 0.12);
+        --warning: #ffb020;
+        --warning-soft: rgba(255, 176, 32, 0.12);
+        --bg: #101314;
+        --panel: #15191b;
+        --panel-2: #1b2022;
+        --panel-3: #21282b;
+        --border: #273034;
+        --text: #f3f5f7;
+        --muted: #9aa7ad;
+        --dim: #66747b;
+        --sidebar: 240px;
+        --radius: 6px;
+      }
+      html, body { min-height: 100%; background: var(--bg); color: var(--text); font-family: "Open Sans", sans-serif; }
+      body { display: flex; }
+      .sidebar {
+        width: var(--sidebar);
+        min-height: 100vh;
+        background: #0c0f10;
+        border-right: 1px solid var(--border);
+        padding: 24px 18px;
+        position: sticky;
+        top: 0;
+      }
+      .brand-title {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 32px;
+        letter-spacing: 1.5px;
+        line-height: 1;
+      }
+      .brand-title span { color: var(--brand); }
+      .brand-sub {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: 1.6px;
+        text-transform: uppercase;
+      }
+      .sidebar-block { margin-top: 32px; }
+      .sidebar-label {
+        color: var(--dim);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+      }
+      .sidebar-nav { display: flex; flex-direction: column; gap: 8px; }
+      .sidebar-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 12px;
+        border: 1px solid transparent;
+        border-radius: var(--radius);
+        color: var(--muted);
+        text-decoration: none;
+        transition: .16s ease;
+      }
+      .sidebar-link:hover, .sidebar-link.active {
+        color: var(--text);
+        background: var(--brand-soft);
+        border-color: var(--brand-border);
+      }
+      .sidebar-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--panel-2);
+        font-size: 14px;
+      }
+      .sidebar-note {
+        margin-top: 28px;
+        padding: 14px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.7;
+      }
+      .main {
+        flex: 1;
+        min-width: 0;
+      }
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 24px;
+        background: rgba(16, 19, 20, 0.92);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--border);
+      }
+      .topbar-title {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 24px;
+        letter-spacing: 1px;
+      }
+      .topbar-sub {
+        color: var(--dim);
+        font-size: 11px;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+      }
+      .page {
+        padding: 28px 28px 40px;
+      }
+      .page-header { margin-bottom: 24px; }
+      .page-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 38px;
+        letter-spacing: 1px;
+      }
+      .page-title-bar {
+        width: 4px;
+        height: 34px;
+        background: linear-gradient(180deg, var(--brand), var(--accent));
+      }
+      .page-desc { margin-left: 16px; margin-top: 6px; color: var(--muted); font-size: 13px; }
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 14px;
+        margin-bottom: 18px;
+      }
+      .kpi-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 18px;
+        position: relative;
+      }
+      .kpi-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--brand);
+      }
+      .kpi-card.danger::before { background: var(--danger); }
+      .kpi-card.warning::before { background: var(--warning); }
+      .kpi-card.accent::before { background: var(--accent); }
+      .kpi-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--dim);
+        margin-bottom: 10px;
+      }
+      .kpi-value {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 42px;
+        line-height: 1;
+      }
+      .kpi-value.brand { color: var(--brand); }
+      .kpi-value.danger { color: var(--danger); }
+      .kpi-value.warning { color: var(--warning); }
+      .kpi-sub { color: var(--muted); font-size: 11px; margin-top: 6px; }
+      .alert {
+        padding: 12px 16px;
+        border-radius: var(--radius);
+        border: 1px solid var(--brand-border);
+        background: var(--brand-soft);
+        color: var(--brand);
+        font-size: 12px;
+        line-height: 1.7;
+        margin-bottom: 18px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 2.1fr) minmax(320px, .9fr);
+        gap: 18px;
+      }
+      .stack { display: flex; flex-direction: column; gap: 18px; }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      .card-head {
+        padding: 14px 18px;
+        background: var(--panel-2);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .card-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 20px;
+        letter-spacing: .8px;
+      }
+      .card-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        background: linear-gradient(135deg, var(--brand), var(--accent));
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+      }
+      .card-body { padding: 18px; }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 9px 14px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text);
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .8px;
+        text-transform: uppercase;
+      }
+      .btn:hover { background: var(--panel-3); }
+      .btn:disabled { opacity: .45; cursor: not-allowed; }
+      .btn-primary {
+        background: var(--brand);
+        border-color: var(--brand);
+        color: #07100c;
+      }
+      .btn-primary:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
+      .btn-danger {
+        background: var(--danger-soft);
+        border-color: rgba(255, 93, 93, 0.28);
+        color: #ff9d9d;
+      }
+      .btn-danger:hover { background: rgba(255, 93, 93, 0.18); }
+      .form-grid { display: grid; gap: 14px; }
+      .g2 { grid-template-columns: 1fr 1fr; }
+      .field { display: flex; flex-direction: column; gap: 6px; }
+      .field-inline { display: flex; gap: 10px; align-items: stretch; }
+      .field-inline .field-select { flex: 1; }
+      .action-row { display: flex; gap: 8px; flex-wrap: wrap; }
+      .inline-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+      .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+      .field-label {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+      }
+      .field-input, .field-select, .field-textarea {
+        width: 100%;
+        padding: 11px 12px;
+        background: var(--panel-3);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--text);
+        font: inherit;
+      }
+      .field-textarea { min-height: 110px; resize: vertical; line-height: 1.7; }
+      .field-hint { color: var(--dim); font-size: 11px; line-height: 1.7; }
+      .filter-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .filter-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--panel-3);
+        color: var(--muted);
+        font: inherit;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .4px;
+        cursor: pointer;
+        transition: .16s ease;
+      }
+      .filter-chip:hover {
+        border-color: var(--brand-border);
+        color: var(--text);
+      }
+      .filter-chip.active {
+        background: var(--brand-soft);
+        border-color: var(--brand-border);
+        color: var(--brand);
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: var(--muted);
+        background: var(--panel-3);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .6px;
+      }
+      .metric-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .metric-box {
+        padding: 14px;
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+      }
+      .metric-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.3px;
+        text-transform: uppercase;
+        color: var(--dim);
+        margin-bottom: 8px;
+      }
+      .metric-value {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 30px;
+        line-height: 1;
+      }
+      .metric-sub { color: var(--muted); font-size: 11px; margin-top: 6px; }
+      .imports-list, .insights-list, .report-stack { display: flex; flex-direction: column; gap: 12px; }
+      .import-card, .insight-card, .report-box {
+        padding: 14px;
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+      }
+      .import-title, .report-box-title { font-weight: 700; color: var(--text); }
+      .import-meta { margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.7; }
+      .insight-card { border-left: 3px solid var(--brand); color: var(--muted); font-size: 12px; line-height: 1.7; }
+      .sep { height: 1px; background: var(--border); margin: 18px 0; }
+      .table-wrap { overflow-x: auto; }
+      .data-table { width: 100%; border-collapse: collapse; }
+      .data-table thead tr { border-bottom: 1px solid var(--border); }
+      .data-table th, .data-table td { padding: 11px 12px; text-align: left; }
+      .data-table th {
+        color: var(--dim);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.3px;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .data-table td {
+        color: var(--muted);
+        font-size: 12px;
+        border-bottom: 1px solid rgba(39, 48, 52, 0.7);
+        vertical-align: middle;
+      }
+      .data-table tr:last-child td { border-bottom: none; }
+      .data-table tr:hover td { background: rgba(255,255,255,0.015); color: var(--text); }
+      .toast {
+        position: fixed;
+        right: 22px;
+        bottom: 22px;
+        background: #0c0f10;
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 12px 16px;
+        border-radius: var(--radius);
+        opacity: 0;
+        transform: translateY(8px);
+        transition: .18s ease;
+        pointer-events: none;
+      }
+      .toast.show { opacity: 1; transform: translateY(0); }
+      .empty { color: var(--muted); font-size: 12px; line-height: 1.8; }
+      .hidden { display: none !important; }
+      @media (max-width: 1260px) {
+        .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .layout { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 960px) {
+        body { display: block; }
+        .sidebar { width: 100%; min-height: auto; position: static; }
+        .page { padding: 18px; }
+        .g2, .metric-grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="brand-title"><span>V4</span> FP&A</div>
+      <div class="brand-sub">Analista Financeiro</div>
+
+      <div class="sidebar-block">
+        <div class="sidebar-label">Visões</div>
+        <nav class="sidebar-nav">
+          <a class="sidebar-link active" href="#overview"><span class="sidebar-icon">◎</span> Visão Geral</a>
+          <a class="sidebar-link" href="#imports"><span class="sidebar-icon">↥</span> Imports</a>
+          <a class="sidebar-link" href="#reports"><span class="sidebar-icon">✦</span> Relatórios</a>
+          <a class="sidebar-link" href="#dre-plan"><span class="sidebar-icon">∑</span> Plano DRE</a>
+          <a class="sidebar-link" href="#transactions"><span class="sidebar-icon">≣</span> Lançamentos</a>
+        </nav>
+      </div>
+
+      <div class="sidebar-block">
+        <div class="sidebar-label">Apps</div>
+        <nav class="sidebar-nav">
+          <a class="sidebar-link" href="/cobrancas"><span class="sidebar-icon">↩</span> Ir para Cobrança</a>
+        </nav>
+      </div>
+
+      <div class="sidebar-note">
+        Esta visão é exclusiva do analista financeiro. Nada do WhatsApp aparece aqui, mas o backend pode continuar compartilhado.
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <div class="topbar-title">Analista FP&A</div>
+          <div class="topbar-sub">Extratos, caixa, DRE e leitura gerencial</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn" id="btn-open-cobrancas" type="button">Abrir Cobrança</button>
+          <button class="btn btn-primary" id="btn-sync" type="button">Sincronizar</button>
+        </div>
+      </div>
+
+      <div class="page">
+        <div class="page-header" id="overview">
+          <div class="page-title"><div class="page-title-bar"></div>Analista FP&A</div>
+          <div class="page-desc">Importe extratos bancários, consolide o caixa e gere relatórios gerenciais sem misturar a operação de cobrança.</div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi-card"><div class="kpi-label">Entradas</div><div class="kpi-value brand" id="fpa-kpi-inflows">R$ 0,00</div><div class="kpi-sub" id="fpa-kpi-inflows-sub">Período ainda vazio</div></div>
+          <div class="kpi-card danger"><div class="kpi-label">Saídas</div><div class="kpi-value danger" id="fpa-kpi-outflows">R$ 0,00</div><div class="kpi-sub" id="fpa-kpi-outflows-sub">Sem despesas mapeadas</div></div>
+          <div class="kpi-card accent"><div class="kpi-label">Saldo Líquido</div><div class="kpi-value" id="fpa-kpi-net">R$ 0,00</div><div class="kpi-sub" id="fpa-kpi-net-sub">Resultado do período</div></div>
+          <div class="kpi-card warning"><div class="kpi-label">Burn Médio</div><div class="kpi-value warning" id="fpa-kpi-burn">R$ 0,00</div><div class="kpi-sub" id="fpa-kpi-burn-sub">Queima média nos meses negativos</div></div>
+          <div class="kpi-card"><div class="kpi-label">Caixa Conhecido</div><div class="kpi-value" id="fpa-kpi-cash">R$ 0,00</div><div class="kpi-sub" id="fpa-kpi-cash-sub">Soma dos saldos mais recentes</div></div>
+        </div>
+
+        <div class="alert" id="fpa-overview-alert">
+          <span id="fpa-overview-alert-text">Importe um extrato para começar a leitura financeira do negócio.</span>
+        </div>
+
+        <div class="layout">
+          <div class="stack">
+            <section class="card" id="imports">
+              <div class="card-head">
+                <div class="card-title"><span class="card-icon">↥</span> Importar Extrato</div>
+                <button class="btn btn-primary" id="btn-import-statement" type="button">Importar</button>
+              </div>
+              <div class="card-body">
+                <div class="form-grid g2" style="margin-bottom:14px">
+                  <div class="field">
+                    <label class="field-label">Conta / Banco</label>
+                    <input class="field-input" id="fpa-account-name" type="text" placeholder="Ex.: Banco Inter · Conta Operacional" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Arquivo do Extrato</label>
+                    <input class="field-input" id="fpa-statement-file" type="file" accept=".csv,.ofx,.txt,text/csv,text/plain,application/x-ofx,application/ofx,application/octet-stream" />
+                  </div>
+                </div>
+                <div class="field-hint">Aceita CSV e OFX. A categorização inicial é automática e pode ser ajustada depois.</div>
+              </div>
+            </section>
+
+            <section class="card" id="reports">
+              <div class="card-head">
+                <div class="card-title"><span class="card-icon">✦</span> Pedido de Relatório</div>
+                <button class="btn btn-primary" id="btn-generate-fpa-report" type="button">Gerar Análise</button>
+              </div>
+              <div class="card-body">
+                <div class="form-grid g2" style="margin-bottom:14px">
+                  <div class="field">
+                    <label class="field-label">Conta para análise</label>
+                    <div class="field-inline">
+                      <select class="field-select" id="fpa-filter-account"></select>
+                      <button class="btn btn-danger" id="btn-delete-fpa-account" type="button">Excluir Conta</button>
+                    </div>
+                    <div class="field-hint">Apaga todos os lançamentos e imports vinculados a essa conta.</div>
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Meses específicos</label>
+                    <div class="filter-chip-row" id="fpa-filter-months"></div>
+                    <div class="field-hint">Selecione um ou mais meses. Sem seleção, o analista considera todo o histórico disponível.</div>
+                  </div>
+                </div>
+                <div class="form-grid g2" style="margin-bottom:14px">
+                  <div class="field">
+                    <label class="field-label">Data Inicial</label>
+                    <input class="field-input" id="fpa-report-from" type="date" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Data Final</label>
+                    <input class="field-input" id="fpa-report-to" type="date" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label class="field-label">O que você quer ver?</label>
+                  <textarea class="field-textarea" id="fpa-report-prompt" placeholder="Ex.: Quero um fluxo de caixa mensal, despesas por categoria e uma DRE caixa aproximada."></textarea>
+                </div>
+                <div class="field-hint" style="margin-top:10px">Você pode pedir fluxo de caixa, DRE, burn rate, receitas, despesas por categoria ou visão geral.</div>
+              </div>
+            </section>
+
+            <section class="card">
+              <div class="card-head">
+                <div class="card-title"><span class="card-icon">▣</span> Relatório Gerado</div>
+                <span class="pill" id="fpa-report-period">Sem período</span>
+              </div>
+              <div class="card-body">
+                <div class="report-box-title" id="fpa-report-title">Visão Geral de FP&A</div>
+                <div style="color:var(--muted);font-size:12px;line-height:1.7;margin-top:6px" id="fpa-report-summary">
+                  Assim que houver extratos importados, o sistema monta a leitura gerencial automaticamente.
+                </div>
+                <div class="sep"></div>
+                <div class="insights-list" id="fpa-insights"></div>
+                <div class="sep"></div>
+                <div class="report-stack" id="fpa-report-sections"></div>
+              </div>
+            </section>
+          </div>
+
+          <div class="stack">
+            <section class="card">
+              <div class="card-head">
+                <div class="card-title"><span class="card-icon">◎</span> Métricas-Chave</div>
+              </div>
+              <div class="card-body">
+                <div class="metric-grid">
+                  <div class="metric-box">
+                    <div class="metric-label">Lançamentos</div>
+                    <div class="metric-value" id="fpa-metric-transactions">0</div>
+                    <div class="metric-sub" id="fpa-metric-transactions-sub">Sem movimento importado</div>
+                  </div>
+                  <div class="metric-box">
+                    <div class="metric-label">Transferências Internas</div>
+                    <div class="metric-value" id="fpa-metric-transfers">0</div>
+                    <div class="metric-sub">Excluídas da DRE caixa</div>
+                  </div>
+                  <div class="metric-box">
+                    <div class="metric-label">Período</div>
+                    <div class="metric-value" id="fpa-metric-period">—</div>
+                    <div class="metric-sub">Recorte atual da análise</div>
+                  </div>
+                  <div class="metric-box">
+                    <div class="metric-label">Contas com Saldo</div>
+                    <div class="metric-value" id="fpa-metric-accounts">0</div>
+                    <div class="metric-sub">Último saldo conhecido</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="card">
+              <div class="card-head">
+                <div class="card-title"><span class="card-icon">⌘</span> Imports Recentes</div>
+              </div>
+              <div class="card-body">
+                <div class="imports-list" id="fpa-imports-list"></div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <section class="card" style="margin-top:18px" id="dre-plan">
+          <div class="card-head">
+            <div class="card-title"><span class="card-icon">∑</span> Plano de Contas DRE</div>
+            <div class="inline-tools">
+              <button class="btn" id="btn-seed-dre-accounts" type="button">Criar Estrutura Base</button>
+              <button class="btn" id="btn-reset-dre-form" type="button">Limpar Formulário</button>
+              <button class="btn btn-primary" id="btn-save-dre-account" type="button">Salvar Conta DRE</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="layout">
+              <div class="stack">
+                <div class="inline-tools" style="justify-content:space-between">
+                  <div class="report-box-title">Cadastro da conta DRE</div>
+                  <span class="pill" id="fpa-dre-form-mode">Nova conta</span>
+                </div>
+
+                <div class="form-grid g2">
+                  <div class="field">
+                    <label class="field-label">Nome da conta DRE</label>
+                    <input class="field-input" id="fpa-dre-name" type="text" placeholder="Ex.: Receita de Serviços" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Tipo</label>
+                    <select class="field-select" id="fpa-dre-type"></select>
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Ordem de exibição</label>
+                    <input class="field-input" id="fpa-dre-order" type="number" min="0" step="10" placeholder="10" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Observações</label>
+                    <input class="field-input" id="fpa-dre-notes" type="text" placeholder="Ex.: Linha usada para receitas recorrentes" />
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label class="field-label">Categorias financeiras vinculadas</label>
+                  <div class="filter-chip-row" id="fpa-dre-category-picker"></div>
+                  <div class="field-hint">Cada categoria pode pertencer a apenas uma conta DRE para manter a conciliação sem dupla contagem.</div>
+                </div>
+              </div>
+
+              <div class="stack">
+                <div class="metric-grid">
+                  <div class="metric-box">
+                    <div class="metric-label">Contas DRE</div>
+                    <div class="metric-value" id="fpa-dre-metric-accounts">0</div>
+                    <div class="metric-sub">Linhas cadastradas no plano</div>
+                  </div>
+                  <div class="metric-box">
+                    <div class="metric-label">Categorias Mapeadas</div>
+                    <div class="metric-value" id="fpa-dre-metric-mapped">0</div>
+                    <div class="metric-sub">Conciliadas no DRE</div>
+                  </div>
+                  <div class="metric-box">
+                    <div class="metric-label">Não Mapeadas</div>
+                    <div class="metric-value" id="fpa-dre-metric-unmapped">0</div>
+                    <div class="metric-sub">Precisam de destino</div>
+                  </div>
+                  <div class="metric-box">
+                    <div class="metric-label">Modelo</div>
+                    <div class="metric-value" id="fpa-dre-metric-model">Padrão</div>
+                    <div class="metric-sub">Como a DRE está sendo montada</div>
+                  </div>
+                </div>
+
+                <div class="report-box">
+                  <div class="report-box-title">Conciliação do DRE</div>
+                  <div style="color:var(--muted);font-size:12px;line-height:1.7;margin-top:8px" id="fpa-dre-summary">
+                    O sistema ainda está usando o modelo padrão baseado nas categorias atuais.
+                  </div>
+                  <div class="pill-row" id="fpa-dre-unmapped-list"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sep"></div>
+            <div class="imports-list" id="fpa-dre-accounts-list"></div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top:18px" id="transactions">
+          <div class="card-head">
+            <div class="card-title"><span class="card-icon">≣</span> Lançamentos Financeiros</div>
+            <div class="inline-tools">
+              <button class="btn btn-primary" id="btn-save-fpa-transactions" type="button">Salvar Alterações</button>
+              <button class="btn" id="btn-refresh-fpa" type="button">Atualizar FP&A</button>
+            </div>
+          </div>
+          <div class="card-body" style="padding:0">
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr><th>Data</th><th>Conta</th><th>Histórico</th><th>Categoria</th><th>Valor</th><th>Ação</th></tr>
+                </thead>
+                <tbody id="fpa-transactions-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      const state = {
+        fpa: {
+          categories: [],
+          imports: [],
+          overview: null,
+          report: null,
+          transactions: [],
+          dreAccounts: [],
+          dreSuggestions: [],
+          dreTypeOptions: [
+            { value: "income", label: "Receita" },
+            { value: "expense", label: "Despesa" },
+            { value: "other", label: "Ajuste / Outro" },
+          ],
+          dreReconciliation: null,
+          dreForm: {
+            id: null,
+            name: "",
+            type: "expense",
+            orderIndex: "",
+            categories: [],
+            notes: "",
+          },
+          categoryDrafts: {},
+          savingCategoryIds: [],
+          prompt: "Quero uma visão geral do caixa, despesas por categoria e uma DRE caixa aproximada.",
+          selectedAccount: "",
+          selectedMonths: [],
+          availableAccounts: [],
+          availableMonths: [],
+          from: "",
+          to: "",
+        },
+      };
+
+      const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+      const integerFormat = new Intl.NumberFormat("pt-BR");
+
+      function el(id) {
+        return document.getElementById(id);
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function toast(message) {
+        const node = el("toast");
+        node.textContent = message;
+        node.classList.add("show");
+        clearTimeout(window.__toastTimer);
+        window.__toastTimer = setTimeout(() => node.classList.remove("show"), 2600);
+      }
+
+      async function api(path, options) {
+        const response = await fetch(path, options);
+        const json = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(json.error || "Falha na API");
+        return json;
+      }
+
+      function formatMoney(valueCents) {
+        return currency.format((Number(valueCents) || 0) / 100);
+      }
+
+      function formatInteger(value) {
+        return integerFormat.format(Number(value) || 0);
+      }
+
+      function formatDateTime(value) {
+        if (!value) return "—";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return "—";
+        return date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+      }
+
+      function formatShortDate(value) {
+        if (!value) return "—";
+        const date = new Date(`${value}T00:00:00`);
+        if (Number.isNaN(date.getTime())) return value;
+        return date.toLocaleDateString("pt-BR");
+      }
+
+      function buildQueryString(params) {
+        const search = new URLSearchParams();
+        Object.entries(params || {}).forEach(([key, value]) => {
+          if (value == null || value === "") return;
+          if (Array.isArray(value)) {
+            if (!value.length) return;
+            search.set(key, value.join(","));
+            return;
+          }
+          search.set(key, value);
+        });
+        const query = search.toString();
+        return query ? `?${query}` : "";
+      }
+
+      function readFiles(inputId) {
+        return Array.from(el(inputId)?.files || []);
+      }
+
+      function createDefaultDreForm() {
+        return {
+          id: null,
+          name: "",
+          type: "expense",
+          orderIndex: "",
+          categories: [],
+          notes: "",
+        };
+      }
+
+      function resetDreFormState() {
+        state.fpa.dreForm = createDefaultDreForm();
+      }
+
+      function getDreTypeLabel(type) {
+        return (state.fpa.dreTypeOptions || []).find((entry) => entry.value === type)?.label || "Despesa";
+      }
+
+      function getTransactionCategoryValue(transaction) {
+        if (
+          transaction?.id &&
+          Object.prototype.hasOwnProperty.call(state.fpa.categoryDrafts || {}, transaction.id)
+        ) {
+          return state.fpa.categoryDrafts[transaction.id];
+        }
+        return transaction?.category || "";
+      }
+
+      function reconcileTransactionCategoryDrafts(nextTransactions) {
+        const nextDrafts = { ...(state.fpa.categoryDrafts || {}) };
+        const transactionsById = new Map((Array.isArray(nextTransactions) ? nextTransactions : []).map((entry) => [entry.id, entry]));
+
+        Object.keys(nextDrafts).forEach((transactionId) => {
+          const transaction = transactionsById.get(transactionId);
+          if (!transaction) {
+            delete nextDrafts[transactionId];
+            return;
+          }
+
+          if (nextDrafts[transactionId] === transaction.category) {
+            delete nextDrafts[transactionId];
+          }
+        });
+
+        state.fpa.categoryDrafts = nextDrafts;
+      }
+
+      function getPendingTransactionCategoryChanges(transactionIds = null) {
+        const scopedIds = Array.isArray(transactionIds) ? new Set(transactionIds) : null;
+        return (state.fpa.transactions || [])
+          .filter((transaction) => !scopedIds || scopedIds.has(transaction.id))
+          .map((transaction) => ({
+            id: transaction.id,
+            category: getTransactionCategoryValue(transaction),
+            originalCategory: transaction.category,
+          }))
+          .filter((entry) => entry.category && entry.category !== entry.originalCategory)
+          .map((entry) => ({
+            id: entry.id,
+            category: entry.category,
+            isInternalTransfer: entry.category === "Transferências Internas",
+          }));
+      }
+
+      function renderDrePlan() {
+        const form = state.fpa.dreForm || createDefaultDreForm();
+        const dreAccounts = Array.isArray(state.fpa.dreAccounts) ? state.fpa.dreAccounts : [];
+        const reconciliation = state.fpa.dreReconciliation || {
+          accountsCount: 0,
+          mappedCategoriesCount: 0,
+          unmappedCategoriesCount: 0,
+          unmappedCategories: [],
+        };
+
+        el("fpa-dre-name").value = form.name || "";
+        el("fpa-dre-order").value = form.orderIndex === "" || form.orderIndex == null ? "" : String(form.orderIndex);
+        el("fpa-dre-notes").value = form.notes || "";
+        el("fpa-dre-form-mode").textContent = form.id ? "Editando conta" : "Nova conta";
+        el("btn-save-dre-account").textContent = form.id ? "Atualizar Conta DRE" : "Salvar Conta DRE";
+        el("btn-seed-dre-accounts").disabled = dreAccounts.length > 0 || !(state.fpa.dreSuggestions || []).length;
+
+        const typeSelect = el("fpa-dre-type");
+        typeSelect.innerHTML = (state.fpa.dreTypeOptions || [])
+          .map(
+            (entry) =>
+              `<option value="${escapeHtml(entry.value)}" ${entry.value === form.type ? "selected" : ""}>${escapeHtml(entry.label)}</option>`
+          )
+          .join("");
+
+        const pickerCategories = Array.from(
+          new Set([...(state.fpa.categories || []), ...(form.categories || [])].filter((category) => category !== "Transferências Internas"))
+        );
+        const selectedCategories = new Set(form.categories || []);
+        const picker = el("fpa-dre-category-picker");
+        picker.innerHTML = pickerCategories.length
+          ? pickerCategories
+              .map(
+                (category) =>
+                  `<button class="filter-chip ${selectedCategories.has(category) ? "active" : ""}" type="button" data-fpa-dre-category="${escapeHtml(category)}">${escapeHtml(category)}</button>`
+              )
+              .join("")
+          : `<div class="empty">As categorias vão aparecer aqui assim que houver movimentações ou categorias cadastradas.</div>`;
+
+        picker.querySelectorAll("[data-fpa-dre-category]").forEach((button) =>
+          button.addEventListener("click", () => {
+            const category = button.dataset.fpaDreCategory;
+            const nextSelected = new Set(state.fpa.dreForm.categories || []);
+            if (nextSelected.has(category)) {
+              nextSelected.delete(category);
+            } else {
+              nextSelected.add(category);
+            }
+            state.fpa.dreForm.categories = Array.from(nextSelected).sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
+            renderDrePlan();
+          })
+        );
+
+        el("fpa-dre-metric-accounts").textContent = formatInteger(reconciliation.accountsCount);
+        el("fpa-dre-metric-mapped").textContent = formatInteger(reconciliation.mappedCategoriesCount);
+        el("fpa-dre-metric-unmapped").textContent = formatInteger(reconciliation.unmappedCategoriesCount);
+        el("fpa-dre-metric-model").textContent = dreAccounts.length ? "Customizado" : "Padrão";
+        el("fpa-dre-summary").textContent = dreAccounts.length
+          ? reconciliation.unmappedCategoriesCount
+            ? `O plano DRE já está ativo, mas ainda faltam ${reconciliation.unmappedCategoriesCount} categoria(s) para fechar a conciliação.`
+            : "O plano DRE está ativo e todas as categorias atuais já possuem destino de conciliação."
+          : "O sistema ainda está usando o modelo padrão baseado nas categorias atuais. Você pode cadastrar seu próprio plano ou criar a estrutura base.";
+
+        el("fpa-dre-unmapped-list").innerHTML = reconciliation.unmappedCategoriesCount
+          ? reconciliation.unmappedCategories.map((category) => `<span class="pill">${escapeHtml(category)}</span>`).join("")
+          : `<span class="pill">${dreAccounts.length ? "Conciliação completa" : "Sem plano customizado"}</span>`;
+
+        el("fpa-dre-accounts-list").innerHTML = dreAccounts.length
+          ? dreAccounts
+              .map(
+                (account) => `
+                  <div class="report-box">
+                    <div style="display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap">
+                      <div>
+                        <div class="report-box-title">${escapeHtml(account.name)}</div>
+                        <div class="import-meta">
+                          Tipo: ${escapeHtml(getDreTypeLabel(account.type))} · Ordem ${escapeHtml(String(account.orderIndex ?? 0))}<br>
+                          ${(account.categories || []).length} categoria(s) vinculada(s)
+                        </div>
+                        <div class="pill-row">
+                          ${(account.categories || []).map((category) => `<span class="pill">${escapeHtml(category)}</span>`).join("")}
+                        </div>
+                        ${account.notes ? `<div style="color:var(--muted);font-size:12px;line-height:1.7;margin-top:10px">${escapeHtml(account.notes)}</div>` : ""}
+                      </div>
+                      <div class="action-row">
+                        <button class="btn" data-edit-dre-account="${escapeHtml(account.id)}" type="button">Editar</button>
+                        <button class="btn btn-danger" data-delete-dre-account="${escapeHtml(account.id)}" type="button">Excluir</button>
+                      </div>
+                    </div>
+                  </div>
+                `
+              )
+              .join("")
+          : `<div class="report-box"><div class="report-box-title">Nenhuma conta DRE cadastrada</div><div style="color:var(--muted);font-size:12px;line-height:1.7;margin-top:8px">Crie sua estrutura manualmente ou use "Criar Estrutura Base" para começar a partir das categorias financeiras que já existem hoje.</div></div>`;
+
+        el("fpa-dre-accounts-list").querySelectorAll("[data-edit-dre-account]").forEach((button) =>
+          button.addEventListener("click", () => {
+            const account = dreAccounts.find((entry) => entry.id === button.dataset.editDreAccount);
+            if (!account) return;
+            state.fpa.dreForm = {
+              id: account.id,
+              name: account.name || "",
+              type: account.type || "expense",
+              orderIndex: account.orderIndex ?? "",
+              categories: Array.isArray(account.categories) ? account.categories.slice() : [],
+              notes: account.notes || "",
+            };
+            renderDrePlan();
+            window.location.hash = "#dre-plan";
+          })
+        );
+
+        el("fpa-dre-accounts-list").querySelectorAll("[data-delete-dre-account]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            const accountId = button.dataset.deleteDreAccount;
+            const account = dreAccounts.find((entry) => entry.id === accountId);
+            if (!account) return;
+            const confirmed = window.confirm(
+              `Excluir a conta DRE "${account.name}"? As categorias dela voltarão a ficar sem conciliação.`
+            );
+            if (!confirmed) return;
+
+            button.disabled = true;
+            try {
+              await api(`/api/fpa/dre-accounts/${accountId}`, { method: "DELETE" });
+              if (state.fpa.dreForm.id === accountId) resetDreFormState();
+              await refreshFpa();
+              toast("Conta DRE excluída.");
+            } catch (error) {
+              toast(error.message);
+            } finally {
+              button.disabled = false;
+            }
+          })
+        );
+      }
+
+      function syncDreFormFromInputs() {
+        state.fpa.dreForm.name = el("fpa-dre-name").value.trim();
+        state.fpa.dreForm.type = el("fpa-dre-type").value || "expense";
+        state.fpa.dreForm.orderIndex = el("fpa-dre-order").value === "" ? "" : Number(el("fpa-dre-order").value);
+        state.fpa.dreForm.notes = el("fpa-dre-notes").value.trim();
+      }
+
+      async function saveDreAccount() {
+        syncDreFormFromInputs();
+        const form = state.fpa.dreForm;
+
+        if (!form.name) {
+          toast("Informe o nome da conta DRE.");
+          return;
+        }
+        if (!Array.isArray(form.categories) || !form.categories.length) {
+          toast("Selecione pelo menos uma categoria financeira para conciliar.");
+          return;
+        }
+
+        const payload = {
+          name: form.name,
+          type: form.type,
+          orderIndex: form.orderIndex === "" ? null : Number(form.orderIndex),
+          categories: form.categories,
+          notes: form.notes,
+        };
+
+        if (form.id) {
+          await api(`/api/fpa/dre-accounts/${form.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          toast("Conta DRE atualizada.");
+        } else {
+          await api("/api/fpa/dre-accounts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          toast("Conta DRE criada.");
+        }
+
+        resetDreFormState();
+        await refreshFpa();
+      }
+
+      async function seedDreAccounts() {
+        if (state.fpa.dreAccounts.length) {
+          toast("O plano DRE já possui contas cadastradas.");
+          return;
+        }
+
+        const confirmed = window.confirm(
+          "Criar uma estrutura inicial do DRE com base nas categorias financeiras que já existem hoje?"
+        );
+        if (!confirmed) return;
+
+        const result = await api("/api/fpa/dre-accounts/seed", {
+          method: "POST",
+        });
+        resetDreFormState();
+        await refreshFpa();
+        toast(`${result.createdCount} conta(s) DRE criada(s) na estrutura inicial.`);
+      }
+
+      function renderSection(section) {
+        const rows = Array.isArray(section?.rows) ? section.rows : [];
+        const columns = Array.isArray(section?.columns) ? section.columns : [];
+        if (!rows.length || !columns.length) {
+          return `
+            <div class="report-box">
+              <div class="report-box-title">${escapeHtml(section?.title || "Seção")}</div>
+              <div style="color:var(--muted);font-size:12px;line-height:1.7;margin-top:8px">Sem dados suficientes para esta visão.</div>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="report-box">
+            <div class="report-box-title">${escapeHtml(section.title || "Seção")}</div>
+            <div class="table-wrap" style="margin-top:10px">
+              <table class="data-table">
+                <thead>
+                  <tr>${columns.map((column) => `<th>${escapeHtml(column.label || column.key)}</th>`).join("")}</tr>
+                </thead>
+                <tbody>
+                  ${rows
+                    .map(
+                      (row) => `
+                        <tr>
+                          ${columns
+                            .map((column) => {
+                              const value = row?.[column.key];
+                              if (column.type === "currency") return `<td>${escapeHtml(formatMoney(value))}</td>`;
+                              if (column.type === "number") return `<td>${escapeHtml(formatInteger(value))}</td>`;
+                              return `<td>${escapeHtml(value ?? "—")}</td>`;
+                            })
+                            .join("")}
+                        </tr>
+                      `
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+
+      function monthLabelFromValue(value) {
+        const [year, month] = String(value || "").split("-");
+        if (!year || !month) return value || "Mês";
+        return `${month}/${year}`;
+      }
+
+      function joinLabels(labels) {
+        if (!Array.isArray(labels) || !labels.length) return "";
+        if (labels.length === 1) return labels[0];
+        if (labels.length === 2) return `${labels[0]} e ${labels[1]}`;
+        return `${labels.slice(0, -1).join(", ")} e ${labels.at(-1)}`;
+      }
+
+      function buildFpaEmptyMessage() {
+        const hasImportedData = Boolean((state.fpa.availableAccounts || []).length || (state.fpa.availableMonths || []).length);
+        if (!hasImportedData) {
+          return "Importe um extrato para começar a leitura financeira do negócio.";
+        }
+
+        const parts = [];
+        if (state.fpa.selectedAccount) {
+          parts.push(`a conta "${state.fpa.selectedAccount}"`);
+        }
+
+        const monthMap = new Map((state.fpa.availableMonths || []).map((entry) => [entry.value, entry.label]));
+        const selectedMonthLabels = (state.fpa.selectedMonths || []).map((value) => monthMap.get(value) || monthLabelFromValue(value));
+        if (selectedMonthLabels.length === 1) {
+          parts.push(`o mês ${selectedMonthLabels[0]}`);
+        } else if (selectedMonthLabels.length > 1) {
+          parts.push(`os meses ${joinLabels(selectedMonthLabels)}`);
+        }
+
+        if (state.fpa.from && state.fpa.to) {
+          parts.push(`o período de ${formatShortDate(state.fpa.from)} a ${formatShortDate(state.fpa.to)}`);
+        } else if (state.fpa.from) {
+          parts.push(`as datas a partir de ${formatShortDate(state.fpa.from)}`);
+        } else if (state.fpa.to) {
+          parts.push(`as datas até ${formatShortDate(state.fpa.to)}`);
+        }
+
+        if (!parts.length) {
+          return "Nenhum lançamento foi encontrado para os filtros selecionados.";
+        }
+
+        return `Nenhum lançamento foi encontrado para ${joinLabels(parts)}.`;
+      }
+
+      function renderAccountFilter() {
+        const select = el("fpa-filter-account");
+        const options = Array.from(new Set(["", ...(state.fpa.availableAccounts || []), state.fpa.selectedAccount || ""]));
+        select.innerHTML = options
+          .filter((value, index, items) => items.indexOf(value) === index)
+          .map((value) =>
+            `<option value="${escapeHtml(value)}" ${value === state.fpa.selectedAccount ? "selected" : ""}>${escapeHtml(value || "Todas as contas")}</option>`
+          )
+          .join("");
+
+        const deleteButton = el("btn-delete-fpa-account");
+        deleteButton.disabled = !state.fpa.selectedAccount;
+        deleteButton.textContent = state.fpa.selectedAccount ? "Excluir Conta" : "Selecione uma conta";
+      }
+
+      function renderMonthFilters() {
+        const container = el("fpa-filter-months");
+        const selected = new Set(state.fpa.selectedMonths || []);
+        const knownMonths = [...(state.fpa.availableMonths || [])];
+
+        (state.fpa.selectedMonths || []).forEach((value) => {
+          if (knownMonths.some((entry) => entry.value === value)) return;
+          knownMonths.push({ value, label: monthLabelFromValue(value) });
+        });
+
+        if (!knownMonths.length) {
+          container.innerHTML = `<button class="filter-chip active" type="button" data-clear-fpa-months="true">Todos os meses</button>`;
+        } else {
+          container.innerHTML = [
+            `<button class="filter-chip ${selected.size ? "" : "active"}" type="button" data-clear-fpa-months="true">Todos os meses</button>`,
+            ...knownMonths.map(
+              (entry) =>
+                `<button class="filter-chip ${selected.has(entry.value) ? "active" : ""}" type="button" data-fpa-month="${escapeHtml(entry.value)}">${escapeHtml(entry.label)}</button>`
+            ),
+          ].join("");
+        }
+
+        container.querySelectorAll("[data-clear-fpa-months]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            state.fpa.selectedMonths = [];
+            await refreshFpa();
+          })
+        );
+
+        container.querySelectorAll("[data-fpa-month]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            const value = button.dataset.fpaMonth;
+            const selectedMonths = new Set(state.fpa.selectedMonths || []);
+            if (selectedMonths.has(value)) {
+              selectedMonths.delete(value);
+            } else {
+              selectedMonths.add(value);
+            }
+            state.fpa.selectedMonths = Array.from(selectedMonths).sort();
+            await refreshFpa();
+          })
+        );
+      }
+
+      function renderFpa() {
+        const overview = state.fpa.overview || {
+          period: { label: "Sem período" },
+          insights: [],
+          expenseBreakdown: [],
+        };
+        const report = state.fpa.report || {
+          title: "Visão Geral de FP&A",
+          summaryText: "Assim que houver extratos importados, o sistema monta a leitura gerencial automaticamente.",
+          sections: [],
+          insights: [],
+        };
+        const hasOverviewData = Number(overview.transactionsCount || 0) > 0;
+        const emptyMessage = buildFpaEmptyMessage();
+
+        el("fpa-report-from").value = state.fpa.from || "";
+        el("fpa-report-to").value = state.fpa.to || "";
+        el("fpa-report-prompt").value = state.fpa.prompt || "";
+        renderAccountFilter();
+        renderMonthFilters();
+        renderDrePlan();
+
+        const pendingCategoryChanges = getPendingTransactionCategoryChanges();
+        const bulkSaveButton = el("btn-save-fpa-transactions");
+        const isSavingAnyCategory = (state.fpa.savingCategoryIds || []).length > 0;
+        bulkSaveButton.disabled = !pendingCategoryChanges.length || isSavingAnyCategory;
+        bulkSaveButton.textContent = isSavingAnyCategory
+          ? "Salvando..."
+          : pendingCategoryChanges.length
+            ? `Salvar ${formatInteger(pendingCategoryChanges.length)} Alteração(ões)`
+            : "Salvar Alterações";
+
+        el("fpa-imports-list").innerHTML = state.fpa.imports.length
+          ? state.fpa.imports
+              .map(
+                (entry) => `
+                  <div class="import-card">
+                    <div class="import-title">${escapeHtml(entry.accountName || entry.originalFilename || "Extrato")}</div>
+                    <div class="import-meta">
+                      ${escapeHtml(entry.originalFilename || "extrato")} · ${escapeHtml((entry.sourceType || "").toUpperCase())}<br>
+                      Importado em ${escapeHtml(formatDateTime(entry.importedAt))}<br>
+                      ${escapeHtml(String(entry.importedCount || 0))} lançamento(s) novos · ${escapeHtml(String(entry.duplicateCount || 0))} duplicado(s)
+                    </div>
+                  </div>
+                `
+              )
+              .join("")
+          : `<div class="import-card"><div class="import-title">Nenhum extrato importado</div><div class="import-meta">Os arquivos CSV e OFX enviados passam a alimentar os relatórios automaticamente.</div></div>`;
+
+        if (!hasOverviewData) {
+          el("fpa-kpi-inflows").textContent = "—";
+          el("fpa-kpi-inflows-sub").textContent = "Sem entradas no recorte atual";
+          el("fpa-kpi-outflows").textContent = "—";
+          el("fpa-kpi-outflows-sub").textContent = "Sem saídas no recorte atual";
+          el("fpa-kpi-net").textContent = "—";
+          el("fpa-kpi-net").style.color = "var(--text)";
+          el("fpa-kpi-net-sub").textContent = "Sem saldo calculado";
+          el("fpa-kpi-burn").textContent = "—";
+          el("fpa-kpi-burn-sub").textContent = "Sem burn para o recorte";
+          el("fpa-kpi-cash").textContent = "—";
+          el("fpa-kpi-cash-sub").textContent = "Sem saldo disponível";
+          el("fpa-overview-alert-text").textContent = emptyMessage;
+          el("fpa-metric-transactions").textContent = "—";
+          el("fpa-metric-transactions-sub").textContent = "Nenhum lançamento entrou na análise";
+          el("fpa-metric-transfers").textContent = "—";
+          el("fpa-metric-period").textContent = "—";
+          el("fpa-metric-accounts").textContent = "—";
+          el("fpa-report-period").textContent = "Sem dados";
+          el("fpa-report-title").textContent = "Nenhum lançamento encontrado";
+          el("fpa-report-summary").textContent = emptyMessage;
+          el("fpa-insights").innerHTML = `<div class="insight-card">${escapeHtml(emptyMessage)}</div>`;
+          el("fpa-report-sections").innerHTML =
+            `<div class="report-box"><div class="report-box-title">Sem dados para analisar</div><div style="color:var(--muted);font-size:12px;line-height:1.7;margin-top:8px">${escapeHtml(emptyMessage)}</div></div>`;
+          el("fpa-transactions-body").innerHTML = `<tr><td colspan="6"><div class="empty">${escapeHtml(emptyMessage)}</div></td></tr>`;
+          return;
+        }
+
+        el("fpa-kpi-inflows").textContent = formatMoney(overview.inflowsCents);
+        el("fpa-kpi-inflows-sub").textContent = `${formatInteger(overview.reportableTransactionsCount || 0)} lançamento(s) considerados`;
+        el("fpa-kpi-outflows").textContent = formatMoney(overview.outflowsCents);
+        el("fpa-kpi-outflows-sub").textContent = overview.expenseBreakdown?.[0]
+          ? `Maior categoria: ${overview.expenseBreakdown[0].category}`
+          : "Sem despesas mapeadas";
+        el("fpa-kpi-net").textContent = formatMoney(overview.netCashCents);
+        el("fpa-kpi-net").style.color =
+          overview.netCashCents < 0 ? "var(--danger)" : overview.netCashCents > 0 ? "var(--brand)" : "var(--text)";
+        el("fpa-kpi-net-sub").textContent = overview.period?.label || "Resultado do período";
+        el("fpa-kpi-burn").textContent = formatMoney(overview.averageMonthlyBurnCents);
+        el("fpa-kpi-cash").textContent = formatMoney(overview.latestKnownCashCents);
+        el("fpa-kpi-cash-sub").textContent = overview.accountsWithBalance
+          ? `${formatInteger(overview.accountsWithBalance)} conta(s) com saldo`
+          : "Sem saldo disponível no extrato";
+
+        el("fpa-overview-alert-text").textContent =
+          overview.insights?.[0] || "Importe um extrato para começar a leitura financeira do negócio.";
+        el("fpa-metric-transactions").textContent = formatInteger(overview.transactionsCount);
+        el("fpa-metric-transactions-sub").textContent = overview.transactionsCount
+          ? `${formatInteger(overview.reportableTransactionsCount || 0)} lançamento(s) entraram nos relatórios`
+          : "Sem movimento importado";
+        el("fpa-metric-transfers").textContent = formatInteger(overview.internalTransfersCount);
+        el("fpa-metric-period").textContent =
+          overview.period?.from && overview.period?.to ? `${overview.period.from.slice(5, 7)}/${overview.period.from.slice(0, 4)}` : "—";
+        el("fpa-metric-accounts").textContent = formatInteger(overview.accountsWithBalance);
+        el("fpa-report-period").textContent = overview.period?.label || "Sem período";
+        el("fpa-report-title").textContent = report.title || "Visão Geral de FP&A";
+        el("fpa-report-summary").textContent = report.summaryText || "";
+
+        const insightItems = Array.isArray(report.insights) && report.insights.length ? report.insights : overview.insights || [];
+        el("fpa-insights").innerHTML = insightItems.length
+          ? insightItems.map((item) => `<div class="insight-card">${escapeHtml(item)}</div>`).join("")
+          : `<div class="insight-card">Sem insights ainda. Importe extratos para o analista montar a leitura financeira.</div>`;
+
+        el("fpa-report-sections").innerHTML = Array.isArray(report.sections) && report.sections.length
+          ? report.sections.map(renderSection).join("")
+          : `<div class="report-box"><div class="report-box-title">Sem relatório</div><div style="color:var(--muted);font-size:12px;line-height:1.7;margin-top:8px">Faça o primeiro pedido de análise para gerar tabelas e síntese gerencial.</div></div>`;
+
+        const transactionsBody = el("fpa-transactions-body");
+        if (!state.fpa.transactions.length) {
+          transactionsBody.innerHTML = `<tr><td colspan="6"><div class="empty">${escapeHtml(emptyMessage)}</div></td></tr>`;
+          return;
+        }
+
+        transactionsBody.innerHTML = "";
+        state.fpa.transactions.forEach((transaction) => {
+          const selectedCategory = getTransactionCategoryValue(transaction);
+          const hasPendingCategoryChange = selectedCategory !== transaction.category;
+          const isSavingCategory = (state.fpa.savingCategoryIds || []).includes(transaction.id);
+          const categoryOptions = Array.from(
+            new Set([...(state.fpa.categories || []), transaction.category, selectedCategory].filter(Boolean))
+          );
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${escapeHtml(formatShortDate(transaction.transactionDate))}</td>
+            <td>${escapeHtml(transaction.accountName || "—")}</td>
+            <td>
+              <div style="color:var(--text);font-weight:600">${escapeHtml(transaction.description || "—")}</div>
+              <div style="color:var(--dim);font-size:11px;margin-top:4px">${escapeHtml(transaction.subcategory || transaction.counterparty || "Sem detalhe adicional")}</div>
+            </td>
+            <td>
+              <select class="field-select" id="fpa-category-${escapeHtml(transaction.id)}" data-fpa-category-select="${escapeHtml(transaction.id)}" style="padding:7px 9px;min-width:180px" ${isSavingCategory ? "disabled" : ""}>
+                ${categoryOptions
+                  .map(
+                    (category) =>
+                      `<option value="${escapeHtml(category)}" ${category === selectedCategory ? "selected" : ""}>${escapeHtml(category)}</option>`
+                  )
+                  .join("")}
+              </select>
+            </td>
+            <td style="color:${transaction.amountCents < 0 ? "var(--danger)" : "var(--brand)"};font-weight:700">${escapeHtml(formatMoney(transaction.amountCents))}</td>
+            <td>
+              <div class="action-row">
+                <button class="btn" data-save-fpa-transaction="${escapeHtml(transaction.id)}" type="button" ${!hasPendingCategoryChange || isSavingCategory ? "disabled" : ""}>${isSavingCategory ? "Salvando..." : hasPendingCategoryChange ? "Salvar" : "Salvo"}</button>
+                <button class="btn btn-danger" data-delete-fpa-transaction="${escapeHtml(transaction.id)}" type="button" ${isSavingCategory ? "disabled" : ""}>Excluir</button>
+              </div>
+            </td>
+          `;
+          transactionsBody.appendChild(row);
+        });
+
+        transactionsBody.querySelectorAll("[data-fpa-category-select]").forEach((select) =>
+          select.addEventListener("change", () => {
+            const transactionId = select.dataset.fpaCategorySelect;
+            const transaction = state.fpa.transactions.find((entry) => entry.id === transactionId);
+            if (!transaction) return;
+
+            const nextCategory = select.value || "";
+            if (!nextCategory || nextCategory === transaction.category) {
+              delete state.fpa.categoryDrafts[transactionId];
+            } else {
+              state.fpa.categoryDrafts[transactionId] = nextCategory;
+            }
+
+            renderFpa();
+          })
+        );
+
+        transactionsBody.querySelectorAll("[data-save-fpa-transaction]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            const transactionId = button.dataset.saveFpaTransaction;
+            await savePendingTransactionCategories([transactionId]);
+          })
+        );
+
+        transactionsBody.querySelectorAll("[data-delete-fpa-transaction]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            const transactionId = button.dataset.deleteFpaTransaction;
+            const transaction = state.fpa.transactions.find((entry) => entry.id === transactionId);
+            const description = transaction?.description || "este lançamento";
+            const confirmed = window.confirm(
+              `Excluir "${description}"? Essa ação remove o lançamento financeiro permanentemente.`
+            );
+            if (!confirmed) return;
+
+            button.disabled = true;
+            try {
+              const result = await api(`/api/fpa/transactions/${transactionId}`, {
+                method: "DELETE",
+              });
+              await loadFpaBootstrap();
+              renderFpa();
+              toast(
+                result.deletedImportId
+                  ? "Lançamento excluído. O import ficou vazio e também foi removido."
+                  : "Lançamento financeiro excluído."
+              );
+            } catch (error) {
+              toast(error.message);
+            } finally {
+              button.disabled = false;
+            }
+          })
+        );
+      }
+
+      async function loadFpaBootstrap() {
+        const query = buildQueryString({
+          from: state.fpa.from,
+          to: state.fpa.to,
+          prompt: state.fpa.prompt,
+          accountName: state.fpa.selectedAccount,
+          months: state.fpa.selectedMonths,
+          limit: 160,
+        });
+        const data = await api(`/api/fpa/bootstrap${query}`);
+        const nextTransactions = Array.isArray(data.transactions) ? data.transactions : [];
+        state.fpa.categories = Array.isArray(data.categories) ? data.categories : [];
+        state.fpa.imports = Array.isArray(data.imports) ? data.imports : [];
+        state.fpa.availableAccounts = Array.isArray(data.availableAccounts) ? data.availableAccounts : [];
+        state.fpa.availableMonths = Array.isArray(data.availableMonths) ? data.availableMonths : [];
+        state.fpa.dreAccounts = Array.isArray(data.dreAccounts) ? data.dreAccounts : [];
+        state.fpa.dreSuggestions = Array.isArray(data.dreSuggestions) ? data.dreSuggestions : [];
+        state.fpa.dreTypeOptions = Array.isArray(data.dreTypeOptions) && data.dreTypeOptions.length ? data.dreTypeOptions : state.fpa.dreTypeOptions;
+        state.fpa.dreReconciliation = data.dreReconciliation || null;
+        state.fpa.overview = data.overview || null;
+        state.fpa.report = data.report || null;
+        reconcileTransactionCategoryDrafts(nextTransactions);
+        state.fpa.transactions = nextTransactions;
+
+        if (state.fpa.dreForm.id && !state.fpa.dreAccounts.some((entry) => entry.id === state.fpa.dreForm.id)) {
+          resetDreFormState();
+        }
+
+        if (!state.fpa.from && data.overview?.period?.from) state.fpa.from = data.overview.period.from;
+        if (!state.fpa.to && data.overview?.period?.to) state.fpa.to = data.overview.period.to;
+      }
+
+      function syncFiltersFromInputs() {
+        state.fpa.selectedAccount = el("fpa-filter-account").value || "";
+        state.fpa.from = el("fpa-report-from").value || "";
+        state.fpa.to = el("fpa-report-to").value || "";
+        state.fpa.prompt = el("fpa-report-prompt").value.trim() || "visão geral de caixa";
+      }
+
+      async function refreshFpa() {
+        syncFiltersFromInputs();
+        await loadFpaBootstrap();
+        renderFpa();
+      }
+
+      async function importStatement() {
+        const file = readFiles("fpa-statement-file")[0];
+        if (!file) {
+          toast("Selecione um arquivo CSV ou OFX para importar.");
+          return;
+        }
+
+        const button = el("btn-import-statement");
+        const formData = new FormData();
+        const accountName = el("fpa-account-name").value.trim();
+        if (accountName) formData.append("accountName", accountName);
+        formData.append("statement", file);
+
+        button.disabled = true;
+        button.textContent = "Importando...";
+        try {
+          const result = await api("/api/fpa/imports", {
+            method: "POST",
+            body: formData,
+          });
+          el("fpa-statement-file").value = "";
+          toast(
+            result.duplicateCount
+              ? `Extrato importado: ${result.importedCount} novo(s), ${result.duplicateCount} duplicado(s).`
+              : `Extrato importado com ${result.importedCount} lançamento(s).`
+          );
+          await refreshFpa();
+        } catch (error) {
+          toast(error.message);
+        } finally {
+          button.disabled = false;
+          button.textContent = "Importar";
+        }
+      }
+
+      async function deleteSelectedAccount() {
+        const accountName = state.fpa.selectedAccount || el("fpa-filter-account").value || "";
+        if (!accountName) {
+          toast("Selecione a conta que você quer excluir.");
+          return;
+        }
+
+        const confirmed = window.confirm(
+          `Excluir a conta "${accountName}"? Todos os lançamentos e imports vinculados a ela serão apagados do FP&A.`
+        );
+        if (!confirmed) return;
+
+        const button = el("btn-delete-fpa-account");
+        button.disabled = true;
+        button.textContent = "Excluindo...";
+
+        try {
+          const result = await api("/api/fpa/accounts", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ accountName }),
+          });
+
+          state.fpa.selectedAccount = "";
+          el("fpa-filter-account").value = "";
+          await refreshFpa();
+          toast(`Conta removida: ${result.deletedTransactions} lançamento(s) e ${result.deletedImports} import(s) excluídos.`);
+        } catch (error) {
+          toast(error.message);
+        } finally {
+          button.disabled = false;
+          button.textContent = "Excluir Conta";
+        }
+      }
+
+      async function savePendingTransactionCategories(transactionIds = null) {
+        const pendingChanges = getPendingTransactionCategoryChanges(transactionIds);
+        if (!pendingChanges.length) {
+          toast("Nenhuma alteração de categoria pendente.");
+          return;
+        }
+
+        state.fpa.savingCategoryIds = pendingChanges.map((entry) => entry.id);
+        renderFpa();
+
+        try {
+          const result = await api("/api/fpa/transactions/batch", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ updates: pendingChanges }),
+          });
+
+          const updatedById = new Map((result.updated || []).map((entry) => [entry.id, entry]));
+          state.fpa.transactions = (state.fpa.transactions || []).map((transaction) =>
+            updatedById.get(transaction.id) || transaction
+          );
+
+          pendingChanges.forEach((entry) => {
+            delete state.fpa.categoryDrafts[entry.id];
+          });
+
+          await loadFpaBootstrap();
+          renderFpa();
+          toast(
+            result.updatedCount === 1
+              ? "Categoria financeira atualizada."
+              : `${formatInteger(result.updatedCount)} categorias financeiras atualizadas.`
+          );
+        } catch (error) {
+          toast(error.message);
+        } finally {
+          state.fpa.savingCategoryIds = [];
+          renderFpa();
+        }
+      }
+
+      el("btn-sync").addEventListener("click", () => refreshFpa().then(() => toast("FP&A sincronizado.")).catch((error) => toast(error.message)));
+      el("btn-refresh-fpa").addEventListener("click", () => refreshFpa().then(() => toast("FP&A sincronizado.")).catch((error) => toast(error.message)));
+      el("btn-generate-fpa-report").addEventListener("click", () => refreshFpa().catch((error) => toast(error.message)));
+      el("btn-import-statement").addEventListener("click", () => importStatement().catch((error) => toast(error.message)));
+      el("btn-delete-fpa-account").addEventListener("click", () => deleteSelectedAccount().catch((error) => toast(error.message)));
+      el("btn-save-fpa-transactions").addEventListener("click", () => savePendingTransactionCategories().catch((error) => toast(error.message)));
+      el("btn-save-dre-account").addEventListener("click", () => saveDreAccount().catch((error) => toast(error.message)));
+      el("btn-seed-dre-accounts").addEventListener("click", () => seedDreAccounts().catch((error) => toast(error.message)));
+      el("btn-reset-dre-form").addEventListener("click", () => {
+        resetDreFormState();
+        renderDrePlan();
+      });
+      el("btn-open-cobrancas").addEventListener("click", () => {
+        window.location.href = "/cobrancas";
+      });
+
+      el("fpa-filter-account").addEventListener("change", () => {
+        state.fpa.selectedAccount = el("fpa-filter-account").value || "";
+        refreshFpa().catch((error) => toast(error.message));
+      });
+      el("fpa-report-from").addEventListener("change", () => {
+        state.fpa.from = el("fpa-report-from").value || "";
+        refreshFpa().catch((error) => toast(error.message));
+      });
+      el("fpa-report-to").addEventListener("change", () => {
+        state.fpa.to = el("fpa-report-to").value || "";
+        refreshFpa().catch((error) => toast(error.message));
+      });
+      el("fpa-report-prompt").addEventListener("input", () => { state.fpa.prompt = el("fpa-report-prompt").value; });
+      el("fpa-dre-name").addEventListener("input", () => { state.fpa.dreForm.name = el("fpa-dre-name").value; });
+      el("fpa-dre-type").addEventListener("change", () => { state.fpa.dreForm.type = el("fpa-dre-type").value || "expense"; });
+      el("fpa-dre-order").addEventListener("input", () => {
+        state.fpa.dreForm.orderIndex = el("fpa-dre-order").value === "" ? "" : Number(el("fpa-dre-order").value);
+      });
+      el("fpa-dre-notes").addEventListener("input", () => { state.fpa.dreForm.notes = el("fpa-dre-notes").value; });
+
+      (async function boot() {
+        await refreshFpa();
+        setInterval(() => {
+          loadFpaBootstrap().then(renderFpa).catch(() => {});
+        }, 20000);
+      })().catch((error) => {
+        toast(error.message || "Falha ao iniciar FP&A.");
+      });
+    </script>
+  </body>
+</html>

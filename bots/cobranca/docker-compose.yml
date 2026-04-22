@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: whatsapp-cobranca-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-whatsapp_cobranca}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/postgres-bootstrap.sql:/docker-entrypoint-initdb.d/01-bootstrap.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-whatsapp_cobranca}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: whatsapp-cobranca-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-troque-esta-senha-forte}
+      BOT_DATA_DIR: /app/data
+      DEFAULT_COUNTRY_CODE: ${DEFAULT_COUNTRY_CODE:-55}
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-whatsapp_cobranca}
+      DATABASE_SSL: ${DATABASE_SSL:-}
+      MAX_STORED_MESSAGES: ${MAX_STORED_MESSAGES:-2000}
+      CHROME_EXECUTABLE_PATH: /usr/bin/chromium
+      GMAIL_USER: ${GMAIL_USER:-}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD:-}
+      GMAIL_FROM_NAME: ${GMAIL_FROM_NAME:-V4 Cobrancas}
+      MASS_SEND_DELAY_MS: ${MASS_SEND_DELAY_MS:-15000}
+    shm_size: "1gb"
+    volumes:
+      - app_uploads:/app/data/uploads
+      - app_auth:/app/data/.wwebjs_auth
+
+volumes:
+  postgres_data:
+  app_uploads:
+  app_auth:

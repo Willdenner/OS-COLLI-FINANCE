@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "agente-financeiro-493416",
+  "private_key_id": "84dd92efeb9208168bd8199e7adf6b2218bc8dbd",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDlCNrFDrzNByaV\n/WsVxPKXnepYsQM1BIgOCh9tquRpm9HbfCrqBXofV/K4PvzFrZfQzAnSpzBTPY6A\ne816Z+iU3FZIPZbiRVM0wXoUGRRlR3GPKWge0PSRVaApNPEjnF5yhQPr6OsTsjYA\no4h1UjdxspfuJGPiJ9GRVCWPsDToh2hrOj+dEj1DXHQaXhOoA2th8WNojFlD3MtU\n3EGNiu5WpD/WXwDbvTY5mahkSG9pe+rfa4EPyR9ESmrVXWmYlVvMSORdVBHhHfqi\n9CKzEx3lHAz+jIzRSeaSKqMm5rw1RQS7harChgT3QyfYBdNYY77+yMibwJkGxMxX\n8Hn316H/AgMBAAECggEAB8d/NsZDX2towhtzca/Y1ZGFjjGk/D4FKQTrAFyXmYaz\nYBMdmglJlpr0IZHyH/y/dVYY11DacVlb571Mw2WYHsZFH/sHjvPv2ZDgxqH7cV01\n3Dj50mIijHUuFXg44I7FHnqqIW8t3ONmtirXzbRXMcNxKaOOyPW1RoxnIjRH98Xh\nMNk80jp7yvLz9trifOmwwg8FcgA+1dSyOMIRhQxt+Q15YHyt8egefZXpn/xxro5+\nkRwcLm9aeYJNI09HnBUvImbbLM2t2U0XrpW78UirC42r+T0TWt92SKBwbaHzwHl1\nhA/6F9RLVJfKRFwTZir0gOVjbpoeSLLu7jBNNDn8AQKBgQD0o/EepYMbBBeAoTxz\nUigX9938OblvUYbHgRejFoQog2j8qnNoAqkwOXcrxACeeSJbgrHJi8U0Iwb7hQ49\nSodLLr6BuSKKSwSiMdWeygC4i5btyMxswSlRoTp2YXEaXdRX1GZ1FV5h/9DB5Sbz\nI0tDg4refSrzZ2hs8k3YeJipAQKBgQDvq2fCCOPGTw3ftuf4ONrnVsfJglpLAGuh\nN1Qc12fy92gQkvU1L8jDyrnsbA+AjPc3i1bk/qnhXtELw7nKn9jK+GUsKxxLNhO2\nUphcAHZpduDzLG3xm2szoxys4MltHtVroqM3ies9qR1tD8/z9c1sFoKmRJZ3ERNF\nvKrAQe1K/wKBgAGKqvFTf7EC5JcF7RiY8vG7uSVmw7lk3SGSubBoaurKcTXuaQ3F\nvoU0R4D6Gjrlbob/Gtm3TMXYVqntG7rdJl8d60tr/EC82kmfYMZAZaLEFm5nLoqc\n6QK/rluin5DX+IeZKhAg01hwwUMHi6hKl6XURWLDjSq9gxX0rPLpR6UBAoGADCq4\nbrpCzetved7wMcK5IiteoxUx/kK8NAf6BijNRyFWMBk1x4hwebgN7jmiI9WEK1aw\nh5mCCEXm+ODryqSIve0UPcTGf+7z2zqgL3N6j2oQi2fDARPxwkJSj1guAZMiJH+y\nJ3yh65RtQP8fgHQHBKiz4zryJINCZjToui/emwMCgYBNoTffVTGQcU0WEcI62wh0\nZgHPIddS44+tBg5rojHhC8pWt04QunId4OI0dmd3OIzHrmdtMrIGt1zaMP+sHUr/\nhF1tpEuvs8A+zTK5xV4sQ6OPEl6sMQzVd7xXVGG5kcoVGhD4IZZEV6puTSBsIKgi\n/liv2lZpOwY7u4IQGMm9ug==\n-----END PRIVATE KEY-----\n",
+  "client_email": "bot-planilha@agente-financeiro-493416.iam.gserviceaccount.com",
+  "client_id": "100573870527616594676",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/bot-planilha%40agente-financeiro-493416.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

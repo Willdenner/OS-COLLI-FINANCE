@@ -1,0 +1,20 @@
+{
+  "name": "analista-fpa",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/basic-auth.test.js test/domain.test.js test/fpa.test.js test/conta-azul.test.js test/static-html.test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Analista de FP&A para importacao de extratos, DRE caixa e integracao Conta Azul.",
+  "dependencies": {
+    "express": "^5.2.1",
+    "multer": "^2.1.1",
+    "pg": "^8.20.0"
+  }
+}

@@ -1,0 +1,3410 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>V4 · Analista FP&A</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Open+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      :root {
+        --brand: #16c784;
+        --brand-dark: #0ea56b;
+        --brand-soft: rgba(22, 199, 132, 0.12);
+        --brand-border: rgba(22, 199, 132, 0.25);
+        --accent: #3aa0ff;
+        --accent-soft: rgba(58, 160, 255, 0.12);
+        --danger: #ff5d5d;
+        --danger-soft: rgba(255, 93, 93, 0.12);
+        --warning: #ffb020;
+        --warning-soft: rgba(255, 176, 32, 0.12);
+        --bg: #101314;
+        --panel: #15191b;
+        --panel-2: #1b2022;
+        --panel-3: #21282b;
+        --border: #273034;
+        --text: #f3f5f7;
+        --muted: #9aa7ad;
+        --dim: #66747b;
+        --sidebar: 240px;
+        --radius: 6px;
+      }
+      html, body { min-height: 100%; background: var(--bg); color: var(--text); font-family: "Open Sans", sans-serif; }
+      body { display: flex; }
+      .sidebar {
+        width: var(--sidebar);
+        min-height: 100vh;
+        background: #0c0f10;
+        border-right: 1px solid var(--border);
+        padding: 24px 18px;
+        position: sticky;
+        top: 0;
+      }
+      .brand-title {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 32px;
+        letter-spacing: 1.5px;
+        line-height: 1;
+      }
+      .brand-title span { color: var(--brand); }
+      .brand-sub {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: 1.6px;
+        text-transform: uppercase;
+      }
+      .sidebar-block { margin-top: 32px; }
+      .sidebar-label {
+        color: var(--dim);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+      }
+      .sidebar-nav { display: flex; flex-direction: column; gap: 8px; }
+      .sidebar-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 11px 12px;
+        border: 1px solid transparent;
+        border-radius: var(--radius);
+        background: transparent;
+        color: var(--muted);
+        text-decoration: none;
+        text-align: left;
+        font: inherit;
+        cursor: pointer;
+        transition: .16s ease;
+      }
+      .sidebar-link:hover, .sidebar-link.active {
+        color: var(--text);
+        background: var(--brand-soft);
+        border-color: var(--brand-border);
+      }
+      .sidebar-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--panel-2);
+        font-size: 14px;
+      }
+      .sidebar-note {
+        margin-top: 28px;
+        padding: 14px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.7;
+      }
+      .main {
+        flex: 1;
+        min-width: 0;
+      }
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 24px;
+        background: rgba(16, 19, 20, 0.92);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--border);
+      }
+      .topbar-title {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 24px;
+        letter-spacing: 1px;
+      }
+      .topbar-sub {
+        color: var(--dim);
+        font-size: 11px;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+      }
+      .page {
+        padding: 28px 28px 40px;
+      }
+      .page-header { margin-bottom: 24px; }
+      .page-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 38px;
+        letter-spacing: 1px;
+      }
+      .page-title-bar {
+        width: 4px;
+        height: 34px;
+        background: linear-gradient(180deg, var(--brand), var(--accent));
+      }
+      .page-desc { margin-left: 16px; margin-top: 6px; color: var(--muted); font-size: 13px; }
+      .workflow-rail {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 18px;
+      }
+      .workflow-step {
+        border: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--muted);
+        border-radius: var(--radius);
+        padding: 12px;
+        text-align: left;
+        cursor: pointer;
+        transition: .18s ease;
+      }
+      .workflow-step:hover {
+        transform: translateY(-1px);
+        border-color: var(--brand-border);
+        color: var(--text);
+      }
+      .workflow-step.active {
+        background: linear-gradient(135deg, rgba(22,199,132,.16), rgba(58,160,255,.10));
+        border-color: var(--brand-border);
+        color: var(--text);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+      }
+      .workflow-step-index {
+        display: inline-flex;
+        width: 22px;
+        height: 22px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        background: var(--panel-3);
+        color: var(--dim);
+        font-size: 10px;
+        font-weight: 800;
+        margin-bottom: 8px;
+      }
+      .workflow-step.active .workflow-step-index {
+        background: var(--brand);
+        color: #07100c;
+      }
+      .workflow-step-title {
+        display: block;
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 18px;
+        letter-spacing: .8px;
+      }
+      .workflow-step-copy {
+        display: block;
+        margin-top: 4px;
+        color: var(--dim);
+        font-size: 10px;
+        line-height: 1.5;
+      }
+      .workflow-brief {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+        padding: 16px 18px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background:
+          radial-gradient(circle at 12% 20%, rgba(22,199,132,.16), transparent 30%),
+          linear-gradient(135deg, rgba(255,255,255,.035), rgba(255,255,255,.01));
+      }
+      .workflow-brief-title {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 26px;
+        letter-spacing: 1px;
+      }
+      .workflow-brief-copy {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.7;
+      }
+      .workflow-panel {
+        animation: panelIn .22s ease both;
+      }
+      @keyframes panelIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 14px;
+        margin-bottom: 18px;
+      }
+      .kpi-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 18px;
+        position: relative;
+      }
+      .kpi-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--brand);
+      }
+      .kpi-card.danger::before { background: var(--danger); }
+      .kpi-card.warning::before { background: var(--warning); }
+      .kpi-card.accent::before { background: var(--accent); }
+      .kpi-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--dim);
+        margin-bottom: 10px;
+      }
+      .kpi-value {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 42px;
+        line-height: 1;
+      }
+      .kpi-value.brand { color: var(--brand); }
+      .kpi-value.danger { color: var(--danger); }
+      .kpi-value.warning { color: var(--warning); }
+      .kpi-sub { color: var(--muted); font-size: 11px; margin-top: 6px; }
+      .alert {
+        padding: 12px 16px;
+        border-radius: var(--radius);
+        border: 1px solid var(--brand-border);
+        background: var(--brand-soft);
+        color: var(--brand);
+        font-size: 12px;
+        line-height: 1.7;
+        margin-bottom: 18px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 2.1fr) minmax(320px, .9fr);
+        gap: 18px;
+      }
+      .stack { display: flex; flex-direction: column; gap: 18px; }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      .card-head {
+        padding: 14px 18px;
+        background: var(--panel-2);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .card-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 20px;
+        letter-spacing: .8px;
+      }
+      .card-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        background: linear-gradient(135deg, var(--brand), var(--accent));
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+      }
+      .card-body { padding: 18px; }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 9px 14px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text);
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .8px;
+        text-transform: uppercase;
+      }
+      .btn:hover { background: var(--panel-3); }
+      .btn:disabled { opacity: .45; cursor: not-allowed; }
+      .btn-primary {
+        background: var(--brand);
+        border-color: var(--brand);
+        color: #07100c;
+      }
+      .btn-primary:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
+      .btn-danger {
+        background: var(--danger-soft);
+        border-color: rgba(255, 93, 93, 0.28);
+        color: #ff9d9d;
+      }
+      .btn-danger:hover { background: rgba(255, 93, 93, 0.18); }
+      .form-grid { display: grid; gap: 14px; }
+      .g2 { grid-template-columns: 1fr 1fr; }
+      .field { display: flex; flex-direction: column; gap: 6px; }
+      .field-inline { display: flex; gap: 10px; align-items: stretch; }
+      .field-inline .field-select { flex: 1; }
+      .action-row { display: flex; gap: 8px; flex-wrap: wrap; }
+      .inline-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+      .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+      .field-label {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+      }
+      .field-input, .field-select, .field-textarea {
+        width: 100%;
+        padding: 11px 12px;
+        background: var(--panel-3);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--text);
+        font: inherit;
+      }
+      .field-textarea { min-height: 110px; resize: vertical; line-height: 1.7; }
+      .field-hint { color: var(--dim); font-size: 11px; line-height: 1.7; }
+      .filter-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .filter-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--panel-3);
+        color: var(--muted);
+        font: inherit;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .4px;
+        cursor: pointer;
+        transition: .16s ease;
+      }
+      .filter-chip:hover {
+        border-color: var(--brand-border);
+        color: var(--text);
+      }
+      .filter-chip.active {
+        background: var(--brand-soft);
+        border-color: var(--brand-border);
+        color: var(--brand);
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: var(--muted);
+        background: var(--panel-3);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .6px;
+      }
+      .metric-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .metric-box {
+        padding: 14px;
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+      }
+      .metric-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.3px;
+        text-transform: uppercase;
+        color: var(--dim);
+        margin-bottom: 8px;
+      }
+      .metric-value {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 30px;
+        line-height: 1;
+      }
+      .metric-sub { color: var(--muted); font-size: 11px; margin-top: 6px; }
+      .imports-list, .insights-list, .report-stack { display: flex; flex-direction: column; gap: 12px; }
+      .import-card, .insight-card, .report-box {
+        padding: 14px;
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+      }
+      .import-title, .report-box-title { font-weight: 700; color: var(--text); }
+      .import-meta { margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.7; }
+      .insight-card { border-left: 3px solid var(--brand); color: var(--muted); font-size: 12px; line-height: 1.7; }
+      .sep { height: 1px; background: var(--border); margin: 18px 0; }
+      .table-wrap { overflow-x: auto; }
+      .data-table { width: 100%; border-collapse: collapse; }
+      .data-table thead tr { border-bottom: 1px solid var(--border); }
+      .data-table th, .data-table td { padding: 11px 12px; text-align: left; }
+      .data-table th {
+        color: var(--dim);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.3px;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .data-table td {
+        color: var(--muted);
+        font-size: 12px;
+        border-bottom: 1px solid rgba(39, 48, 52, 0.7);
+        vertical-align: middle;
+      }
+      .data-table tr:last-child td { border-bottom: none; }
+      .data-table tr:hover td { background: rgba(255,255,255,0.015); color: var(--text); }
+      .toast {
+        position: fixed;
+        right: 22px;
+        bottom: 22px;
+        background: #0c0f10;
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 12px 16px;
+        border-radius: var(--radius);
+        opacity: 0;
+        transform: translateY(8px);
+        transition: .18s ease;
+        pointer-events: none;
+      }
+      .toast.show { opacity: 1; transform: translateY(0); }
+      .empty { color: var(--muted); font-size: 12px; line-height: 1.8; }
+      .hidden { display: none !important; }
+      @media (max-width: 1260px) {
+        .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .workflow-rail { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .layout { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 960px) {
+        body { display: block; }
+        .sidebar { width: 100%; min-height: auto; position: static; }
+        .page { padding: 18px; }
+        .workflow-rail { grid-template-columns: 1fr; }
+        .workflow-brief { align-items: flex-start; flex-direction: column; }
+        .g2, .metric-grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="brand-title"><span>V4</span> FP&A</div>
+      <div class="brand-sub">Analista Financeiro</div>
+
+      <div class="sidebar-block">
+        <div class="sidebar-label">Fluxo Principal</div>
+        <nav class="sidebar-nav">
+          <button class="sidebar-link active" type="button" data-workflow-step="import"><span class="sidebar-icon">↥</span> 1. Extratos</button>
+          <button class="sidebar-link" type="button" data-workflow-step="analysis"><span class="sidebar-icon">≣</span> 2. Análise</button>
+          <button class="sidebar-link" type="button" data-workflow-step="crosscheck"><span class="sidebar-icon">⇄</span> 3. Cruzamento</button>
+          <button class="sidebar-link" type="button" data-workflow-step="launch"><span class="sidebar-icon">＋</span> 4. Lançar</button>
+          <button class="sidebar-link" type="button" data-workflow-step="done"><span class="sidebar-icon">✓</span> 5. Conclusão</button>
+        </nav>
+      </div>
+
+      <div class="sidebar-block">
+        <div class="sidebar-label">Configurações</div>
+        <nav class="sidebar-nav">
+          <button class="sidebar-link" type="button" data-workflow-step="settings"><span class="sidebar-icon">⚙</span> Conta Azul, Lovable e DRE</button>
+        </nav>
+      </div>
+
+      <div class="sidebar-note">
+        Esta visão é exclusiva do analista financeiro: extratos, DRE, aprendizado de categorias, Lovable e integração Conta Azul.
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <div class="topbar-title">Analista FP&A</div>
+          <div class="topbar-sub">Extratos, caixa, DRE e leitura gerencial</div>
+        </div>
+        <button class="btn btn-primary" id="btn-sync" type="button">Sincronizar</button>
+      </div>
+
+      <div class="page">
+        <div class="page-header" id="overview">
+          <div class="page-title"><div class="page-title-bar"></div>Analista FP&A</div>
+          <div class="page-desc">Importe extratos bancários, consolide o caixa e gere relatórios gerenciais em uma visão financeira dedicada.</div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi-card"><div class="kpi-label">Entradas</div><div class="kpi-value brand" id="fpa-kpi-inflows">R$ 0,00</div><div class="kpi-sub" id="fpa-kpi-inflows-sub">Período ainda vazio</div></div>
+          <div class="kpi-card danger"><div class="kpi-label">Saídas</div><div class="kpi-value danger" id="fpa-kpi-outflows">R$ 0,00</div><div class="kpi-sub" id="fpa-kpi-outflows-sub">Sem despesas mapeadas</div></div>
+          <div class="kpi-card accent"><div class="kpi-label">Saldo Líquido</div><div class="kpi-value" id="fpa-kpi-net">R$ 0,00</div><div class="kpi-sub" id="fpa-kpi-net-sub">Resultado do período</div></div>
+          <div class="kpi-card warning"><div class="kpi-label">Burn Médio</div><div class="kpi-value warning" id="fpa-kpi-burn">R$ 0,00</div><div class="kpi-sub" id="fpa-kpi-burn-sub">Queima média nos meses negativos</div></div>
+          <div class="kpi-card"><div class="kpi-label">Caixa Conhecido</div><div class="kpi-value" id="fpa-kpi-cash">R$ 0,00</div><div class="kpi-sub" id="fpa-kpi-cash-sub">Soma dos saldos mais recentes</div></div>
+        </div>
+
+        <div class="alert" id="fpa-overview-alert">
+          <span id="fpa-overview-alert-text">Importe um extrato para começar a leitura financeira do negócio.</span>
+        </div>
+
+        <div class="workflow-rail" aria-label="Fluxo operacional do FP&A">
+          <button class="workflow-step active" type="button" data-workflow-step="import">
+            <span class="workflow-step-index">1</span>
+            <span class="workflow-step-title">Subir extratos</span>
+            <span class="workflow-step-copy">Entrada dos arquivos bancários</span>
+          </button>
+          <button class="workflow-step" type="button" data-workflow-step="analysis">
+            <span class="workflow-step-index">2</span>
+            <span class="workflow-step-title">Analisar lançamentos</span>
+            <span class="workflow-step-copy">Categorias, DRE e revisão</span>
+          </button>
+          <button class="workflow-step" type="button" data-workflow-step="crosscheck">
+            <span class="workflow-step-index">3</span>
+            <span class="workflow-step-title">Cruzar Conta Azul</span>
+            <span class="workflow-step-copy">Busca o que já existe</span>
+          </button>
+          <button class="workflow-step" type="button" data-workflow-step="launch">
+            <span class="workflow-step-index">4</span>
+            <span class="workflow-step-title">Lançar faltantes</span>
+            <span class="workflow-step-copy">Somente o que não duplicar</span>
+          </button>
+          <button class="workflow-step" type="button" data-workflow-step="done">
+            <span class="workflow-step-index">5</span>
+            <span class="workflow-step-title">Concluir</span>
+            <span class="workflow-step-copy">Resumo da execução</span>
+          </button>
+          <button class="workflow-step" type="button" data-workflow-step="settings">
+            <span class="workflow-step-index">⚙</span>
+            <span class="workflow-step-title">Configurações</span>
+            <span class="workflow-step-copy">Conta Azul, Lovable e DRE</span>
+          </button>
+        </div>
+
+        <div class="workflow-brief">
+          <div>
+            <div class="workflow-brief-title" id="workflow-active-title">Subir extratos bancários</div>
+            <div class="workflow-brief-copy" id="workflow-active-copy">Comece importando CSV ou OFX. Depois o agente conduz a revisão, o cruzamento e o envio sem duplicar lançamentos.</div>
+          </div>
+          <div class="inline-tools">
+            <button class="btn" type="button" id="btn-workflow-prev">Voltar</button>
+            <button class="btn btn-primary" type="button" id="btn-workflow-next">Próximo passo</button>
+          </div>
+        </div>
+
+        <div class="layout">
+          <div class="stack">
+            <section class="card" id="imports">
+              <div class="card-head">
+                <div class="card-title"><span class="card-icon">↥</span> Importar Extrato</div>
+                <button class="btn btn-primary" id="btn-import-statement" type="button">Importar</button>
+              </div>
+              <div class="card-body">
+                <div class="form-grid g2" style="margin-bottom:14px">
+                  <div class="field">
+                    <label class="field-label">Conta / Banco</label>
+                    <input class="field-input" id="fpa-account-name" type="text" placeholder="Ex.: Banco Inter · Conta Operacional" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Arquivo do Extrato</label>
+                    <input class="field-input" id="fpa-statement-file" type="file" accept=".csv,.ofx,.txt,text/csv,text/plain,application/x-ofx,application/ofx,application/octet-stream" />
+                  </div>
+                </div>
+                <div class="field-hint">Aceita CSV e OFX. A categorização inicial é automática e pode ser ajustada depois.</div>
+              </div>
+            </section>
+
+            <section class="card" id="reports">
+              <div class="card-head">
+                <div class="card-title"><span class="card-icon">✦</span> Pedido de Relatório</div>
+                <button class="btn btn-primary" id="btn-generate-fpa-report" type="button">Gerar Análise</button>
+              </div>
+              <div class="card-body">
+                <div class="form-grid g2" style="margin-bottom:14px">
+                  <div class="field">
+                    <label class="field-label">Conta para análise</label>
+                    <div class="field-inline">
+                      <select class="field-select" id="fpa-filter-account"></select>
+                      <button class="btn btn-danger" id="btn-delete-fpa-account" type="button">Excluir Conta</button>
+                    </div>
+                    <div class="field-hint">Apaga todos os lançamentos e imports vinculados a essa conta.</div>
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Meses específicos</label>
+                    <div class="filter-chip-row" id="fpa-filter-months"></div>
+                    <div class="field-hint">Selecione um ou mais meses. Sem seleção, o analista considera todo o histórico disponível.</div>
+                  </div>
+                </div>
+                <div class="form-grid g2" style="margin-bottom:14px">
+                  <div class="field">
+                    <label class="field-label">Data Inicial</label>
+                    <input class="field-input" id="fpa-report-from" type="date" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Data Final</label>
+                    <input class="field-input" id="fpa-report-to" type="date" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label class="field-label">O que você quer ver?</label>
+                  <textarea class="field-textarea" id="fpa-report-prompt" placeholder="Ex.: Quero um fluxo de caixa mensal, despesas por categoria e uma DRE caixa aproximada."></textarea>
+                </div>
+                <div class="field-hint" style="margin-top:10px">Você pode pedir fluxo de caixa, DRE, burn rate, receitas, despesas por categoria ou visão geral.</div>
+              </div>
+            </section>
+
+            <section class="card" id="fpa-report-card">
+              <div class="card-head">
+                <div class="card-title"><span class="card-icon">▣</span> Relatório Gerado</div>
+                <span class="pill" id="fpa-report-period">Sem período</span>
+              </div>
+              <div class="card-body">
+                <div class="report-box-title" id="fpa-report-title">Visão Geral de FP&A</div>
+                <div style="color:var(--muted);font-size:12px;line-height:1.7;margin-top:6px" id="fpa-report-summary">
+                  Assim que houver extratos importados, o sistema monta a leitura gerencial automaticamente.
+                </div>
+                <div class="sep"></div>
+                <div class="insights-list" id="fpa-insights"></div>
+                <div class="sep"></div>
+                <div class="report-stack" id="fpa-report-sections"></div>
+              </div>
+            </section>
+          </div>
+
+          <div class="stack">
+            <section class="card" id="fpa-metrics-card">
+              <div class="card-head">
+                <div class="card-title"><span class="card-icon">◎</span> Métricas-Chave</div>
+              </div>
+              <div class="card-body">
+                <div class="metric-grid">
+                  <div class="metric-box">
+                    <div class="metric-label">Lançamentos</div>
+                    <div class="metric-value" id="fpa-metric-transactions">0</div>
+                    <div class="metric-sub" id="fpa-metric-transactions-sub">Sem movimento importado</div>
+                  </div>
+                  <div class="metric-box">
+                    <div class="metric-label">Transferências Internas</div>
+                    <div class="metric-value" id="fpa-metric-transfers">0</div>
+                    <div class="metric-sub">Excluídas da DRE caixa</div>
+                  </div>
+                  <div class="metric-box">
+                    <div class="metric-label">Período</div>
+                    <div class="metric-value" id="fpa-metric-period">—</div>
+                    <div class="metric-sub">Recorte atual da análise</div>
+                  </div>
+                  <div class="metric-box">
+                    <div class="metric-label">Contas com Saldo</div>
+                    <div class="metric-value" id="fpa-metric-accounts">0</div>
+                    <div class="metric-sub">Último saldo conhecido</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="card" id="fpa-recent-imports-card">
+              <div class="card-head">
+                <div class="card-title"><span class="card-icon">⌘</span> Imports Recentes</div>
+              </div>
+              <div class="card-body">
+                <div class="imports-list" id="fpa-imports-list"></div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <section class="card workflow-panel" style="margin-top:18px" id="conta-azul-crosscheck">
+          <div class="card-head">
+            <div class="card-title"><span class="card-icon">⇄</span> Cruzamento com Conta Azul</div>
+            <div class="inline-tools">
+              <button class="btn" id="btn-run-conta-azul-reconciliation" type="button">Cruzar Agora</button>
+              <button class="btn btn-primary" id="btn-go-conta-azul-launch" type="button">Ver Faltantes</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="alert" style="margin-bottom:18px">
+              O agente consulta contas a receber e contas a pagar no Conta Azul para o mesmo período dos extratos, compara data, valor e descrição, e separa o que já existe do que ainda precisa ser lançado.
+            </div>
+            <div class="metric-grid" style="margin-bottom:18px">
+              <div class="metric-box">
+                <div class="metric-label">Extrato analisado</div>
+                <div class="metric-value" id="fpa-ca-cross-local-count">0</div>
+                <div class="metric-sub">Candidatos a exportação</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-label">Conta Azul</div>
+                <div class="metric-value" id="fpa-ca-cross-remote-count">0</div>
+                <div class="metric-sub">Lançamentos encontrados no período</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-label">Já existem</div>
+                <div class="metric-value" id="fpa-ca-cross-matched-count">0</div>
+                <div class="metric-sub">Bloqueados para evitar duplicidade</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-label">Faltantes</div>
+                <div class="metric-value" id="fpa-ca-cross-missing-count">0</div>
+                <div class="metric-sub">Elegíveis para lançamento</div>
+              </div>
+            </div>
+            <div class="imports-list" id="fpa-ca-reconciliation-list"></div>
+          </div>
+        </section>
+
+        <section class="card workflow-panel" style="margin-top:18px" id="conta-azul-launch-review">
+          <div class="card-head">
+            <div class="card-title"><span class="card-icon">＋</span> Lançamentos Faltantes</div>
+            <div class="inline-tools">
+              <button class="btn" id="btn-refresh-conta-azul-launch-review" type="button">Recruzar</button>
+              <button class="btn btn-primary" id="btn-launch-missing-conta-azul" type="button">Enviar Faltantes</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="alert" style="margin-bottom:18px;background:var(--warning-soft);border-color:rgba(255,176,32,.28);color:var(--warning)">
+              Esta etapa envia apenas os lançamentos que o cruzamento marcou como não encontrados no Conta Azul. Possíveis duplicidades ficam fora do envio automático.
+            </div>
+            <div class="imports-list" id="fpa-ca-launch-list"></div>
+          </div>
+        </section>
+
+        <section class="card workflow-panel" style="margin-top:18px" id="workflow-conclusion">
+          <div class="card-head">
+            <div class="card-title"><span class="card-icon">✓</span> Conclusão</div>
+            <button class="btn btn-primary" id="btn-workflow-restart" type="button">Novo Ciclo</button>
+          </div>
+          <div class="card-body">
+            <div class="metric-grid" style="margin-bottom:18px">
+              <div class="metric-box">
+                <div class="metric-label">Cruzados</div>
+                <div class="metric-value" id="fpa-conclusion-crossed">0</div>
+                <div class="metric-sub">Lançamentos avaliados</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-label">Protegidos</div>
+                <div class="metric-value" id="fpa-conclusion-blocked">0</div>
+                <div class="metric-sub">Já existentes ou possíveis duplicidades</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-label">Faltantes</div>
+                <div class="metric-value" id="fpa-conclusion-missing">0</div>
+                <div class="metric-sub">Disponíveis para envio</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-label">Enviados</div>
+                <div class="metric-value" id="fpa-conclusion-exported">0</div>
+                <div class="metric-sub">Última execução</div>
+              </div>
+            </div>
+            <div class="imports-list" id="fpa-conclusion-list"></div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top:18px" id="dre-plan">
+          <div class="card-head">
+            <div class="card-title"><span class="card-icon">∑</span> Plano de Contas DRE</div>
+            <div class="inline-tools">
+              <button class="btn" id="btn-seed-dre-accounts" type="button">Criar Estrutura Base</button>
+              <button class="btn" id="btn-reset-dre-form" type="button">Limpar Formulário</button>
+              <button class="btn btn-primary" id="btn-save-dre-account" type="button">Salvar Conta DRE</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="layout">
+              <div class="stack">
+                <div class="inline-tools" style="justify-content:space-between">
+                  <div class="report-box-title">Cadastro da conta DRE</div>
+                  <span class="pill" id="fpa-dre-form-mode">Nova conta</span>
+                </div>
+
+                <div class="form-grid g2">
+                  <div class="field">
+                    <label class="field-label">Nome da conta DRE</label>
+                    <input class="field-input" id="fpa-dre-name" type="text" placeholder="Ex.: Receita de Serviços" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Tipo</label>
+                    <select class="field-select" id="fpa-dre-type"></select>
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Ordem de exibição</label>
+                    <input class="field-input" id="fpa-dre-order" type="number" min="0" step="10" placeholder="10" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Observações</label>
+                    <input class="field-input" id="fpa-dre-notes" type="text" placeholder="Ex.: Linha usada para receitas recorrentes" />
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label class="field-label">Categorias financeiras vinculadas</label>
+                  <div class="filter-chip-row" id="fpa-dre-category-picker"></div>
+                  <div class="field-hint">Cada categoria pode pertencer a apenas uma conta DRE para manter a conciliação sem dupla contagem.</div>
+                </div>
+              </div>
+
+              <div class="stack">
+                <div class="metric-grid">
+                  <div class="metric-box">
+                    <div class="metric-label">Contas DRE</div>
+                    <div class="metric-value" id="fpa-dre-metric-accounts">0</div>
+                    <div class="metric-sub">Linhas cadastradas no plano</div>
+                  </div>
+                  <div class="metric-box">
+                    <div class="metric-label">Categorias Mapeadas</div>
+                    <div class="metric-value" id="fpa-dre-metric-mapped">0</div>
+                    <div class="metric-sub">Conciliadas no DRE</div>
+                  </div>
+                  <div class="metric-box">
+                    <div class="metric-label">Não Mapeadas</div>
+                    <div class="metric-value" id="fpa-dre-metric-unmapped">0</div>
+                    <div class="metric-sub">Precisam de destino</div>
+                  </div>
+                  <div class="metric-box">
+                    <div class="metric-label">Modelo</div>
+                    <div class="metric-value" id="fpa-dre-metric-model">Padrão</div>
+                    <div class="metric-sub">Como a DRE está sendo montada</div>
+                  </div>
+                </div>
+
+                <div class="report-box">
+                  <div class="report-box-title">Conciliação do DRE</div>
+                  <div style="color:var(--muted);font-size:12px;line-height:1.7;margin-top:8px" id="fpa-dre-summary">
+                    O sistema ainda está usando o modelo padrão baseado nas categorias atuais.
+                  </div>
+                  <div class="pill-row" id="fpa-dre-unmapped-list"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sep"></div>
+            <div class="imports-list" id="fpa-dre-accounts-list"></div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top:18px" id="learning">
+          <div class="card-head">
+            <div class="card-title"><span class="card-icon">◈</span> Aprendizado do Bot</div>
+            <span class="pill" id="fpa-learning-status">Sem regras</span>
+          </div>
+          <div class="card-body">
+            <div class="metric-grid" style="margin-bottom:18px">
+              <div class="metric-box">
+                <div class="metric-label">Padrões aprendidos</div>
+                <div class="metric-value" id="fpa-learning-rules-count">0</div>
+                <div class="metric-sub">Criados quando você salva categorias</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-label">Próximos imports</div>
+                <div class="metric-value" id="fpa-learning-next-import">Auto</div>
+                <div class="metric-sub">Extratos futuros usam essas correlações</div>
+              </div>
+            </div>
+            <div class="imports-list" id="fpa-learning-rules-list"></div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top:18px" id="conta-azul">
+          <div class="card-head">
+            <div class="card-title"><span class="card-icon">⇄</span> Conta Azul · Integração API</div>
+            <div class="inline-tools">
+              <span id="fpa-conta-azul-badge" style="padding:5px 12px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;background:var(--panel-3);border:1px solid var(--border);color:var(--muted)">● Desconectado</span>
+              <button class="btn" id="btn-preview-conta-azul-fpa" type="button">Prévia</button>
+              <button class="btn btn-primary" id="btn-push-conta-azul-fpa" type="button">Enviar Lançamentos</button>
+            </div>
+          </div>
+          <div class="card-body">
+
+            <div id="fpa-conta-azul-alert" class="alert" style="margin-bottom:18px">
+              <span id="fpa-conta-azul-status">Configure as credenciais OAuth abaixo e conecte o Conta Azul para começar a exportar lançamentos.</span>
+            </div>
+            <div id="fpa-storage-alert" class="alert" style="display:none;margin-bottom:18px">
+              <span id="fpa-storage-status">Verificando persistência dos dados de conexão.</span>
+            </div>
+
+            <div id="fpa-conta-azul-account-card" style="display:none;background:var(--panel-2);border:1px solid var(--brand-border);border-radius:var(--radius);padding:16px 18px;margin-bottom:18px">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--brand);margin-bottom:8px">✓ Conta Conectada</div>
+                  <div id="fpa-ca-company-name" style="font-weight:700;color:var(--text);font-size:15px"></div>
+                  <div id="fpa-ca-company-sub" style="color:var(--muted);font-size:11px;margin-top:4px;line-height:1.7"></div>
+                </div>
+                <div style="text-align:right">
+                  <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);margin-bottom:4px">Token OAuth</div>
+                  <div id="fpa-ca-token-status" style="font-size:12px;font-weight:700;color:var(--brand)">Válido</div>
+                  <div id="fpa-ca-token-expires" style="font-size:10px;color:var(--dim);margin-top:2px"></div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+              <div style="width:22px;height:22px;border-radius:50%;background:var(--brand);color:#07100c;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.8px">Credenciais OAuth</div>
+              <div style="flex:1;height:1px;background:var(--border)"></div>
+              <a href="https://developers.contaazul.com/guide" target="_blank" rel="noopener noreferrer" style="font-size:10px;color:var(--accent);font-weight:700;letter-spacing:.8px;text-decoration:none;white-space:nowrap">Portal do Desenvolvedor →</a>
+            </div>
+            <div style="padding:10px 14px;background:var(--panel-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--muted);font-size:12px;line-height:1.7;margin-bottom:14px">
+              Acesse <strong style="color:var(--text)">developers.contaazul.com/guide</strong> → crie um app → obtenha o <strong style="color:var(--text)">Client ID</strong> e o <strong style="color:var(--text)">Client Secret</strong> → cadastre a <strong style="color:var(--text)">URL de Callback</strong> exibida abaixo nas configurações do app como Redirect URI autorizada.
+            </div>
+            <div class="form-grid g2">
+              <div class="field">
+                <label class="field-label">Client ID</label>
+                <input class="field-input" id="fpa-conta-azul-client-id" type="text" placeholder="Client ID do app Conta Azul" autocomplete="off" />
+                <div class="field-hint">Identificador único do seu app registrado no portal Conta Azul.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Client Secret</label>
+                <input class="field-input" id="fpa-conta-azul-client-secret" type="password" placeholder="Deixe em branco para manter o atual" autocomplete="new-password" />
+                <div class="field-hint" id="fpa-conta-azul-secret-hint">Preencha para salvar ou substituir o secret.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Redirect URI (cadastrada no app)</label>
+                <input class="field-input" id="fpa-conta-azul-redirect-uri" type="url" placeholder="https://..." />
+                <div class="field-hint">Deve ser idêntica à URL cadastrada no portal do Conta Azul.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">URL de Callback sugerida</label>
+                <div class="field-inline">
+                  <input class="field-input" id="fpa-conta-azul-suggested-redirect" type="text" readonly style="background:var(--panel-2);color:var(--muted);font-size:11px;cursor:default" />
+                  <button class="btn" id="btn-copy-redirect-uri" type="button" style="white-space:nowrap;flex-shrink:0">Copiar</button>
+                </div>
+                <div class="field-hint">Cadastre esta URL no portal como Redirect URI autorizada.</div>
+              </div>
+            </div>
+
+            <div class="sep"></div>
+
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+              <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.8px">Autorizar Acesso</div>
+              <div style="flex:1;height:1px;background:var(--border)"></div>
+            </div>
+            <div class="form-grid" style="grid-template-columns:1fr">
+              <div class="field">
+                <label class="field-label">Código OAuth (após o login)</label>
+                <div class="field-inline">
+                  <input class="field-input" id="fpa-conta-azul-code" type="text" placeholder="Cole aqui o parâmetro code retornado pela URL de callback" autocomplete="off" />
+                  <button class="btn" id="btn-exchange-conta-azul-code" type="button" style="white-space:nowrap;flex-shrink:0">Trocar Código</button>
+                </div>
+                <div class="field-hint">
+                  <strong>Passo a passo:</strong> 1. Salve as credenciais · 2. Clique em <strong>Conectar Conta Azul</strong> · 3. Faça login e autorize o acesso · 4. Copie o valor de <code style="background:var(--panel-3);padding:1px 5px;border-radius:3px">code</code> da URL de retorno · 5. Clique em <strong>Trocar Código</strong>
+                </div>
+              </div>
+            </div>
+            <div class="inline-tools" style="margin-top:14px">
+              <button class="btn btn-primary" id="btn-save-conta-azul-fpa" type="button">Salvar Credenciais</button>
+              <button class="btn" id="btn-open-conta-azul-dev-oauth" type="button">Conectar Conta Azul</button>
+              <button class="btn" id="btn-refresh-conta-azul-token" type="button">Renovar Token</button>
+              <button class="btn" id="btn-test-conta-azul" type="button">Testar Conexão</button>
+            </div>
+
+            <div class="sep"></div>
+
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+              <div style="width:22px;height:22px;border-radius:50%;background:var(--panel-3);border:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.8px">Configuração de Exportação FP&amp;A</div>
+              <div style="flex:1;height:1px;background:var(--border)"></div>
+            </div>
+            <div style="padding:10px 14px;background:var(--panel-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--muted);font-size:12px;line-height:1.7;margin-bottom:14px">
+              Busque pessoas direto no Conta Azul por perfil e nome/documento usando <strong style="color:var(--text)">GET /v1/pessoas</strong>. As contas financeiras vêm de <strong style="color:var(--text)">GET /v1/conta-financeira</strong> e as categorias financeiras do teste vêm de <strong style="color:var(--text)">GET /v1/categorias</strong>. O sistema salva o UUID escolhido automaticamente.
+            </div>
+            <div class="form-grid g2">
+              <div class="field">
+                <label class="field-label">Pessoa padrão</label>
+                <div class="field-inline">
+                  <select class="field-select" id="fpa-ca-person-profile" style="max-width:170px">
+                    <option value="Fornecedor">Fornecedor</option>
+                    <option value="Cliente">Cliente</option>
+                  </select>
+                  <input class="field-input" id="fpa-ca-person-search" type="text" placeholder="Nome ou CPF/CNPJ" />
+                  <button class="btn" id="btn-load-conta-azul-people" type="button" style="white-space:nowrap;flex-shrink:0">Buscar</button>
+                </div>
+                <select class="field-select" id="fpa-conta-azul-contact-select" style="margin-top:8px"></select>
+                <input class="field-input" id="fpa-conta-azul-contact-id" type="text" readonly placeholder="UUID selecionado" style="margin-top:8px;background:var(--panel-2);color:var(--muted)" />
+                <div class="field-hint">Usado como cliente/fornecedor padrão nos envios e testes.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Conta financeira padrão</label>
+                <div class="field-inline">
+                  <input class="field-input" id="fpa-ca-account-search" type="text" placeholder="Nome da conta, banco ou caixa" />
+                  <button class="btn" id="btn-load-conta-azul-accounts" type="button" style="white-space:nowrap;flex-shrink:0">Buscar</button>
+                </div>
+                <select class="field-select" id="fpa-conta-azul-financial-account-select" style="margin-top:8px"></select>
+                <input class="field-input" id="fpa-conta-azul-financial-account-id" type="text" readonly placeholder="UUID selecionado" style="margin-top:8px;background:var(--panel-2);color:var(--muted)" />
+                <div class="field-hint">Conta bancária, caixa ou similar onde o lançamento será criado.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Categoria padrão de receitas</label>
+                <div class="field-inline">
+                  <input class="field-input" id="fpa-ca-receivable-category-search" type="text" placeholder="Nome ou código da categoria de receita" />
+                  <button class="btn" id="btn-load-conta-azul-receivable-categories" type="button" style="white-space:nowrap;flex-shrink:0">Buscar</button>
+                </div>
+                <select class="field-select" id="fpa-conta-azul-receivable-category-select" style="margin-top:8px"></select>
+                <input class="field-input" id="fpa-conta-azul-receivable-category-id" type="text" readonly placeholder="UUID selecionado" style="margin-top:8px;background:var(--panel-2);color:var(--muted)" />
+                <div class="field-hint">Usada no rateio de lançamentos de entrada enviados ao Conta Azul.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Categoria padrão de despesas</label>
+                <div class="field-inline">
+                  <input class="field-input" id="fpa-ca-payable-category-search" type="text" placeholder="Nome ou código da categoria de despesa" />
+                  <button class="btn" id="btn-load-conta-azul-payable-categories" type="button" style="white-space:nowrap;flex-shrink:0">Buscar</button>
+                </div>
+                <select class="field-select" id="fpa-conta-azul-payable-category-select" style="margin-top:8px"></select>
+                <input class="field-input" id="fpa-conta-azul-payable-category-id" type="text" readonly placeholder="UUID selecionado" style="margin-top:8px;background:var(--panel-2);color:var(--muted)" />
+                <div class="field-hint">Usada no rateio de contas a pagar enviadas ao Conta Azul.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Máximo por envio</label>
+                <input class="field-input" id="fpa-conta-azul-max-records" type="number" min="1" max="500" step="1" placeholder="50" />
+                <div class="field-hint">Limite de lançamentos por execução de exportação (máx. 500).</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Opções de exportação</label>
+                <div class="filter-chip-row">
+                  <button class="filter-chip active" id="fpa-conta-azul-only-unsent" type="button">Só não enviados</button>
+                  <button class="filter-chip" id="fpa-conta-azul-include-transfers" type="button">Incluir transferências</button>
+                </div>
+                <div class="field-hint">Entradas → contas a receber · Saídas → contas a pagar.</div>
+              </div>
+            </div>
+
+            <div class="sep"></div>
+
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.8px">Histórico de Sincronização</div>
+              <div style="flex:1;height:1px;background:var(--border)"></div>
+            </div>
+            <div class="imports-list" id="fpa-conta-azul-history-list"></div>
+
+            <div id="fpa-conta-azul-preview-section" style="display:none">
+              <div class="sep"></div>
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.8px">Prévia dos Lançamentos</div>
+                <div style="flex:1;height:1px;background:var(--border)"></div>
+              </div>
+              <div class="imports-list" id="fpa-conta-azul-preview-list"></div>
+            </div>
+
+          </div>
+        </section>
+
+        <section class="card" style="margin-top:18px" id="lovable-integration">
+          <div class="card-head">
+            <div class="card-title"><span class="card-icon">⇢</span> Lovable · Contratos e Recebimentos</div>
+            <div class="inline-tools">
+              <span id="fpa-lovable-badge" style="padding:5px 12px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;background:var(--panel-3);border:1px solid var(--border);color:var(--muted)">● Não configurado</span>
+              <button class="btn" id="btn-refresh-lovable-syncs" type="button">Atualizar histórico</button>
+              <button class="btn btn-primary" id="btn-save-lovable-settings" type="button">Salvar Lovable</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="fpa-lovable-alert" class="alert" style="margin-bottom:18px">
+              <span id="fpa-lovable-status">Configure o segredo e copie as URLs abaixo para conectar os webhooks do Lovable ao Analista FP&amp;A.</span>
+            </div>
+
+            <div class="form-grid g2">
+              <div class="field">
+                <label class="field-label">Segredo dos webhooks Lovable</label>
+                <input class="field-input" id="fpa-lovable-secret" type="password" placeholder="Deixe em branco para manter o atual" autocomplete="new-password" />
+                <div class="field-hint" id="fpa-lovable-secret-hint">Use um segredo forte. O Lovable deve enviar esse valor no header do webhook.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Status da ponte Lovable → Conta Azul</label>
+                <div class="filter-chip-row">
+                  <button class="filter-chip" id="fpa-lovable-enabled" type="button">Integração ativa</button>
+                </div>
+                <div class="field-hint">Quando ativa, o sistema aceita contratos e recebimentos confirmados vindos do Lovable.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Webhook para novo contrato</label>
+                <div class="field-inline">
+                  <input class="field-input" id="fpa-lovable-contracts-url" type="text" readonly style="background:var(--panel-2);color:var(--muted);font-size:11px;cursor:default" />
+                  <button class="btn" id="btn-copy-lovable-contracts-url" type="button" style="white-space:nowrap;flex-shrink:0">Copiar</button>
+                </div>
+                <div class="field-hint">Use esta URL no Lovable quando um contrato for cadastrado.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Webhook para recebimento confirmado</label>
+                <div class="field-inline">
+                  <input class="field-input" id="fpa-lovable-receipts-url" type="text" readonly style="background:var(--panel-2);color:var(--muted);font-size:11px;cursor:default" />
+                  <button class="btn" id="btn-copy-lovable-receipts-url" type="button" style="white-space:nowrap;flex-shrink:0">Copiar</button>
+                </div>
+                <div class="field-hint">Use esta URL quando o sistema de cobrança confirmar uma baixa/recebimento.</div>
+              </div>
+            </div>
+
+            <div class="sep"></div>
+
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.8px">Como conectar no Lovable</div>
+              <div style="flex:1;height:1px;background:var(--border)"></div>
+            </div>
+            <div style="padding:10px 14px;background:var(--panel-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--muted);font-size:12px;line-height:1.7;margin-bottom:14px">
+              No Lovable, crie dois webhooks/actions: um para <strong style="color:var(--text)">novo contrato</strong> e outro para <strong style="color:var(--text)">recebimento confirmado</strong>. Envie o segredo no header <strong style="color:var(--text)">x-lovable-webhook-secret</strong> ou como <strong style="color:var(--text)">Authorization: Bearer seu-segredo</strong>.
+            </div>
+
+            <div class="sep"></div>
+
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.8px">Histórico Lovable</div>
+              <div style="flex:1;height:1px;background:var(--border)"></div>
+            </div>
+            <div class="imports-list" id="fpa-lovable-sync-list"></div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top:18px" id="conta-azul-test">
+          <div class="card-head">
+            <div class="card-title"><span class="card-icon">＋</span> Conta Azul · Lançamento Teste</div>
+            <div class="inline-tools">
+              <button class="btn" id="btn-fill-conta-azul-test-receivable" type="button">Exemplo Receber</button>
+              <button class="btn" id="btn-fill-conta-azul-test-payable" type="button">Exemplo Pagar</button>
+              <button class="btn btn-primary" id="btn-create-conta-azul-test-launch" type="button">Criar Teste</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="alert" style="margin-bottom:18px;background:var(--warning-soft);border-color:rgba(255,176,32,.28);color:var(--warning)">
+              Este teste cria um lançamento real no Conta Azul. Use descrições com TESTE para localizar e excluir depois, se necessário.
+            </div>
+
+            <div class="form-grid g2">
+              <div class="field">
+                <label class="field-label">Tipo de lançamento</label>
+                <select class="field-select" id="fpa-ca-test-type">
+                  <option value="receivable">Contas a receber</option>
+                  <option value="payable">Contas a pagar</option>
+                </select>
+                <div class="field-hint">Receber usa o endpoint de contas a receber; pagar usa contas a pagar.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Valor</label>
+                <input class="field-input" id="fpa-ca-test-amount" type="number" min="0.01" step="0.01" placeholder="10.00" />
+                <div class="field-hint">Valor positivo do teste. O tipo define se vira pagar ou receber.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Descrição</label>
+                <input class="field-input" id="fpa-ca-test-description" type="text" placeholder="TESTE FP&A - Conta a receber" />
+                <div class="field-hint">Nome que vai aparecer no lançamento criado no Conta Azul.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Data de competência</label>
+                <input class="field-input" id="fpa-ca-test-competence-date" type="date" />
+                <div class="field-hint">Data contábil do lançamento.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Data de vencimento</label>
+                <input class="field-input" id="fpa-ca-test-due-date" type="date" />
+                <div class="field-hint">Vencimento da parcela criada.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Pessoa do teste</label>
+                <div class="field-inline">
+                  <select class="field-select" id="fpa-ca-test-person-profile" style="max-width:170px">
+                    <option value="Cliente">Cliente</option>
+                    <option value="Fornecedor">Fornecedor</option>
+                  </select>
+                  <input class="field-input" id="fpa-ca-test-person-search" type="text" placeholder="Nome ou CPF/CNPJ" />
+                  <button class="btn" id="btn-load-conta-azul-test-people" type="button" style="white-space:nowrap;flex-shrink:0">Buscar</button>
+                </div>
+                <select class="field-select" id="fpa-ca-test-contact-select" style="margin-top:8px"></select>
+                <input class="field-input" id="fpa-ca-test-contact-id" type="text" readonly placeholder="UUID selecionado" style="margin-top:8px;background:var(--panel-2);color:var(--muted)" />
+                <div class="field-hint">Receber normalmente usa Cliente; pagar normalmente usa Fornecedor.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Conta financeira do teste</label>
+                <div class="field-inline">
+                  <input class="field-input" id="fpa-ca-test-account-search" type="text" placeholder="Nome da conta financeira" />
+                  <button class="btn" id="btn-load-conta-azul-test-accounts" type="button" style="white-space:nowrap;flex-shrink:0">Buscar</button>
+                </div>
+                <select class="field-select" id="fpa-ca-test-financial-account-select" style="margin-top:8px"></select>
+                <input class="field-input" id="fpa-ca-test-financial-account-id" type="text" readonly placeholder="UUID selecionado" style="margin-top:8px;background:var(--panel-2);color:var(--muted)" />
+                <div class="field-hint">Por padrão usa a conta financeira salva na configuração FP&A.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Categoria financeira do teste</label>
+                <div class="field-inline">
+                  <input class="field-input" id="fpa-ca-test-category-search" type="text" placeholder="Nome ou código da categoria" />
+                  <button class="btn" id="btn-load-conta-azul-test-categories" type="button" style="white-space:nowrap;flex-shrink:0">Buscar</button>
+                </div>
+                <select class="field-select" id="fpa-ca-test-category-select" style="margin-top:8px"></select>
+                <input class="field-input" id="fpa-ca-test-category-id" type="text" readonly placeholder="UUID selecionado" style="margin-top:8px;background:var(--panel-2);color:var(--muted)" />
+                <div class="field-hint">Obrigatória para o rateio. O filtro usa RECEITA para receber e DESPESA para pagar via GET /v1/categorias.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Observação</label>
+                <textarea class="field-textarea" id="fpa-ca-test-notes" placeholder="Observação opcional do teste"></textarea>
+              </div>
+            </div>
+
+            <div class="sep"></div>
+            <div class="imports-list" id="fpa-ca-test-result-list">
+              <div class="import-card">
+                <div class="import-title">Nenhum teste enviado ainda</div>
+                <div class="import-meta">Preencha os dados e clique em Criar Teste para validar a criação de contas a receber ou contas a pagar.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top:18px" id="transactions">
+          <div class="card-head">
+            <div class="card-title"><span class="card-icon">≣</span> Lançamentos Financeiros</div>
+            <div class="inline-tools">
+              <button class="btn btn-primary" id="btn-save-fpa-transactions" type="button">Salvar Alterações</button>
+              <button class="btn" id="btn-refresh-fpa" type="button">Atualizar FP&A</button>
+            </div>
+          </div>
+          <div class="card-body" style="padding:0">
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr><th>Data</th><th>Conta</th><th>Histórico</th><th>Categoria</th><th>Valor</th><th>Ação</th></tr>
+                </thead>
+                <tbody id="fpa-transactions-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      const state = {
+        fpa: {
+          categories: [],
+          imports: [],
+          overview: null,
+          report: null,
+          transactions: [],
+          dreAccounts: [],
+          dreSuggestions: [],
+          dreTypeOptions: [
+            { value: "income", label: "Receita" },
+            { value: "expense", label: "Despesa" },
+            { value: "other", label: "Ajuste / Outro" },
+          ],
+          dreReconciliation: null,
+          categoryLearning: {
+            rulesCount: 0,
+            recentRules: [],
+          },
+          contaAzul: null,
+          contaAzulPreview: null,
+          contaAzulReconciliation: null,
+          contaAzulLastPushResult: null,
+          contaAzulTestResult: null,
+          lovable: null,
+          lovableSyncs: {
+            contracts: [],
+            receipts: [],
+          },
+          storage: null,
+          workflowStep: "import",
+          contaAzulLookups: {
+            defaultPeople: [],
+            defaultFinancialAccounts: [],
+            defaultReceivableCategories: [],
+            defaultPayableCategories: [],
+            testPeople: [],
+            testFinancialAccounts: [],
+            testFinancialCategories: [],
+            bootstrapped: false,
+          },
+          dreForm: {
+            id: null,
+            name: "",
+            type: "expense",
+            orderIndex: "",
+            categories: [],
+            notes: "",
+          },
+          categoryDrafts: {},
+          savingCategoryIds: [],
+          prompt: "Quero uma visão geral do caixa, despesas por categoria e uma DRE caixa aproximada.",
+          selectedAccount: "",
+          selectedMonths: [],
+          availableAccounts: [],
+          availableMonths: [],
+          from: "",
+          to: "",
+        },
+      };
+
+      const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+      const integerFormat = new Intl.NumberFormat("pt-BR");
+      const CONTA_AZUL_DEFAULT_REDIRECT_URI = "https://www.contaazul.com";
+      const CONTA_AZUL_DEFAULT_SCOPE = "openid profile aws.cognito.signin.user.admin";
+      const LOVABLE_CONTRACTS_WEBHOOK_PATH = "/api/integrations/lovable/contracts";
+      const LOVABLE_RECEIPTS_WEBHOOK_PATH = "/api/integrations/lovable/receipts";
+
+      function el(id) {
+        return document.getElementById(id);
+      }
+
+      function setInputValueIfIdle(id, value) {
+        const node = el(id);
+        if (document.activeElement !== node) node.value = value ?? "";
+      }
+
+      function setInputValueIfEmpty(id, value) {
+        const node = el(id);
+        if (node && document.activeElement !== node && !node.value) node.value = value ?? "";
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function toast(message) {
+        const node = el("toast");
+        node.textContent = message;
+        node.classList.add("show");
+        clearTimeout(window.__toastTimer);
+        window.__toastTimer = setTimeout(() => node.classList.remove("show"), 2600);
+      }
+
+      async function api(path, options) {
+        const response = await fetch(path, { credentials: "same-origin", ...options });
+        const json = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(json.error || (response.status === 401 ? "Ação não autorizada." : "Falha na API"));
+        }
+        return json;
+      }
+
+      function formatMoney(valueCents) {
+        return currency.format((Number(valueCents) || 0) / 100);
+      }
+
+      function formatInteger(value) {
+        return integerFormat.format(Number(value) || 0);
+      }
+
+      function formatDateTime(value) {
+        if (!value) return "—";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return "—";
+        return date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+      }
+
+      function todayIsoDate() {
+        return new Date().toISOString().slice(0, 10);
+      }
+
+      function formatShortDate(value) {
+        if (!value) return "—";
+        const date = new Date(`${value}T00:00:00`);
+        if (Number.isNaN(date.getTime())) return value;
+        return date.toLocaleDateString("pt-BR");
+      }
+
+      function buildQueryString(params) {
+        const search = new URLSearchParams();
+        Object.entries(params || {}).forEach(([key, value]) => {
+          if (value == null || value === "") return;
+          if (Array.isArray(value)) {
+            if (!value.length) return;
+            search.set(key, value.join(","));
+            return;
+          }
+          search.set(key, value);
+        });
+        const query = search.toString();
+        return query ? `?${query}` : "";
+      }
+
+      const workflowSteps = [
+        {
+          key: "import",
+          title: "Subir extratos bancários",
+          copy: "Importe CSV ou OFX e confira os arquivos recentes antes de avançar para a análise.",
+          sections: ["imports", "fpa-recent-imports-card", "fpa-metrics-card"],
+        },
+        {
+          key: "analysis",
+          title: "Analisar e ajustar lançamentos",
+          copy: "Revise categorias, gere o relatório e salve alterações antes do cruzamento com o Conta Azul.",
+          sections: ["reports", "fpa-report-card", "transactions", "fpa-metrics-card"],
+        },
+        {
+          key: "crosscheck",
+          title: "Cruzar extrato com Conta Azul",
+          copy: "O agente busca receitas e despesas no Conta Azul e separa o que já existe do que ainda falta lançar.",
+          sections: ["conta-azul-crosscheck"],
+        },
+        {
+          key: "launch",
+          title: "Lançar somente o que falta",
+          copy: "Revise os lançamentos faltantes. Possíveis duplicidades ficam fora do envio automático.",
+          sections: ["conta-azul-launch-review"],
+        },
+        {
+          key: "done",
+          title: "Concluir ciclo FP&A",
+          copy: "Veja o resumo do cruzamento e do último envio antes de iniciar um novo ciclo.",
+          sections: ["workflow-conclusion"],
+        },
+        {
+          key: "settings",
+          title: "Configurações e cadastros",
+          copy: "Ajuste Conta Azul, Lovable, categorias padrão, plano DRE, aprendizado e teste manual da API.",
+          sections: ["conta-azul", "lovable-integration", "dre-plan", "learning", "conta-azul-test"],
+        },
+      ];
+
+      const workflowSectionIds = Array.from(new Set(workflowSteps.flatMap((step) => step.sections)));
+
+      function getWorkflowStep(key = state.fpa.workflowStep) {
+        return workflowSteps.find((step) => step.key === key) || workflowSteps[0];
+      }
+
+      function syncWorkflowView() {
+        const currentStep = getWorkflowStep();
+        workflowSectionIds.forEach((sectionId) => {
+          const node = el(sectionId);
+          if (!node) return;
+          const isVisible = currentStep.sections.includes(sectionId);
+          node.classList.toggle("hidden", !isVisible);
+          node.classList.toggle("workflow-panel", isVisible);
+        });
+
+        document.querySelectorAll("[data-workflow-step]").forEach((node) => {
+          node.classList.toggle("active", node.dataset.workflowStep === currentStep.key);
+        });
+
+        el("workflow-active-title").textContent = currentStep.title;
+        el("workflow-active-copy").textContent = currentStep.copy;
+        const currentIndex = workflowSteps.findIndex((step) => step.key === currentStep.key);
+        el("btn-workflow-prev").disabled = currentIndex <= 0;
+        el("btn-workflow-next").textContent = currentStep.key === "settings" ? "Voltar ao fluxo" : currentStep.key === "done" ? "Novo ciclo" : "Próximo passo";
+      }
+
+      function setWorkflowStep(stepKey, options = {}) {
+        state.fpa.workflowStep = getWorkflowStep(stepKey).key;
+        syncWorkflowView();
+        if (options.scroll !== false) {
+          document.getElementById("overview")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+
+      function moveWorkflow(delta) {
+        const currentIndex = workflowSteps.findIndex((step) => step.key === state.fpa.workflowStep);
+        const nextIndex = currentIndex + delta;
+        if (nextIndex < 0) return;
+        if (nextIndex >= workflowSteps.length || state.fpa.workflowStep === "done") {
+          setWorkflowStep("import");
+          return;
+        }
+        setWorkflowStep(workflowSteps[nextIndex].key);
+      }
+
+      function readFiles(inputId) {
+        return Array.from(el(inputId)?.files || []);
+      }
+
+      function createDefaultDreForm() {
+        return {
+          id: null,
+          name: "",
+          type: "expense",
+          orderIndex: "",
+          categories: [],
+          notes: "",
+        };
+      }
+
+      function resetDreFormState() {
+        state.fpa.dreForm = createDefaultDreForm();
+      }
+
+      function getDreTypeLabel(type) {
+        return (state.fpa.dreTypeOptions || []).find((entry) => entry.value === type)?.label || "Despesa";
+      }
+
+      function getTransactionCategoryValue(transaction) {
+        if (
+          transaction?.id &&
+          Object.prototype.hasOwnProperty.call(state.fpa.categoryDrafts || {}, transaction.id)
+        ) {
+          return state.fpa.categoryDrafts[transaction.id];
+        }
+        return transaction?.category || "";
+      }
+
+      function reconcileTransactionCategoryDrafts(nextTransactions) {
+        const nextDrafts = { ...(state.fpa.categoryDrafts || {}) };
+        const transactionsById = new Map((Array.isArray(nextTransactions) ? nextTransactions : []).map((entry) => [entry.id, entry]));
+
+        Object.keys(nextDrafts).forEach((transactionId) => {
+          const transaction = transactionsById.get(transactionId);
+          if (!transaction) {
+            delete nextDrafts[transactionId];
+            return;
+          }
+
+          if (nextDrafts[transactionId] === transaction.category) {
+            delete nextDrafts[transactionId];
+          }
+        });
+
+        state.fpa.categoryDrafts = nextDrafts;
+      }
+
+      function getPendingTransactionCategoryChanges(transactionIds = null) {
+        const scopedIds = Array.isArray(transactionIds) ? new Set(transactionIds) : null;
+        return (state.fpa.transactions || [])
+          .filter((transaction) => !scopedIds || scopedIds.has(transaction.id))
+          .map((transaction) => ({
+            id: transaction.id,
+            category: getTransactionCategoryValue(transaction),
+            originalCategory: transaction.category,
+          }))
+          .filter((entry) => entry.category && entry.category !== entry.originalCategory)
+          .map((entry) => ({
+            id: entry.id,
+            category: entry.category,
+            isInternalTransfer: entry.category === "Transferências Internas",
+          }));
+      }
+
+      function getContaAzulFpaExportSettings() {
+        return state.fpa.contaAzul?.fpaExport || {
+          enabled: false,
+          defaultContactId: "",
+          defaultFinancialAccountId: "",
+          exportOnlyUnsent: true,
+          includeInternalTransfers: false,
+          maxRecordsPerRun: 50,
+        };
+      }
+
+      function renderLearning() {
+        const learning = state.fpa.categoryLearning || { rulesCount: 0, recentRules: [] };
+        const rules = Array.isArray(learning.recentRules) ? learning.recentRules : [];
+        el("fpa-learning-rules-count").textContent = formatInteger(learning.rulesCount || 0);
+        el("fpa-learning-status").textContent = learning.rulesCount ? "Aprendendo" : "Sem regras";
+        el("fpa-learning-rules-list").innerHTML = rules.length
+          ? rules
+              .map(
+                (rule) => `
+                  <div class="import-card">
+                    <div class="import-title">${escapeHtml(rule.descriptionPattern || "Padrão")}</div>
+                    <div class="import-meta">
+                      Conta: ${escapeHtml(rule.accountName || "Todas")} · Categoria: ${escapeHtml(rule.category || "—")}<br>
+                      ${formatInteger(rule.matchCount || 0)} uso(s) automático(s) · Atualizado em ${escapeHtml(formatDateTime(rule.updatedAt))}
+                    </div>
+                  </div>
+                `
+              )
+              .join("")
+          : `<div class="import-card"><div class="import-title">Nenhum padrão aprendido ainda</div><div class="import-meta">Quando você alterar uma categoria e salvar, o bot passa a reconhecer descrições parecidas nos próximos meses.</div></div>`;
+      }
+
+      function renderContaAzulSyncHistory(history) {
+        const list = el("fpa-conta-azul-history-list");
+        if (!Array.isArray(history) || !history.length) {
+          list.innerHTML = `<div class="import-card"><div class="import-title">Nenhum histórico ainda</div><div class="import-meta">O histórico de sincronizações com o Conta Azul vai aparecer aqui após o primeiro envio ou teste de conexão.</div></div>`;
+          return;
+        }
+        const kindLabels = { connection: "Conexão", preview: "Prévia", push: "Envio", oauth: "OAuth" };
+        const statusLabels = { success: "Sucesso", error: "Falha", preview: "Prévia", ignored: "Ignorado" };
+        const statusColors = { success: "var(--brand)", error: "var(--danger)", preview: "var(--accent)", ignored: "var(--muted)" };
+        list.innerHTML = history
+          .slice(0, 10)
+          .map((entry) => {
+            const statusColor = statusColors[entry.status] || "var(--muted)";
+            return `
+              <div class="import-card">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+                  <div style="min-width:0;flex:1">
+                    <div class="import-title" style="display:flex;align-items:center;gap:8px">
+                      <span style="width:8px;height:8px;border-radius:50%;background:${statusColor};flex-shrink:0;display:inline-block"></span>
+                      ${escapeHtml(kindLabels[entry.kind] || entry.kind || "—")} · ${escapeHtml(statusLabels[entry.status] || entry.status || "—")}${entry.recordCount ? ` · ${formatInteger(entry.recordCount)} registro(s)` : ""}
+                    </div>
+                    <div class="import-meta">
+                      ${entry.summary ? escapeHtml(entry.summary) + "<br>" : ""}${entry.errorMessage ? `<span style="color:var(--danger)">${escapeHtml(entry.errorMessage)}</span><br>` : ""}${entry.startedAt ? `Em ${escapeHtml(formatDateTime(entry.startedAt))}` : ""}${entry.responseCode ? ` · HTTP ${entry.responseCode}` : ""}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      function buildAbsoluteAppUrl(path) {
+        const safePath = String(path || "").startsWith("/") ? String(path || "") : `/${path || ""}`;
+        return `${window.location.protocol}//${window.location.host}${safePath}`;
+      }
+
+      function renderStorageStatus() {
+        const storage = state.fpa.storage || {};
+        const alertEl = el("fpa-storage-alert");
+        const textEl = el("fpa-storage-status");
+        if (!alertEl || !textEl) return;
+
+        if (storage.needsPersistentStorage) {
+          alertEl.style.display = "flex";
+          alertEl.style.background = "var(--warning-soft)";
+          alertEl.style.borderColor = "rgba(255,176,32,.28)";
+          alertEl.style.color = "var(--warning)";
+          textEl.textContent = `${storage.message || "Os dados estão em arquivo local."} Em Render/deploy sem banco ou disco persistente, Conta Azul e Lovable podem zerar quando o servidor reiniciar. Configure DATABASE_URL para manter a conexão.`;
+          return;
+        }
+
+        if (storage.mode) {
+          alertEl.style.display = "flex";
+          alertEl.style.background = "var(--brand-soft)";
+          alertEl.style.borderColor = "var(--brand-border)";
+          alertEl.style.color = "var(--brand)";
+          textEl.textContent = storage.mode === "postgres"
+            ? "Persistência durável ativa em PostgreSQL. As conexões devem sobreviver a refresh e restart do servidor."
+            : "Persistência em arquivo configurado por BOT_DATA_DIR. Confira se o deploy usa disco persistente para este diretório.";
+          return;
+        }
+
+        alertEl.style.display = "none";
+      }
+
+      function renderLovableIntegration() {
+        const settings = state.fpa.lovable || {};
+        const contractsPath = settings.contractsWebhookPath || LOVABLE_CONTRACTS_WEBHOOK_PATH;
+        const receiptsPath = settings.receiptsWebhookPath || LOVABLE_RECEIPTS_WEBHOOK_PATH;
+        const isReady = settings.integrationEnabled || (settings.enabled && settings.hasWebhookSecret);
+
+        const badge = el("fpa-lovable-badge");
+        if (isReady) {
+          badge.textContent = "● Conectado";
+          badge.style.cssText = "padding:5px 12px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;background:var(--brand-soft);border:1px solid var(--brand-border);color:var(--brand)";
+        } else if (settings.enabled) {
+          badge.textContent = "● Falta segredo";
+          badge.style.cssText = "padding:5px 12px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;background:var(--warning-soft);border:1px solid rgba(255,176,32,.28);color:var(--warning)";
+        } else {
+          badge.textContent = "● Não configurado";
+          badge.style.cssText = "padding:5px 12px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;background:var(--panel-3);border:1px solid var(--border);color:var(--muted)";
+        }
+
+        const alertEl = el("fpa-lovable-alert");
+        if (isReady) {
+          alertEl.style.background = "var(--brand-soft)";
+          alertEl.style.borderColor = "var(--brand-border)";
+          alertEl.style.color = "var(--brand)";
+        } else if (settings.enabled) {
+          alertEl.style.background = "var(--warning-soft)";
+          alertEl.style.borderColor = "rgba(255,176,32,.28)";
+          alertEl.style.color = "var(--warning)";
+        } else {
+          alertEl.style.cssText = "margin-bottom:18px";
+        }
+
+        el("fpa-lovable-status").textContent = isReady
+          ? "Lovable conectado. Configure estes webhooks no sistema de contratos para criar contratos e baixar recebimentos automaticamente no Conta Azul."
+          : settings.enabled
+            ? "Integração ativada, mas ainda falta salvar um segredo de webhook."
+            : "Configure o segredo, ative a integração e copie as URLs para conectar os webhooks do Lovable.";
+
+        setInputValueIfIdle("fpa-lovable-secret", "");
+        el("fpa-lovable-secret").placeholder = settings.hasWebhookSecret
+          ? "Segredo salvo no servidor"
+          : "Deixe em branco para manter o atual";
+        setInputValueIfIdle("fpa-lovable-contracts-url", buildAbsoluteAppUrl(contractsPath));
+        setInputValueIfIdle("fpa-lovable-receipts-url", buildAbsoluteAppUrl(receiptsPath));
+        el("fpa-lovable-enabled").classList.toggle("active", settings.enabled === true || settings.usesEnvironmentSecret === true);
+        el("fpa-lovable-secret-hint").textContent = settings.usesEnvironmentSecret
+          ? "Secret configurado por variável de ambiente. Preencha apenas se quiser salvar outro no painel."
+          : settings.hasStoredWebhookSecret
+            ? "Secret já salvo. Preencha apenas para substituir."
+            : "Use um segredo forte. O Lovable deve enviar esse valor no header do webhook.";
+
+        renderLovableSyncHistory();
+      }
+
+      function renderLovableSyncHistory() {
+        const list = el("fpa-lovable-sync-list");
+        const contracts = Array.isArray(state.fpa.lovableSyncs?.contracts) ? state.fpa.lovableSyncs.contracts : [];
+        const receipts = Array.isArray(state.fpa.lovableSyncs?.receipts) ? state.fpa.lovableSyncs.receipts : [];
+        const entries = [
+          ...contracts.map((entry) => ({ ...entry, syncType: "Contrato" })),
+          ...receipts.map((entry) => ({ ...entry, syncType: "Recebimento" })),
+        ].sort((a, b) => String(b.updatedAt || b.createdAt || "").localeCompare(String(a.updatedAt || a.createdAt || "")));
+
+        if (!entries.length) {
+          list.innerHTML = `<div class="import-card"><div class="import-title">Nenhum evento Lovable recebido ainda</div><div class="import-meta">Assim que o Lovable enviar contratos ou recebimentos, o resultado da sincronização aparece aqui.</div></div>`;
+          return;
+        }
+
+        const statusLabels = { success: "Sucesso", error: "Falha", pending: "Pendente" };
+        const statusColors = { success: "var(--brand)", error: "var(--danger)", pending: "var(--warning)" };
+        list.innerHTML = entries
+          .slice(0, 12)
+          .map((entry) => {
+            const statusColor = statusColors[entry.status] || "var(--muted)";
+            const title = entry.syncType === "Contrato"
+              ? entry.customerName || entry.externalId
+              : entry.externalContractId || entry.externalId;
+            return `
+              <div class="import-card">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+                  <div style="min-width:0;flex:1">
+                    <div class="import-title" style="display:flex;align-items:center;gap:8px">
+                      <span style="width:8px;height:8px;border-radius:50%;background:${statusColor};flex-shrink:0;display:inline-block"></span>
+                      ${escapeHtml(entry.syncType)} · ${escapeHtml(statusLabels[entry.status] || entry.status || "—")}
+                    </div>
+                    <div class="import-meta">
+                      ${escapeHtml(title || "Evento Lovable")} · ${escapeHtml(entry.externalId || "sem id externo")} · ${escapeHtml(formatMoney(entry.amountCents || 0))}<br>
+                      ${entry.errorMessage ? `<span style="color:var(--danger)">${escapeHtml(entry.errorMessage)}</span><br>` : ""}${entry.updatedAt ? `Atualizado em ${escapeHtml(formatDateTime(entry.updatedAt))}` : ""}${entry.responseCode ? ` · HTTP ${entry.responseCode}` : ""}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      function renderContaAzulSelectOptions(selectId, items, selectedId, placeholder) {
+        const select = el(selectId);
+        const safeItems = Array.isArray(items) ? items : [];
+        const hasSelectedItem = safeItems.some((item) => item.id === selectedId);
+        const fallbackOption = selectedId && !hasSelectedItem
+          ? `<option value="${escapeHtml(selectedId)}" selected>UUID salvo · ${escapeHtml(selectedId)}</option>`
+          : "";
+        select.innerHTML = [
+          `<option value="">${escapeHtml(placeholder)}</option>`,
+          fallbackOption,
+          ...safeItems.map((item) => {
+            const meta = [item.document, item.bank, item.type, item.dreEntry, item.active === false ? "Inativa" : ""].filter(Boolean).join(" · ");
+            const label = `${item.name || item.label || item.id}${meta ? ` (${meta})` : ""}`;
+            return `<option value="${escapeHtml(item.id)}" ${item.id === selectedId ? "selected" : ""}>${escapeHtml(label)}</option>`;
+          }),
+        ].join("");
+      }
+
+      function syncContaAzulLookupSelects() {
+        const lookups = state.fpa.contaAzulLookups || {};
+        renderContaAzulSelectOptions(
+          "fpa-conta-azul-contact-select",
+          lookups.defaultPeople,
+          el("fpa-conta-azul-contact-id").value,
+          "Busque e selecione uma pessoa"
+        );
+        renderContaAzulSelectOptions(
+          "fpa-conta-azul-financial-account-select",
+          lookups.defaultFinancialAccounts,
+          el("fpa-conta-azul-financial-account-id").value,
+          "Busque e selecione uma conta financeira"
+        );
+        renderContaAzulSelectOptions(
+          "fpa-conta-azul-receivable-category-select",
+          lookups.defaultReceivableCategories,
+          el("fpa-conta-azul-receivable-category-id").value,
+          "Busque e selecione uma categoria de receita"
+        );
+        renderContaAzulSelectOptions(
+          "fpa-conta-azul-payable-category-select",
+          lookups.defaultPayableCategories,
+          el("fpa-conta-azul-payable-category-id").value,
+          "Busque e selecione uma categoria de despesa"
+        );
+        renderContaAzulSelectOptions(
+          "fpa-ca-test-contact-select",
+          lookups.testPeople,
+          el("fpa-ca-test-contact-id").value,
+          "Busque e selecione uma pessoa"
+        );
+        renderContaAzulSelectOptions(
+          "fpa-ca-test-financial-account-select",
+          lookups.testFinancialAccounts,
+          el("fpa-ca-test-financial-account-id").value,
+          "Busque e selecione uma conta financeira"
+        );
+        renderContaAzulSelectOptions(
+          "fpa-ca-test-category-select",
+          lookups.testFinancialCategories,
+          el("fpa-ca-test-category-id").value,
+          "Busque e selecione uma categoria financeira"
+        );
+      }
+
+      function renderContaAzul() {
+        const settings = state.fpa.contaAzul || {};
+        const fpaExport = getContaAzulFpaExportSettings();
+        const preview = state.fpa.contaAzulPreview;
+        const isConnected = settings.hasAccessToken || settings.hasValidToken;
+        const isReady =
+          settings.enabled &&
+          settings.hasValidToken &&
+          fpaExport.defaultContactId &&
+          fpaExport.defaultFinancialAccountId &&
+          fpaExport.defaultReceivableCategoryId &&
+          fpaExport.defaultPayableCategoryId;
+        const suggestedCallbackUrl = `${window.location.protocol}//${window.location.host}/api/conta-azul/oauth/callback`;
+
+        const badge = el("fpa-conta-azul-badge");
+        if (isReady) {
+          badge.textContent = "● Pronto para exportar";
+          badge.style.cssText = "padding:5px 12px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;background:var(--brand-soft);border:1px solid var(--brand-border);color:var(--brand)";
+        } else if (isConnected) {
+          badge.textContent = "● Conectado";
+          badge.style.cssText = "padding:5px 12px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;background:rgba(58,160,255,.12);border:1px solid rgba(58,160,255,.28);color:var(--accent)";
+        } else {
+          badge.textContent = "● Desconectado";
+          badge.style.cssText = "padding:5px 12px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;background:var(--panel-3);border:1px solid var(--border);color:var(--muted)";
+        }
+
+        const alertEl = el("fpa-conta-azul-alert");
+        if (settings.status?.lastError) {
+          alertEl.style.background = "var(--danger-soft)";
+          alertEl.style.borderColor = "rgba(255,93,93,.28)";
+          alertEl.style.color = "#ff9d9d";
+        } else if (isReady) {
+          alertEl.style.background = "var(--brand-soft)";
+          alertEl.style.borderColor = "var(--brand-border)";
+          alertEl.style.color = "var(--brand)";
+        } else {
+          alertEl.style.cssText = "";
+        }
+        el("fpa-conta-azul-status").textContent = isReady
+          ? "Conta Azul configurado e pronto para exportar lançamentos FP&A."
+            : settings.status?.lastError
+              ? `Última falha: ${settings.status.lastError}`
+            : settings.hasAccessToken
+              ? "Token salvo. Configure pessoa, conta financeira e categorias padrão para habilitar a exportação segura."
+              : settings.clientId && settings.hasClientSecret
+                ? "Credenciais salvas. Clique em Conectar Conta Azul, faça login e então troque o código OAuth."
+                : "Configure Client ID, Client Secret e a Redirect URI para conectar ao Conta Azul.";
+
+        const accountCard = el("fpa-conta-azul-account-card");
+        const account = settings.connectedAccount || {};
+        if (isConnected && (account.companyName || account.tradeName || account.document)) {
+          accountCard.style.display = "block";
+          el("fpa-ca-company-name").textContent = account.companyName || account.tradeName || "Empresa conectada";
+          const subParts = [
+            account.tradeName && account.tradeName !== account.companyName ? `Nome fantasia: ${account.tradeName}` : "",
+            account.document ? `CNPJ: ${account.document}` : "",
+            account.email ? account.email : "",
+          ].filter(Boolean);
+          el("fpa-ca-company-sub").textContent = subParts.join(" · ");
+          const tokenStatusEl = el("fpa-ca-token-status");
+          const tokenExpiresEl = el("fpa-ca-token-expires");
+          if (settings.hasValidToken) {
+            tokenStatusEl.textContent = "Válido";
+            tokenStatusEl.style.color = "var(--brand)";
+            tokenExpiresEl.textContent = settings.accessTokenExpiresAt ? `Expira: ${formatDateTime(settings.accessTokenExpiresAt)}` : "";
+          } else if (settings.hasAccessToken) {
+            tokenStatusEl.textContent = "Expirado — renove o token";
+            tokenStatusEl.style.color = "var(--warning)";
+            tokenExpiresEl.textContent = "";
+          } else {
+            tokenStatusEl.textContent = "Sem token";
+            tokenStatusEl.style.color = "var(--danger)";
+            tokenExpiresEl.textContent = "";
+          }
+        } else {
+          accountCard.style.display = "none";
+        }
+
+        setInputValueIfIdle("fpa-conta-azul-suggested-redirect", suggestedCallbackUrl);
+        setInputValueIfIdle("fpa-conta-azul-client-id", settings.clientId || "");
+        setInputValueIfIdle("fpa-conta-azul-client-secret", "");
+        el("fpa-conta-azul-client-secret").placeholder = settings.hasClientSecret
+          ? "Secret salvo no servidor"
+          : "Deixe em branco para manter o atual";
+        setInputValueIfIdle("fpa-conta-azul-redirect-uri", settings.redirectUri || suggestedCallbackUrl);
+        setInputValueIfIdle("fpa-conta-azul-contact-id", fpaExport.defaultContactId || "");
+        setInputValueIfIdle("fpa-conta-azul-financial-account-id", fpaExport.defaultFinancialAccountId || "");
+        setInputValueIfIdle("fpa-conta-azul-receivable-category-id", fpaExport.defaultReceivableCategoryId || "");
+        setInputValueIfIdle("fpa-conta-azul-payable-category-id", fpaExport.defaultPayableCategoryId || "");
+        setInputValueIfIdle("fpa-conta-azul-max-records", fpaExport.maxRecordsPerRun || 50);
+        el("fpa-conta-azul-only-unsent").classList.toggle("active", fpaExport.exportOnlyUnsent !== false);
+        el("fpa-conta-azul-include-transfers").classList.toggle("active", fpaExport.includeInternalTransfers === true);
+        el("fpa-conta-azul-secret-hint").textContent = settings.hasClientSecret
+          ? "Secret já salvo. Preencha apenas para substituir."
+          : "Preencha para salvar o secret do app Conta Azul.";
+        syncContaAzulLookupSelects();
+
+        renderContaAzulSyncHistory(settings.syncHistory || []);
+
+        const previewSection = el("fpa-conta-azul-preview-section");
+        if (preview?.payload?.records?.length) {
+          previewSection.style.display = "block";
+          el("fpa-conta-azul-preview-list").innerHTML = preview.payload.records
+            .slice(0, 8)
+            .map(
+              (record) => `
+                <div class="import-card">
+                  <div class="import-title">${escapeHtml(record.payload?.descricao || "Lançamento Conta Azul")}</div>
+                  <div class="import-meta">
+                    ${escapeHtml(record.type === "receivable" ? "Conta a receber" : "Conta a pagar")} · ${escapeHtml(record.amountFormatted || "")} · ${escapeHtml(record.transactionDate || "Sem data")}<br>
+                    Categoria local: ${escapeHtml(record.category || "—")} · Endpoint: ${escapeHtml(record.endpointPath || "—")}
+                  </div>
+                </div>
+              `
+            )
+            .join("");
+        } else if (preview) {
+          previewSection.style.display = "block";
+          el("fpa-conta-azul-preview-list").innerHTML = `<div class="import-card"><div class="import-title">Nenhum lançamento na prévia</div><div class="import-meta">Nenhum lançamento atende aos filtros atuais para exportação.</div></div>`;
+        } else {
+          previewSection.style.display = "none";
+        }
+      }
+
+      function renderContaAzulTest() {
+        const settings = state.fpa.contaAzul || {};
+        const fpaExport = getContaAzulFpaExportSettings();
+        const today = todayIsoDate();
+        const typeSelect = el("fpa-ca-test-type");
+        if (!typeSelect.value) typeSelect.value = "receivable";
+
+        setInputValueIfEmpty("fpa-ca-test-amount", "10.00");
+        setInputValueIfEmpty(
+          "fpa-ca-test-description",
+          typeSelect.value === "payable" ? "TESTE FP&A - Conta a pagar" : "TESTE FP&A - Conta a receber"
+        );
+        setInputValueIfEmpty("fpa-ca-test-competence-date", today);
+        setInputValueIfEmpty("fpa-ca-test-due-date", today);
+        setInputValueIfEmpty("fpa-ca-test-contact-id", fpaExport.defaultContactId || "");
+        setInputValueIfEmpty("fpa-ca-test-financial-account-id", fpaExport.defaultFinancialAccountId || "");
+        setInputValueIfEmpty("fpa-ca-test-category-id", "");
+        setInputValueIfEmpty("fpa-ca-test-notes", "Lançamento criado para validar a API do Conta Azul pelo Analista FP&A.");
+        syncContaAzulLookupSelects();
+
+        const createButton = el("btn-create-conta-azul-test-launch");
+        createButton.disabled = !(settings.hasAccessToken || settings.hasValidToken);
+        createButton.textContent = createButton.disabled ? "Conecte o Conta Azul" : "Criar Teste";
+
+        const result = state.fpa.contaAzulTestResult;
+        const resultList = el("fpa-ca-test-result-list");
+        if (!result) {
+          resultList.innerHTML = `
+            <div class="import-card">
+              <div class="import-title">Nenhum teste enviado ainda</div>
+              <div class="import-meta">Preencha os dados e clique em Criar Teste para validar a criação de contas a receber ou contas a pagar.</div>
+            </div>`;
+          return;
+        }
+
+        const statusColor = result.ok ? "var(--brand)" : "var(--danger)";
+        const typeLabel = result.type === "payable" ? "Contas a pagar" : "Contas a receber";
+        resultList.innerHTML = `
+          <div class="import-card">
+            <div class="import-title" style="display:flex;align-items:center;gap:8px">
+              <span style="width:8px;height:8px;border-radius:50%;background:${statusColor};display:inline-block"></span>
+              ${escapeHtml(result.ok ? "Lançamento teste criado" : "Falha no lançamento teste")}
+            </div>
+            <div class="import-meta">
+              ${escapeHtml(typeLabel)} · ${escapeHtml(result.record?.amountFormatted || "")} · HTTP ${escapeHtml(result.responseCode || "—")}<br>
+              Categoria: ${escapeHtml(result.record?.payload?.rateio?.[0]?.id_categoria || "—")}<br>
+              ${result.eventId ? `ID Conta Azul: ${escapeHtml(result.eventId)}<br>` : ""}
+              Endpoint: ${escapeHtml(result.endpointPath || result.endpoint || "—")}
+              ${result.responsePreview ? `<br>Resposta: ${escapeHtml(result.responsePreview)}` : ""}
+            </div>
+          </div>`;
+      }
+
+      function renderContaAzulRecordCard(record, mode = "cross") {
+        const status = record?.reconciliation?.status || "missing";
+        const statusColor = status === "matched" ? "var(--brand)" : status === "possible" ? "var(--warning)" : "var(--accent)";
+        const statusLabel = record?.reconciliation?.label || "Não encontrado no Conta Azul";
+        const remote = record?.reconciliation?.contaAzulRecord;
+        const remoteLine = remote
+          ? `<br>Conta Azul: ${escapeHtml(remote.description || remote.counterpartyName || remote.id || "registro encontrado")} · ${escapeHtml(remote.amountFormatted || "")} · ${escapeHtml(formatShortDate(remote.dueDate || remote.competenceDate))}`
+          : "";
+        return `
+          <div class="import-card">
+            <div class="import-title" style="display:flex;align-items:center;gap:8px">
+              <span style="width:8px;height:8px;border-radius:50%;background:${statusColor};display:inline-block;flex-shrink:0"></span>
+              ${escapeHtml(record?.payload?.descricao || "Lançamento FP&A")}
+            </div>
+            <div class="import-meta">
+              ${escapeHtml(record?.type === "payable" ? "Conta a pagar" : "Conta a receber")} · ${escapeHtml(record?.amountFormatted || "")} · ${escapeHtml(formatShortDate(record?.transactionDate))}<br>
+              ${escapeHtml(statusLabel)}${record?.reconciliation?.score ? ` · score ${escapeHtml(record.reconciliation.score)}` : ""}${remoteLine}<br>
+              Categoria local: ${escapeHtml(record?.category || "—")} · Conta: ${escapeHtml(record?.accountName || "—")}
+              ${mode === "launch" && record?.missingRequiredFields?.length ? `<br><span style="color:var(--danger)">Configurar antes: ${escapeHtml(record.missingRequiredFields.join(", "))}</span>` : ""}
+            </div>
+          </div>
+        `;
+      }
+
+      function renderContaAzulReconciliation() {
+        const reconciliation = state.fpa.contaAzulReconciliation?.reconciliation || null;
+        const lastPush = state.fpa.contaAzulLastPushResult || null;
+        const localCount = reconciliation?.totalLocalRecords || 0;
+        const remoteCount = reconciliation?.totalContaAzulRecords || 0;
+        const matchedCount = (reconciliation?.matchedRecords?.length || 0) + (reconciliation?.possibleRecords?.length || 0);
+        const missingCount = reconciliation?.missingRecords?.length || 0;
+
+        el("fpa-ca-cross-local-count").textContent = formatInteger(localCount);
+        el("fpa-ca-cross-remote-count").textContent = formatInteger(remoteCount);
+        el("fpa-ca-cross-matched-count").textContent = formatInteger(matchedCount);
+        el("fpa-ca-cross-missing-count").textContent = formatInteger(missingCount);
+        el("fpa-conclusion-crossed").textContent = formatInteger(localCount);
+        el("fpa-conclusion-blocked").textContent = formatInteger(matchedCount);
+        el("fpa-conclusion-missing").textContent = formatInteger(missingCount);
+        el("fpa-conclusion-exported").textContent = formatInteger(lastPush?.exportedCount || 0);
+
+        const crossList = el("fpa-ca-reconciliation-list");
+        if (!reconciliation) {
+          crossList.innerHTML = `<div class="import-card"><div class="import-title">Cruzamento ainda não executado</div><div class="import-meta">Clique em Cruzar Agora para buscar lançamentos no Conta Azul e comparar com o extrato.</div></div>`;
+        } else {
+          const records = [
+            ...(reconciliation.missingRecords || []),
+            ...(reconciliation.possibleRecords || []),
+            ...(reconciliation.matchedRecords || []),
+          ].slice(0, 12);
+          crossList.innerHTML = records.length
+            ? records.map((record) => renderContaAzulRecordCard(record)).join("")
+            : `<div class="import-card"><div class="import-title">Nenhum candidato para cruzar</div><div class="import-meta">Importe extratos ou revise os filtros atuais.</div></div>`;
+        }
+
+        const launchList = el("fpa-ca-launch-list");
+        const recordsToCreate = reconciliation?.recordsToCreate || [];
+        launchList.innerHTML = recordsToCreate.length
+          ? recordsToCreate.slice(0, 20).map((record) => renderContaAzulRecordCard(record, "launch")).join("")
+          : `<div class="import-card"><div class="import-title">Nenhum lançamento faltante</div><div class="import-meta">Depois do cruzamento, nada novo ficou elegível para envio automático.</div></div>`;
+
+        el("btn-go-conta-azul-launch").disabled = !reconciliation;
+        el("btn-launch-missing-conta-azul").disabled = !recordsToCreate.length;
+        el("fpa-conclusion-list").innerHTML = lastPush
+          ? `<div class="import-card"><div class="import-title">Último envio ao Conta Azul</div><div class="import-meta">${formatInteger(lastPush.exportedCount || 0)} sucesso(s) · ${formatInteger(lastPush.failedCount || 0)} falha(s)</div></div>`
+          : `<div class="import-card"><div class="import-title">Fluxo pronto para execução</div><div class="import-meta">Faça o cruzamento, revise os faltantes e envie apenas o que não existir no Conta Azul.</div></div>`;
+      }
+
+      function renderDrePlan() {
+        const form = state.fpa.dreForm || createDefaultDreForm();
+        const dreAccounts = Array.isArray(state.fpa.dreAccounts) ? state.fpa.dreAccounts : [];
+        const reconciliation = state.fpa.dreReconciliation || {
+          accountsCount: 0,
+          mappedCategoriesCount: 0,
+          unmappedCategoriesCount: 0,
+          unmappedCategories: [],
+        };
+
+        el("fpa-dre-name").value = form.name || "";
+        el("fpa-dre-order").value = form.orderIndex === "" || form.orderIndex == null ? "" : String(form.orderIndex);
+        el("fpa-dre-notes").value = form.notes || "";
+        el("fpa-dre-form-mode").textContent = form.id ? "Editando conta" : "Nova conta";
+        el("btn-save-dre-account").textContent = form.id ? "Atualizar Conta DRE" : "Salvar Conta DRE";
+        el("btn-seed-dre-accounts").disabled = dreAccounts.length > 0 || !(state.fpa.dreSuggestions || []).length;
+
+        const typeSelect = el("fpa-dre-type");
+        typeSelect.innerHTML = (state.fpa.dreTypeOptions || [])
+          .map(
+            (entry) =>
+              `<option value="${escapeHtml(entry.value)}" ${entry.value === form.type ? "selected" : ""}>${escapeHtml(entry.label)}</option>`
+          )
+          .join("");
+
+        const pickerCategories = Array.from(
+          new Set([...(state.fpa.categories || []), ...(form.categories || [])].filter((category) => category !== "Transferências Internas"))
+        );
+        const selectedCategories = new Set(form.categories || []);
+        const picker = el("fpa-dre-category-picker");
+        picker.innerHTML = pickerCategories.length
+          ? pickerCategories
+              .map(
+                (category) =>
+                  `<button class="filter-chip ${selectedCategories.has(category) ? "active" : ""}" type="button" data-fpa-dre-category="${escapeHtml(category)}">${escapeHtml(category)}</button>`
+              )
+              .join("")
+          : `<div class="empty">As categorias vão aparecer aqui assim que houver movimentações ou categorias cadastradas.</div>`;
+
+        picker.querySelectorAll("[data-fpa-dre-category]").forEach((button) =>
+          button.addEventListener("click", () => {
+            const category = button.dataset.fpaDreCategory;
+            const nextSelected = new Set(state.fpa.dreForm.categories || []);
+            if (nextSelected.has(category)) {
+              nextSelected.delete(category);
+            } else {
+              nextSelected.add(category);
+            }
+            state.fpa.dreForm.categories = Array.from(nextSelected).sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
+            renderDrePlan();
+          })
+        );
+
+        el("fpa-dre-metric-accounts").textContent = formatInteger(reconciliation.accountsCount);
+        el("fpa-dre-metric-mapped").textContent = formatInteger(reconciliation.mappedCategoriesCount);
+        el("fpa-dre-metric-unmapped").textContent = formatInteger(reconciliation.unmappedCategoriesCount);
+        el("fpa-dre-metric-model").textContent = dreAccounts.length ? "Customizado" : "Padrão";
+        el("fpa-dre-summary").textContent = dreAccounts.length
+          ? reconciliation.unmappedCategoriesCount
+            ? `O plano DRE já está ativo, mas ainda faltam ${reconciliation.unmappedCategoriesCount} categoria(s) para fechar a conciliação.`
+            : "O plano DRE está ativo e todas as categorias atuais já possuem destino de conciliação."
+          : "O sistema ainda está usando o modelo padrão baseado nas categorias atuais. Você pode cadastrar seu próprio plano ou criar a estrutura base.";
+
+        el("fpa-dre-unmapped-list").innerHTML = reconciliation.unmappedCategoriesCount
+          ? reconciliation.unmappedCategories.map((category) => `<span class="pill">${escapeHtml(category)}</span>`).join("")
+          : `<span class="pill">${dreAccounts.length ? "Conciliação completa" : "Sem plano customizado"}</span>`;
+
+        el("fpa-dre-accounts-list").innerHTML = dreAccounts.length
+          ? dreAccounts
+              .map(
+                (account) => `
+                  <div class="report-box">
+                    <div style="display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap">
+                      <div>
+                        <div class="report-box-title">${escapeHtml(account.name)}</div>
+                        <div class="import-meta">
+                          Tipo: ${escapeHtml(getDreTypeLabel(account.type))} · Ordem ${escapeHtml(String(account.orderIndex ?? 0))}<br>
+                          ${(account.categories || []).length} categoria(s) vinculada(s)
+                        </div>
+                        <div class="pill-row">
+                          ${(account.categories || []).map((category) => `<span class="pill">${escapeHtml(category)}</span>`).join("")}
+                        </div>
+                        ${account.notes ? `<div style="color:var(--muted);font-size:12px;line-height:1.7;margin-top:10px">${escapeHtml(account.notes)}</div>` : ""}
+                      </div>
+                      <div class="action-row">
+                        <button class="btn" data-edit-dre-account="${escapeHtml(account.id)}" type="button">Editar</button>
+                        <button class="btn btn-danger" data-delete-dre-account="${escapeHtml(account.id)}" type="button">Excluir</button>
+                      </div>
+                    </div>
+                  </div>
+                `
+              )
+              .join("")
+          : `<div class="report-box"><div class="report-box-title">Nenhuma conta DRE cadastrada</div><div style="color:var(--muted);font-size:12px;line-height:1.7;margin-top:8px">Crie sua estrutura manualmente ou use "Criar Estrutura Base" para começar a partir das categorias financeiras que já existem hoje.</div></div>`;
+
+        el("fpa-dre-accounts-list").querySelectorAll("[data-edit-dre-account]").forEach((button) =>
+          button.addEventListener("click", () => {
+            const account = dreAccounts.find((entry) => entry.id === button.dataset.editDreAccount);
+            if (!account) return;
+            state.fpa.dreForm = {
+              id: account.id,
+              name: account.name || "",
+              type: account.type || "expense",
+              orderIndex: account.orderIndex ?? "",
+              categories: Array.isArray(account.categories) ? account.categories.slice() : [],
+              notes: account.notes || "",
+            };
+            renderDrePlan();
+            window.location.hash = "#dre-plan";
+          })
+        );
+
+        el("fpa-dre-accounts-list").querySelectorAll("[data-delete-dre-account]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            const accountId = button.dataset.deleteDreAccount;
+            const account = dreAccounts.find((entry) => entry.id === accountId);
+            if (!account) return;
+            const confirmed = window.confirm(
+              `Excluir a conta DRE "${account.name}"? As categorias dela voltarão a ficar sem conciliação.`
+            );
+            if (!confirmed) return;
+
+            button.disabled = true;
+            try {
+              await api(`/api/fpa/dre-accounts/${accountId}`, { method: "DELETE" });
+              if (state.fpa.dreForm.id === accountId) resetDreFormState();
+              await refreshFpa();
+              toast("Conta DRE excluída.");
+            } catch (error) {
+              toast(error.message);
+            } finally {
+              button.disabled = false;
+            }
+          })
+        );
+      }
+
+      function syncDreFormFromInputs() {
+        state.fpa.dreForm.name = el("fpa-dre-name").value.trim();
+        state.fpa.dreForm.type = el("fpa-dre-type").value || "expense";
+        state.fpa.dreForm.orderIndex = el("fpa-dre-order").value === "" ? "" : Number(el("fpa-dre-order").value);
+        state.fpa.dreForm.notes = el("fpa-dre-notes").value.trim();
+      }
+
+      async function saveDreAccount() {
+        syncDreFormFromInputs();
+        const form = state.fpa.dreForm;
+
+        if (!form.name) {
+          toast("Informe o nome da conta DRE.");
+          return;
+        }
+        if (!Array.isArray(form.categories) || !form.categories.length) {
+          toast("Selecione pelo menos uma categoria financeira para conciliar.");
+          return;
+        }
+
+        const payload = {
+          name: form.name,
+          type: form.type,
+          orderIndex: form.orderIndex === "" ? null : Number(form.orderIndex),
+          categories: form.categories,
+          notes: form.notes,
+        };
+
+        if (form.id) {
+          await api(`/api/fpa/dre-accounts/${form.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          toast("Conta DRE atualizada.");
+        } else {
+          await api("/api/fpa/dre-accounts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          toast("Conta DRE criada.");
+        }
+
+        resetDreFormState();
+        await refreshFpa();
+      }
+
+      async function seedDreAccounts() {
+        if (state.fpa.dreAccounts.length) {
+          toast("O plano DRE já possui contas cadastradas.");
+          return;
+        }
+
+        const confirmed = window.confirm(
+          "Criar uma estrutura inicial do DRE com base nas categorias financeiras que já existem hoje?"
+        );
+        if (!confirmed) return;
+
+        const result = await api("/api/fpa/dre-accounts/seed", {
+          method: "POST",
+        });
+        resetDreFormState();
+        await refreshFpa();
+        toast(`${result.createdCount} conta(s) DRE criada(s) na estrutura inicial.`);
+      }
+
+      function renderSection(section) {
+        const rows = Array.isArray(section?.rows) ? section.rows : [];
+        const columns = Array.isArray(section?.columns) ? section.columns : [];
+        if (!rows.length || !columns.length) {
+          return `
+            <div class="report-box">
+              <div class="report-box-title">${escapeHtml(section?.title || "Seção")}</div>
+              <div style="color:var(--muted);font-size:12px;line-height:1.7;margin-top:8px">Sem dados suficientes para esta visão.</div>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="report-box">
+            <div class="report-box-title">${escapeHtml(section.title || "Seção")}</div>
+            <div class="table-wrap" style="margin-top:10px">
+              <table class="data-table">
+                <thead>
+                  <tr>${columns.map((column) => `<th>${escapeHtml(column.label || column.key)}</th>`).join("")}</tr>
+                </thead>
+                <tbody>
+                  ${rows
+                    .map(
+                      (row) => `
+                        <tr>
+                          ${columns
+                            .map((column) => {
+                              const value = row?.[column.key];
+                              if (column.type === "currency") return `<td>${escapeHtml(formatMoney(value))}</td>`;
+                              if (column.type === "number") return `<td>${escapeHtml(formatInteger(value))}</td>`;
+                              return `<td>${escapeHtml(value ?? "—")}</td>`;
+                            })
+                            .join("")}
+                        </tr>
+                      `
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+
+      function monthLabelFromValue(value) {
+        const [year, month] = String(value || "").split("-");
+        if (!year || !month) return value || "Mês";
+        return `${month}/${year}`;
+      }
+
+      function joinLabels(labels) {
+        if (!Array.isArray(labels) || !labels.length) return "";
+        if (labels.length === 1) return labels[0];
+        if (labels.length === 2) return `${labels[0]} e ${labels[1]}`;
+        return `${labels.slice(0, -1).join(", ")} e ${labels.at(-1)}`;
+      }
+
+      function buildFpaEmptyMessage() {
+        const hasImportedData = Boolean((state.fpa.availableAccounts || []).length || (state.fpa.availableMonths || []).length);
+        if (!hasImportedData) {
+          return "Importe um extrato para começar a leitura financeira do negócio.";
+        }
+
+        const parts = [];
+        if (state.fpa.selectedAccount) {
+          parts.push(`a conta "${state.fpa.selectedAccount}"`);
+        }
+
+        const monthMap = new Map((state.fpa.availableMonths || []).map((entry) => [entry.value, entry.label]));
+        const selectedMonthLabels = (state.fpa.selectedMonths || []).map((value) => monthMap.get(value) || monthLabelFromValue(value));
+        if (selectedMonthLabels.length === 1) {
+          parts.push(`o mês ${selectedMonthLabels[0]}`);
+        } else if (selectedMonthLabels.length > 1) {
+          parts.push(`os meses ${joinLabels(selectedMonthLabels)}`);
+        }
+
+        if (state.fpa.from && state.fpa.to) {
+          parts.push(`o período de ${formatShortDate(state.fpa.from)} a ${formatShortDate(state.fpa.to)}`);
+        } else if (state.fpa.from) {
+          parts.push(`as datas a partir de ${formatShortDate(state.fpa.from)}`);
+        } else if (state.fpa.to) {
+          parts.push(`as datas até ${formatShortDate(state.fpa.to)}`);
+        }
+
+        if (!parts.length) {
+          return "Nenhum lançamento foi encontrado para os filtros selecionados.";
+        }
+
+        return `Nenhum lançamento foi encontrado para ${joinLabels(parts)}.`;
+      }
+
+      function renderAccountFilter() {
+        const select = el("fpa-filter-account");
+        const options = Array.from(new Set(["", ...(state.fpa.availableAccounts || []), state.fpa.selectedAccount || ""]));
+        select.innerHTML = options
+          .filter((value, index, items) => items.indexOf(value) === index)
+          .map((value) =>
+            `<option value="${escapeHtml(value)}" ${value === state.fpa.selectedAccount ? "selected" : ""}>${escapeHtml(value || "Todas as contas")}</option>`
+          )
+          .join("");
+
+        const deleteButton = el("btn-delete-fpa-account");
+        deleteButton.disabled = !state.fpa.selectedAccount;
+        deleteButton.textContent = state.fpa.selectedAccount ? "Excluir Conta" : "Selecione uma conta";
+      }
+
+      function renderMonthFilters() {
+        const container = el("fpa-filter-months");
+        const selected = new Set(state.fpa.selectedMonths || []);
+        const knownMonths = [...(state.fpa.availableMonths || [])];
+
+        (state.fpa.selectedMonths || []).forEach((value) => {
+          if (knownMonths.some((entry) => entry.value === value)) return;
+          knownMonths.push({ value, label: monthLabelFromValue(value) });
+        });
+
+        if (!knownMonths.length) {
+          container.innerHTML = `<button class="filter-chip active" type="button" data-clear-fpa-months="true">Todos os meses</button>`;
+        } else {
+          container.innerHTML = [
+            `<button class="filter-chip ${selected.size ? "" : "active"}" type="button" data-clear-fpa-months="true">Todos os meses</button>`,
+            ...knownMonths.map(
+              (entry) =>
+                `<button class="filter-chip ${selected.has(entry.value) ? "active" : ""}" type="button" data-fpa-month="${escapeHtml(entry.value)}">${escapeHtml(entry.label)}</button>`
+            ),
+          ].join("");
+        }
+
+        container.querySelectorAll("[data-clear-fpa-months]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            state.fpa.selectedMonths = [];
+            await refreshFpa();
+          })
+        );
+
+        container.querySelectorAll("[data-fpa-month]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            const value = button.dataset.fpaMonth;
+            const selectedMonths = new Set(state.fpa.selectedMonths || []);
+            if (selectedMonths.has(value)) {
+              selectedMonths.delete(value);
+            } else {
+              selectedMonths.add(value);
+            }
+            state.fpa.selectedMonths = Array.from(selectedMonths).sort();
+            await refreshFpa();
+          })
+        );
+      }
+
+      function renderFpa() {
+        const overview = state.fpa.overview || {
+          period: { label: "Sem período" },
+          insights: [],
+          expenseBreakdown: [],
+        };
+        const report = state.fpa.report || {
+          title: "Visão Geral de FP&A",
+          summaryText: "Assim que houver extratos importados, o sistema monta a leitura gerencial automaticamente.",
+          sections: [],
+          insights: [],
+        };
+        const hasOverviewData = Number(overview.transactionsCount || 0) > 0;
+        const emptyMessage = buildFpaEmptyMessage();
+
+        el("fpa-report-from").value = state.fpa.from || "";
+        el("fpa-report-to").value = state.fpa.to || "";
+        el("fpa-report-prompt").value = state.fpa.prompt || "";
+        renderAccountFilter();
+        renderMonthFilters();
+        renderDrePlan();
+        renderLearning();
+        renderStorageStatus();
+        renderContaAzul();
+        renderLovableIntegration();
+        renderContaAzulTest();
+        renderContaAzulReconciliation();
+        syncWorkflowView();
+
+        const pendingCategoryChanges = getPendingTransactionCategoryChanges();
+        const bulkSaveButton = el("btn-save-fpa-transactions");
+        const isSavingAnyCategory = (state.fpa.savingCategoryIds || []).length > 0;
+        bulkSaveButton.disabled = !pendingCategoryChanges.length || isSavingAnyCategory;
+        bulkSaveButton.textContent = isSavingAnyCategory
+          ? "Salvando..."
+          : pendingCategoryChanges.length
+            ? `Salvar ${formatInteger(pendingCategoryChanges.length)} Alteração(ões)`
+            : "Salvar Alterações";
+
+        el("fpa-imports-list").innerHTML = state.fpa.imports.length
+          ? state.fpa.imports
+              .map(
+                (entry) => `
+                  <div class="import-card">
+                    <div class="import-title">${escapeHtml(entry.accountName || entry.originalFilename || "Extrato")}</div>
+                    <div class="import-meta">
+                      ${escapeHtml(entry.originalFilename || "extrato")} · ${escapeHtml((entry.sourceType || "").toUpperCase())}<br>
+                      Importado em ${escapeHtml(formatDateTime(entry.importedAt))}<br>
+                      ${escapeHtml(String(entry.importedCount || 0))} lançamento(s) novos · ${escapeHtml(String(entry.duplicateCount || 0))} duplicado(s)
+                    </div>
+                  </div>
+                `
+              )
+              .join("")
+          : `<div class="import-card"><div class="import-title">Nenhum extrato importado</div><div class="import-meta">Os arquivos CSV e OFX enviados passam a alimentar os relatórios automaticamente.</div></div>`;
+
+        if (!hasOverviewData) {
+          el("fpa-kpi-inflows").textContent = "—";
+          el("fpa-kpi-inflows-sub").textContent = "Sem entradas no recorte atual";
+          el("fpa-kpi-outflows").textContent = "—";
+          el("fpa-kpi-outflows-sub").textContent = "Sem saídas no recorte atual";
+          el("fpa-kpi-net").textContent = "—";
+          el("fpa-kpi-net").style.color = "var(--text)";
+          el("fpa-kpi-net-sub").textContent = "Sem saldo calculado";
+          el("fpa-kpi-burn").textContent = "—";
+          el("fpa-kpi-burn-sub").textContent = "Sem burn para o recorte";
+          el("fpa-kpi-cash").textContent = "—";
+          el("fpa-kpi-cash-sub").textContent = "Sem saldo disponível";
+          el("fpa-overview-alert-text").textContent = emptyMessage;
+          el("fpa-metric-transactions").textContent = "—";
+          el("fpa-metric-transactions-sub").textContent = "Nenhum lançamento entrou na análise";
+          el("fpa-metric-transfers").textContent = "—";
+          el("fpa-metric-period").textContent = "—";
+          el("fpa-metric-accounts").textContent = "—";
+          el("fpa-report-period").textContent = "Sem dados";
+          el("fpa-report-title").textContent = "Nenhum lançamento encontrado";
+          el("fpa-report-summary").textContent = emptyMessage;
+          el("fpa-insights").innerHTML = `<div class="insight-card">${escapeHtml(emptyMessage)}</div>`;
+          el("fpa-report-sections").innerHTML =
+            `<div class="report-box"><div class="report-box-title">Sem dados para analisar</div><div style="color:var(--muted);font-size:12px;line-height:1.7;margin-top:8px">${escapeHtml(emptyMessage)}</div></div>`;
+          el("fpa-transactions-body").innerHTML = `<tr><td colspan="6"><div class="empty">${escapeHtml(emptyMessage)}</div></td></tr>`;
+          return;
+        }
+
+        el("fpa-kpi-inflows").textContent = formatMoney(overview.inflowsCents);
+        el("fpa-kpi-inflows-sub").textContent = `${formatInteger(overview.reportableTransactionsCount || 0)} lançamento(s) considerados`;
+        el("fpa-kpi-outflows").textContent = formatMoney(overview.outflowsCents);
+        el("fpa-kpi-outflows-sub").textContent = overview.expenseBreakdown?.[0]
+          ? `Maior categoria: ${overview.expenseBreakdown[0].category}`
+          : "Sem despesas mapeadas";
+        el("fpa-kpi-net").textContent = formatMoney(overview.netCashCents);
+        el("fpa-kpi-net").style.color =
+          overview.netCashCents < 0 ? "var(--danger)" : overview.netCashCents > 0 ? "var(--brand)" : "var(--text)";
+        el("fpa-kpi-net-sub").textContent = overview.period?.label || "Resultado do período";
+        el("fpa-kpi-burn").textContent = formatMoney(overview.averageMonthlyBurnCents);
+        el("fpa-kpi-cash").textContent = formatMoney(overview.latestKnownCashCents);
+        el("fpa-kpi-cash-sub").textContent = overview.accountsWithBalance
+          ? `${formatInteger(overview.accountsWithBalance)} conta(s) com saldo`
+          : "Sem saldo disponível no extrato";
+
+        el("fpa-overview-alert-text").textContent =
+          overview.insights?.[0] || "Importe um extrato para começar a leitura financeira do negócio.";
+        el("fpa-metric-transactions").textContent = formatInteger(overview.transactionsCount);
+        el("fpa-metric-transactions-sub").textContent = overview.transactionsCount
+          ? `${formatInteger(overview.reportableTransactionsCount || 0)} lançamento(s) entraram nos relatórios`
+          : "Sem movimento importado";
+        el("fpa-metric-transfers").textContent = formatInteger(overview.internalTransfersCount);
+        el("fpa-metric-period").textContent =
+          overview.period?.from && overview.period?.to ? `${overview.period.from.slice(5, 7)}/${overview.period.from.slice(0, 4)}` : "—";
+        el("fpa-metric-accounts").textContent = formatInteger(overview.accountsWithBalance);
+        el("fpa-report-period").textContent = overview.period?.label || "Sem período";
+        el("fpa-report-title").textContent = report.title || "Visão Geral de FP&A";
+        el("fpa-report-summary").textContent = report.summaryText || "";
+
+        const insightItems = Array.isArray(report.insights) && report.insights.length ? report.insights : overview.insights || [];
+        el("fpa-insights").innerHTML = insightItems.length
+          ? insightItems.map((item) => `<div class="insight-card">${escapeHtml(item)}</div>`).join("")
+          : `<div class="insight-card">Sem insights ainda. Importe extratos para o analista montar a leitura financeira.</div>`;
+
+        el("fpa-report-sections").innerHTML = Array.isArray(report.sections) && report.sections.length
+          ? report.sections.map(renderSection).join("")
+          : `<div class="report-box"><div class="report-box-title">Sem relatório</div><div style="color:var(--muted);font-size:12px;line-height:1.7;margin-top:8px">Faça o primeiro pedido de análise para gerar tabelas e síntese gerencial.</div></div>`;
+
+        const transactionsBody = el("fpa-transactions-body");
+        if (!state.fpa.transactions.length) {
+          transactionsBody.innerHTML = `<tr><td colspan="6"><div class="empty">${escapeHtml(emptyMessage)}</div></td></tr>`;
+          return;
+        }
+
+        transactionsBody.innerHTML = "";
+        state.fpa.transactions.forEach((transaction) => {
+          const selectedCategory = getTransactionCategoryValue(transaction);
+          const hasPendingCategoryChange = selectedCategory !== transaction.category;
+          const isSavingCategory = (state.fpa.savingCategoryIds || []).includes(transaction.id);
+          const categoryOptions = Array.from(
+            new Set([...(state.fpa.categories || []), transaction.category, selectedCategory].filter(Boolean))
+          );
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${escapeHtml(formatShortDate(transaction.transactionDate))}</td>
+            <td>${escapeHtml(transaction.accountName || "—")}</td>
+            <td>
+              <div style="color:var(--text);font-weight:600">${escapeHtml(transaction.description || "—")}</div>
+              <div style="color:var(--dim);font-size:11px;margin-top:4px">${escapeHtml(transaction.subcategory || transaction.counterparty || "Sem detalhe adicional")}</div>
+            </td>
+            <td>
+              <select class="field-select" id="fpa-category-${escapeHtml(transaction.id)}" data-fpa-category-select="${escapeHtml(transaction.id)}" style="padding:7px 9px;min-width:180px" ${isSavingCategory ? "disabled" : ""}>
+                ${categoryOptions
+                  .map(
+                    (category) =>
+                      `<option value="${escapeHtml(category)}" ${category === selectedCategory ? "selected" : ""}>${escapeHtml(category)}</option>`
+                  )
+                  .join("")}
+              </select>
+            </td>
+            <td style="color:${transaction.amountCents < 0 ? "var(--danger)" : "var(--brand)"};font-weight:700">${escapeHtml(formatMoney(transaction.amountCents))}</td>
+            <td>
+              <div class="action-row">
+                <button class="btn" data-save-fpa-transaction="${escapeHtml(transaction.id)}" type="button" ${!hasPendingCategoryChange || isSavingCategory ? "disabled" : ""}>${isSavingCategory ? "Salvando..." : hasPendingCategoryChange ? "Salvar" : "Salvo"}</button>
+                <button class="btn btn-danger" data-delete-fpa-transaction="${escapeHtml(transaction.id)}" type="button" ${isSavingCategory ? "disabled" : ""}>Excluir</button>
+              </div>
+            </td>
+          `;
+          transactionsBody.appendChild(row);
+        });
+
+        transactionsBody.querySelectorAll("[data-fpa-category-select]").forEach((select) =>
+          select.addEventListener("change", () => {
+            const transactionId = select.dataset.fpaCategorySelect;
+            const transaction = state.fpa.transactions.find((entry) => entry.id === transactionId);
+            if (!transaction) return;
+
+            const nextCategory = select.value || "";
+            if (!nextCategory || nextCategory === transaction.category) {
+              delete state.fpa.categoryDrafts[transactionId];
+            } else {
+              state.fpa.categoryDrafts[transactionId] = nextCategory;
+            }
+
+            renderFpa();
+          })
+        );
+
+        transactionsBody.querySelectorAll("[data-save-fpa-transaction]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            const transactionId = button.dataset.saveFpaTransaction;
+            await savePendingTransactionCategories([transactionId]);
+          })
+        );
+
+        transactionsBody.querySelectorAll("[data-delete-fpa-transaction]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            const transactionId = button.dataset.deleteFpaTransaction;
+            const transaction = state.fpa.transactions.find((entry) => entry.id === transactionId);
+            const description = transaction?.description || "este lançamento";
+            const confirmed = window.confirm(
+              `Excluir "${description}"? Essa ação remove o lançamento financeiro permanentemente.`
+            );
+            if (!confirmed) return;
+
+            button.disabled = true;
+            try {
+              const result = await api(`/api/fpa/transactions/${transactionId}`, {
+                method: "DELETE",
+              });
+              await loadFpaBootstrap();
+              renderFpa();
+              toast(
+                result.deletedImportId
+                  ? "Lançamento excluído. O import ficou vazio e também foi removido."
+                  : "Lançamento financeiro excluído."
+              );
+            } catch (error) {
+              toast(error.message);
+            } finally {
+              button.disabled = false;
+            }
+          })
+        );
+      }
+
+      async function loadFpaBootstrap() {
+        const query = buildQueryString({
+          from: state.fpa.from,
+          to: state.fpa.to,
+          prompt: state.fpa.prompt,
+          accountName: state.fpa.selectedAccount,
+          months: state.fpa.selectedMonths,
+          limit: 160,
+        });
+        const data = await api(`/api/fpa/bootstrap${query}`);
+        const nextTransactions = Array.isArray(data.transactions) ? data.transactions : [];
+        state.fpa.categories = Array.isArray(data.categories) ? data.categories : [];
+        state.fpa.imports = Array.isArray(data.imports) ? data.imports : [];
+        state.fpa.availableAccounts = Array.isArray(data.availableAccounts) ? data.availableAccounts : [];
+        state.fpa.availableMonths = Array.isArray(data.availableMonths) ? data.availableMonths : [];
+        state.fpa.dreAccounts = Array.isArray(data.dreAccounts) ? data.dreAccounts : [];
+        state.fpa.dreSuggestions = Array.isArray(data.dreSuggestions) ? data.dreSuggestions : [];
+        state.fpa.dreTypeOptions = Array.isArray(data.dreTypeOptions) && data.dreTypeOptions.length ? data.dreTypeOptions : state.fpa.dreTypeOptions;
+        state.fpa.dreReconciliation = data.dreReconciliation || null;
+        state.fpa.categoryLearning = data.categoryLearning || { rulesCount: 0, recentRules: [] };
+        state.fpa.contaAzul = data.contaAzul || null;
+        state.fpa.lovable = data.lovable || null;
+        state.fpa.storage = data.storage || null;
+        state.fpa.overview = data.overview || null;
+        state.fpa.report = data.report || null;
+        reconcileTransactionCategoryDrafts(nextTransactions);
+        state.fpa.transactions = nextTransactions;
+
+        if (state.fpa.dreForm.id && !state.fpa.dreAccounts.some((entry) => entry.id === state.fpa.dreForm.id)) {
+          resetDreFormState();
+        }
+
+        if (!state.fpa.from && data.overview?.period?.from) state.fpa.from = data.overview.period.from;
+        if (!state.fpa.to && data.overview?.period?.to) state.fpa.to = data.overview.period.to;
+      }
+
+      function syncFiltersFromInputs() {
+        state.fpa.selectedAccount = el("fpa-filter-account").value || "";
+        state.fpa.from = el("fpa-report-from").value || "";
+        state.fpa.to = el("fpa-report-to").value || "";
+        state.fpa.prompt = el("fpa-report-prompt").value.trim() || "visão geral de caixa";
+      }
+
+      async function refreshFpa() {
+        syncFiltersFromInputs();
+        await loadFpaBootstrap();
+        renderFpa();
+      }
+
+      async function importStatement() {
+        const file = readFiles("fpa-statement-file")[0];
+        if (!file) {
+          toast("Selecione um arquivo CSV ou OFX para importar.");
+          return;
+        }
+
+        const button = el("btn-import-statement");
+        const formData = new FormData();
+        const accountName = el("fpa-account-name").value.trim();
+        if (accountName) formData.append("accountName", accountName);
+        formData.append("statement", file);
+
+        button.disabled = true;
+        button.textContent = "Importando...";
+        try {
+          const result = await api("/api/fpa/imports", {
+            method: "POST",
+            body: formData,
+          });
+          el("fpa-statement-file").value = "";
+          toast(
+            result.duplicateCount
+              ? `Extrato importado: ${result.importedCount} novo(s), ${result.duplicateCount} duplicado(s).`
+              : `Extrato importado com ${result.importedCount} lançamento(s).`
+          );
+          await refreshFpa();
+        } catch (error) {
+          toast(error.message);
+        } finally {
+          button.disabled = false;
+          button.textContent = "Importar";
+        }
+      }
+
+      async function deleteSelectedAccount() {
+        const accountName = state.fpa.selectedAccount || el("fpa-filter-account").value || "";
+        if (!accountName) {
+          toast("Selecione a conta que você quer excluir.");
+          return;
+        }
+
+        const confirmed = window.confirm(
+          `Excluir a conta "${accountName}"? Todos os lançamentos e imports vinculados a ela serão apagados do FP&A.`
+        );
+        if (!confirmed) return;
+
+        const button = el("btn-delete-fpa-account");
+        button.disabled = true;
+        button.textContent = "Excluindo...";
+
+        try {
+          const result = await api("/api/fpa/accounts", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ accountName }),
+          });
+
+          state.fpa.selectedAccount = "";
+          el("fpa-filter-account").value = "";
+          await refreshFpa();
+          toast(`Conta removida: ${result.deletedTransactions} lançamento(s) e ${result.deletedImports} import(s) excluídos.`);
+        } catch (error) {
+          toast(error.message);
+        } finally {
+          button.disabled = false;
+          button.textContent = "Excluir Conta";
+        }
+      }
+
+      async function savePendingTransactionCategories(transactionIds = null) {
+        const pendingChanges = getPendingTransactionCategoryChanges(transactionIds);
+        if (!pendingChanges.length) {
+          toast("Nenhuma alteração de categoria pendente.");
+          return;
+        }
+
+        state.fpa.savingCategoryIds = pendingChanges.map((entry) => entry.id);
+        renderFpa();
+
+        try {
+          const result = await api("/api/fpa/transactions/batch", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ updates: pendingChanges }),
+          });
+
+          const updatedById = new Map((result.updated || []).map((entry) => [entry.id, entry]));
+          state.fpa.transactions = (state.fpa.transactions || []).map((transaction) =>
+            updatedById.get(transaction.id) || transaction
+          );
+
+          pendingChanges.forEach((entry) => {
+            delete state.fpa.categoryDrafts[entry.id];
+          });
+
+          await loadFpaBootstrap();
+          renderFpa();
+          toast(
+            result.updatedCount === 1
+              ? "Categoria financeira atualizada."
+              : `${formatInteger(result.updatedCount)} categorias financeiras atualizadas.`
+          );
+        } catch (error) {
+          toast(error.message);
+        } finally {
+          state.fpa.savingCategoryIds = [];
+          renderFpa();
+        }
+      }
+
+      function readContaAzulFpaForm() {
+        const current = getContaAzulFpaExportSettings();
+        return {
+          ...current,
+          enabled: true,
+          defaultContactId: el("fpa-conta-azul-contact-id").value.trim(),
+          defaultFinancialAccountId: el("fpa-conta-azul-financial-account-id").value.trim(),
+          defaultReceivableCategoryId: el("fpa-conta-azul-receivable-category-id").value.trim(),
+          defaultPayableCategoryId: el("fpa-conta-azul-payable-category-id").value.trim(),
+          maxRecordsPerRun: Number(el("fpa-conta-azul-max-records").value || current.maxRecordsPerRun || 50),
+          exportOnlyUnsent: el("fpa-conta-azul-only-unsent").classList.contains("active"),
+          includeInternalTransfers: el("fpa-conta-azul-include-transfers").classList.contains("active"),
+        };
+      }
+
+      function readContaAzulOAuthForm() {
+        const clientSecret = el("fpa-conta-azul-client-secret").value.trim();
+        const patch = {
+          enabled: true,
+          allowOutbound: true,
+          authMode: "bearer",
+          authorizationUrl: "https://auth.contaazul.com/login",
+          tokenUrl: "https://auth.contaazul.com/oauth2/token",
+          baseUrl: "https://api-v2.contaazul.com",
+          scope: CONTA_AZUL_DEFAULT_SCOPE,
+          clientId: el("fpa-conta-azul-client-id").value.trim(),
+          redirectUri: el("fpa-conta-azul-redirect-uri").value.trim() || CONTA_AZUL_DEFAULT_REDIRECT_URI,
+        };
+        if (clientSecret) patch.clientSecret = clientSecret;
+        return patch;
+      }
+
+      function buildContaAzulFpaRequestBody() {
+        return {
+          from: state.fpa.from,
+          to: state.fpa.to,
+          months: state.fpa.selectedMonths,
+          accountName: state.fpa.selectedAccount,
+        };
+      }
+
+      function setContaAzulSelectedPerson(target, personId) {
+        const inputId = target === "test" ? "fpa-ca-test-contact-id" : "fpa-conta-azul-contact-id";
+        el(inputId).value = personId || "";
+        syncContaAzulLookupSelects();
+      }
+
+      function setContaAzulSelectedFinancialAccount(target, accountId) {
+        const inputId = target === "test" ? "fpa-ca-test-financial-account-id" : "fpa-conta-azul-financial-account-id";
+        el(inputId).value = accountId || "";
+        syncContaAzulLookupSelects();
+      }
+
+      function setContaAzulSelectedFinancialCategory(categoryId) {
+        el("fpa-ca-test-category-id").value = categoryId || "";
+        syncContaAzulLookupSelects();
+      }
+
+      function setContaAzulSelectedExportCategory(kind, categoryId) {
+        const inputId = kind === "payable" ? "fpa-conta-azul-payable-category-id" : "fpa-conta-azul-receivable-category-id";
+        el(inputId).value = categoryId || "";
+        syncContaAzulLookupSelects();
+      }
+
+      function getContaAzulTestCategoryType() {
+        return el("fpa-ca-test-type").value === "payable" ? "DESPESA" : "RECEITA";
+      }
+
+      async function loadContaAzulPeople(target = "default") {
+        const isTest = target === "test";
+        const profileId = isTest ? "fpa-ca-test-person-profile" : "fpa-ca-person-profile";
+        const searchId = isTest ? "fpa-ca-test-person-search" : "fpa-ca-person-search";
+        const buttonId = isTest ? "btn-load-conta-azul-test-people" : "btn-load-conta-azul-people";
+        const button = el(buttonId);
+        const originalLabel = button.textContent;
+        button.disabled = true;
+        button.textContent = "Buscando...";
+        try {
+          const query = buildQueryString({
+            profileType: el(profileId).value,
+            search: el(searchId).value.trim(),
+            pageSize: 50,
+          });
+          const result = await api(`/api/conta-azul/people${query}`);
+          state.fpa.contaAzulLookups[isTest ? "testPeople" : "defaultPeople"] = result.items || [];
+          syncContaAzulLookupSelects();
+          toast(`${formatInteger(result.items?.length || 0)} pessoa(s) carregada(s) do Conta Azul.`);
+        } finally {
+          button.disabled = false;
+          button.textContent = originalLabel;
+        }
+      }
+
+      async function loadContaAzulFinancialAccounts(target = "default") {
+        const isTest = target === "test";
+        const searchId = isTest ? "fpa-ca-test-account-search" : "fpa-ca-account-search";
+        const buttonId = isTest ? "btn-load-conta-azul-test-accounts" : "btn-load-conta-azul-accounts";
+        const button = el(buttonId);
+        const originalLabel = button.textContent;
+        button.disabled = true;
+        button.textContent = "Buscando...";
+        try {
+          const query = buildQueryString({
+            search: el(searchId).value.trim(),
+            pageSize: 50,
+          });
+          const result = await api(`/api/conta-azul/financial-accounts${query}`);
+          state.fpa.contaAzulLookups[isTest ? "testFinancialAccounts" : "defaultFinancialAccounts"] = result.items || [];
+          syncContaAzulLookupSelects();
+          toast(`${formatInteger(result.items?.length || 0)} conta(s) financeira(s) carregada(s).`);
+        } finally {
+          button.disabled = false;
+          button.textContent = originalLabel;
+        }
+      }
+
+      async function loadContaAzulFinancialCategories() {
+        const button = el("btn-load-conta-azul-test-categories");
+        const originalLabel = button.textContent;
+        button.disabled = true;
+        button.textContent = "Buscando...";
+        try {
+          const query = buildQueryString({
+            search: el("fpa-ca-test-category-search").value.trim(),
+            type: getContaAzulTestCategoryType(),
+            pageSize: 50,
+          });
+          const result = await api(`/api/conta-azul/financial-categories${query}`);
+          state.fpa.contaAzulLookups.testFinancialCategories = result.items || [];
+          if (result.items?.length === 1) setContaAzulSelectedFinancialCategory(result.items[0].id);
+          syncContaAzulLookupSelects();
+          toast(`${formatInteger(result.items?.length || 0)} categoria(s) financeira(s) carregada(s).`);
+        } finally {
+          button.disabled = false;
+          button.textContent = originalLabel;
+        }
+      }
+
+      async function loadContaAzulExportCategories(kind) {
+        const isPayable = kind === "payable";
+        const buttonId = isPayable ? "btn-load-conta-azul-payable-categories" : "btn-load-conta-azul-receivable-categories";
+        const searchId = isPayable ? "fpa-ca-payable-category-search" : "fpa-ca-receivable-category-search";
+        const lookupKey = isPayable ? "defaultPayableCategories" : "defaultReceivableCategories";
+        const button = el(buttonId);
+        const originalLabel = button.textContent;
+        button.disabled = true;
+        button.textContent = "Buscando...";
+        try {
+          const query = buildQueryString({
+            search: el(searchId).value.trim(),
+            type: isPayable ? "DESPESA" : "RECEITA",
+            pageSize: 50,
+          });
+          const result = await api(`/api/conta-azul/financial-categories${query}`);
+          state.fpa.contaAzulLookups[lookupKey] = result.items || [];
+          if (result.items?.length === 1) setContaAzulSelectedExportCategory(kind, result.items[0].id);
+          syncContaAzulLookupSelects();
+          toast(`${formatInteger(result.items?.length || 0)} categoria(s) carregada(s).`);
+        } finally {
+          button.disabled = false;
+          button.textContent = originalLabel;
+        }
+      }
+
+      async function bootstrapContaAzulLookups() {
+        const settings = state.fpa.contaAzul || {};
+        const lookups = state.fpa.contaAzulLookups;
+        if (!(settings.hasAccessToken || settings.hasValidToken) || lookups.bootstrapped) return;
+        lookups.bootstrapped = true;
+
+        try {
+          const [suppliers, clients, financialAccounts, receivableCategories, payableCategories] = await Promise.all([
+            api(`/api/conta-azul/people${buildQueryString({ profileType: "Fornecedor", pageSize: 50 })}`),
+            api(`/api/conta-azul/people${buildQueryString({ profileType: "Cliente", pageSize: 50 })}`),
+            api(`/api/conta-azul/financial-accounts${buildQueryString({ pageSize: 50 })}`),
+            api(`/api/conta-azul/financial-categories${buildQueryString({ type: "RECEITA", pageSize: 50 })}`),
+            api(`/api/conta-azul/financial-categories${buildQueryString({ type: "DESPESA", pageSize: 50 })}`),
+          ]);
+          lookups.defaultPeople = suppliers.items || [];
+          lookups.testPeople = clients.items || [];
+          lookups.defaultFinancialAccounts = financialAccounts.items || [];
+          lookups.testFinancialAccounts = financialAccounts.items || [];
+          lookups.defaultReceivableCategories = receivableCategories.items || [];
+          lookups.defaultPayableCategories = payableCategories.items || [];
+          lookups.testFinancialCategories = getContaAzulTestCategoryType() === "DESPESA" ? lookups.defaultPayableCategories : lookups.defaultReceivableCategories;
+          syncContaAzulLookupSelects();
+        } catch {
+          lookups.bootstrapped = false;
+        }
+      }
+
+      function fillContaAzulTestLaunch(type) {
+        const selectedType = type === "payable" ? "payable" : "receivable";
+        const fpaExport = getContaAzulFpaExportSettings();
+        const today = todayIsoDate();
+        el("fpa-ca-test-type").value = selectedType;
+        el("fpa-ca-test-person-profile").value = selectedType === "payable" ? "Fornecedor" : "Cliente";
+        el("fpa-ca-test-amount").value = "10.00";
+        el("fpa-ca-test-description").value =
+          selectedType === "payable" ? "TESTE FP&A - Conta a pagar" : "TESTE FP&A - Conta a receber";
+        el("fpa-ca-test-competence-date").value = today;
+        el("fpa-ca-test-due-date").value = today;
+        el("fpa-ca-test-contact-id").value = fpaExport.defaultContactId || el("fpa-ca-test-contact-id").value;
+        el("fpa-ca-test-financial-account-id").value = fpaExport.defaultFinancialAccountId || el("fpa-ca-test-financial-account-id").value;
+        el("fpa-ca-test-category-id").value = "";
+        state.fpa.contaAzulLookups.testFinancialCategories = [];
+        el("fpa-ca-test-notes").value = "Lançamento criado para validar a API do Conta Azul pelo Analista FP&A.";
+        syncContaAzulLookupSelects();
+      }
+
+      function readContaAzulTestLaunchForm() {
+        return {
+          type: el("fpa-ca-test-type").value,
+          amount: el("fpa-ca-test-amount").value,
+          description: el("fpa-ca-test-description").value.trim(),
+          competenceDate: el("fpa-ca-test-competence-date").value,
+          dueDate: el("fpa-ca-test-due-date").value,
+          contactId: el("fpa-ca-test-contact-id").value.trim(),
+          financialAccountId: el("fpa-ca-test-financial-account-id").value.trim(),
+          categoryId: el("fpa-ca-test-category-id").value.trim(),
+          notes: el("fpa-ca-test-notes").value.trim(),
+        };
+      }
+
+      async function saveContaAzulFpaSettings() {
+        const result = await api("/api/fpa/conta-azul/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contaAzul: readContaAzulOAuthForm(),
+            fpaExport: readContaAzulFpaForm(),
+          }),
+        });
+        state.fpa.contaAzul = result.contaAzul;
+        el("fpa-conta-azul-client-secret").value = "";
+        renderContaAzul();
+        toast("Configuração FP&A do Conta Azul salva.");
+      }
+
+      async function openContaAzulDevelopmentOAuthFlow() {
+        await saveContaAzulFpaSettings();
+        const result = await api("/api/conta-azul/oauth/authorize-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        window.open(result.authorizeUrl, "_blank", "noopener,noreferrer");
+        toast("Login do Conta Azul aberto. Depois cole o code aqui para concluir.");
+      }
+
+      async function exchangeContaAzulAuthorizationCode() {
+        await saveContaAzulFpaSettings();
+        const code = el("fpa-conta-azul-code").value.trim();
+        if (!code) {
+          toast("Cole o parâmetro code retornado pelo Conta Azul.");
+          return;
+        }
+        const result = await api("/api/conta-azul/oauth/exchange-code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code }),
+        });
+        el("fpa-conta-azul-code").value = "";
+        await loadFpaBootstrap();
+        renderFpa();
+        state.fpa.contaAzulLookups.bootstrapped = false;
+        bootstrapContaAzulLookups().catch(() => {});
+        toast(result.connectedAccount?.companyName ? `Conta Azul conectada: ${result.connectedAccount.companyName}.` : "Conta Azul conectado.");
+      }
+
+      async function testContaAzulConnection() {
+        await saveContaAzulFpaSettings();
+        const button = el("btn-test-conta-azul");
+        const originalLabel = button.textContent;
+        button.disabled = true;
+        button.textContent = "Testando...";
+        try {
+          const result = await api("/api/conta-azul/test-connection", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          });
+          await loadFpaBootstrap();
+          renderFpa();
+          state.fpa.contaAzulLookups.bootstrapped = false;
+          bootstrapContaAzulLookups().catch(() => {});
+          toast(result.connectedAccount?.companyName ? `Conexão OK: ${result.connectedAccount.companyName}.` : "Conexão Conta Azul validada.");
+        } finally {
+          button.disabled = false;
+          button.textContent = originalLabel;
+        }
+      }
+
+      async function refreshContaAzulToken() {
+        const result = await api("/api/conta-azul/oauth/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        await loadFpaBootstrap();
+        renderFpa();
+        state.fpa.contaAzulLookups.bootstrapped = false;
+        bootstrapContaAzulLookups().catch(() => {});
+        toast(result.connectedAccount?.companyName ? `Token renovado: ${result.connectedAccount.companyName}.` : "Token do Conta Azul renovado com sucesso.");
+      }
+
+      async function createContaAzulTestLaunch() {
+        const payload = readContaAzulTestLaunchForm();
+        const typeLabel = payload.type === "payable" ? "contas a pagar" : "contas a receber";
+        if (!window.confirm(`Criar um lançamento real de teste em ${typeLabel} no Conta Azul?`)) return;
+
+        const button = el("btn-create-conta-azul-test-launch");
+        const originalLabel = button.textContent;
+        button.disabled = true;
+        button.textContent = "Criando...";
+        try {
+          const result = await api("/api/conta-azul/test-financial-event", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          state.fpa.contaAzulTestResult = result;
+          await loadFpaBootstrap();
+          renderFpa();
+          toast(result.eventId ? `Lançamento teste criado: ${result.eventId}.` : "Lançamento teste criado no Conta Azul.");
+        } finally {
+          button.disabled = false;
+          button.textContent = originalLabel;
+        }
+      }
+
+      function readLovableSettingsForm() {
+        const webhookSecret = el("fpa-lovable-secret").value.trim();
+        const patch = {
+          enabled: el("fpa-lovable-enabled").classList.contains("active"),
+        };
+        if (webhookSecret) patch.webhookSecret = webhookSecret;
+        return patch;
+      }
+
+      async function saveLovableSettings() {
+        const button = el("btn-save-lovable-settings");
+        const originalLabel = button.textContent;
+        button.disabled = true;
+        button.textContent = "Salvando...";
+        try {
+          const result = await api("/api/integrations/lovable/settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lovable: readLovableSettingsForm() }),
+          });
+          state.fpa.lovable = result.lovable;
+          el("fpa-lovable-secret").value = "";
+          renderLovableIntegration();
+          toast(result.lovable?.integrationEnabled ? "Lovable conectado ao Analista FP&A." : "Configuração do Lovable salva.");
+        } finally {
+          button.disabled = false;
+          button.textContent = originalLabel;
+        }
+      }
+
+      async function loadLovableSyncs() {
+        const result = await api("/api/integrations/lovable/syncs?limit=40");
+        state.fpa.lovableSyncs = {
+          contracts: Array.isArray(result.contracts) ? result.contracts : [],
+          receipts: Array.isArray(result.receipts) ? result.receipts : [],
+        };
+        renderLovableIntegration();
+      }
+
+      function copyInputValue(inputId, message) {
+        const node = el(inputId);
+        const value = node?.value || "";
+        if (!value) return;
+        const done = () => toast(message);
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(value).then(done).catch(() => {
+            node.select();
+            document.execCommand("copy");
+            done();
+          });
+        } else {
+          node.select();
+          document.execCommand("copy");
+          done();
+        }
+      }
+
+      function copyContaAzulRedirectUri() {
+        copyInputValue("fpa-conta-azul-suggested-redirect", "URL de callback copiada para a área de transferência.");
+      }
+
+      async function previewContaAzulFpa() {
+        await saveContaAzulFpaSettings();
+        const result = await api("/api/fpa/conta-azul/reconciliation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildContaAzulFpaRequestBody()),
+        });
+        state.fpa.contaAzulPreview = result;
+        state.fpa.contaAzulReconciliation = result;
+        setWorkflowStep("crosscheck", { scroll: false });
+        renderFpa();
+        toast(`Cruzamento gerado: ${formatInteger(result.reconciliation?.recordsToCreate?.length || 0)} lançamento(s) faltante(s).`);
+      }
+
+      async function reconcileContaAzulFpa() {
+        await saveContaAzulFpaSettings();
+        const button = el("btn-run-conta-azul-reconciliation");
+        const originalLabel = button.textContent;
+        button.disabled = true;
+        button.textContent = "Cruzando...";
+        try {
+          const result = await api("/api/fpa/conta-azul/reconciliation", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(buildContaAzulFpaRequestBody()),
+          });
+          state.fpa.contaAzulPreview = result;
+          state.fpa.contaAzulReconciliation = result;
+          renderFpa();
+          toast(`${formatInteger(result.reconciliation?.recordsToCreate?.length || 0)} lançamento(s) faltante(s) após o cruzamento.`);
+        } finally {
+          button.disabled = false;
+          button.textContent = originalLabel;
+        }
+      }
+
+      async function pushContaAzulFpa() {
+        await saveContaAzulFpaSettings();
+        const reconciliation = state.fpa.contaAzulReconciliation || await api("/api/fpa/conta-azul/reconciliation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildContaAzulFpaRequestBody()),
+        });
+        state.fpa.contaAzulReconciliation = reconciliation;
+        const total = Number(reconciliation.reconciliation?.recordsToCreate?.length || 0);
+        if (!total) {
+          renderFpa();
+          toast("Nenhum lançamento faltante após o cruzamento.");
+          return;
+        }
+        const missingRequired = Array.from(new Set((reconciliation.reconciliation?.recordsToCreate || []).flatMap((record) => record.missingRequiredFields || [])));
+        if (missingRequired.length) {
+          toast(`Configure antes: ${missingRequired.join(", ")}.`);
+          renderContaAzul();
+          return;
+        }
+        if (!window.confirm(`Enviar ${total} lançamento(s) faltante(s) para o Conta Azul?`)) return;
+
+        const result = await api("/api/fpa/conta-azul/push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...buildContaAzulFpaRequestBody(), onlyMissing: true }),
+        });
+        state.fpa.contaAzulLastPushResult = result;
+        await refreshFpa();
+        setWorkflowStep("done", { scroll: false });
+        toast(
+          result.failedCount
+            ? `Envio concluído com ${result.failedCount} falha(s) e ${result.exportedCount} sucesso(s).`
+            : `${result.exportedCount} lançamento(s) faltante(s) enviado(s) ao Conta Azul.`
+        );
+      }
+
+      el("btn-sync").addEventListener("click", () => refreshFpa().then(() => toast("FP&A sincronizado.")).catch((error) => toast(error.message)));
+      el("btn-refresh-fpa").addEventListener("click", () => refreshFpa().then(() => toast("FP&A sincronizado.")).catch((error) => toast(error.message)));
+      el("btn-generate-fpa-report").addEventListener("click", () => refreshFpa().catch((error) => toast(error.message)));
+      el("btn-import-statement").addEventListener("click", () => importStatement().catch((error) => toast(error.message)));
+      el("btn-delete-fpa-account").addEventListener("click", () => deleteSelectedAccount().catch((error) => toast(error.message)));
+      el("btn-save-fpa-transactions").addEventListener("click", () => savePendingTransactionCategories().catch((error) => toast(error.message)));
+      el("btn-save-dre-account").addEventListener("click", () => saveDreAccount().catch((error) => toast(error.message)));
+      el("btn-seed-dre-accounts").addEventListener("click", () => seedDreAccounts().catch((error) => toast(error.message)));
+      el("btn-save-conta-azul-fpa").addEventListener("click", () => saveContaAzulFpaSettings().catch((error) => toast(error.message)));
+      el("btn-preview-conta-azul-fpa").addEventListener("click", () => previewContaAzulFpa().catch((error) => toast(error.message)));
+      el("btn-push-conta-azul-fpa").addEventListener("click", () => pushContaAzulFpa().catch((error) => toast(error.message)));
+      el("btn-run-conta-azul-reconciliation").addEventListener("click", () => reconcileContaAzulFpa().catch((error) => toast(error.message)));
+      el("btn-refresh-conta-azul-launch-review").addEventListener("click", () => reconcileContaAzulFpa().catch((error) => toast(error.message)));
+      el("btn-go-conta-azul-launch").addEventListener("click", () => setWorkflowStep("launch"));
+      el("btn-launch-missing-conta-azul").addEventListener("click", () => pushContaAzulFpa().catch((error) => toast(error.message)));
+      el("btn-workflow-restart").addEventListener("click", () => setWorkflowStep("import"));
+      el("btn-workflow-prev").addEventListener("click", () => moveWorkflow(-1));
+      el("btn-workflow-next").addEventListener("click", () => moveWorkflow(1));
+      document.querySelectorAll("[data-workflow-step]").forEach((node) =>
+        node.addEventListener("click", () => setWorkflowStep(node.dataset.workflowStep))
+      );
+      el("btn-open-conta-azul-dev-oauth").addEventListener("click", () => openContaAzulDevelopmentOAuthFlow().catch((error) => toast(error.message)));
+      el("btn-exchange-conta-azul-code").addEventListener("click", () => exchangeContaAzulAuthorizationCode().catch((error) => toast(error.message)));
+      el("btn-test-conta-azul").addEventListener("click", () => testContaAzulConnection().catch((error) => toast(error.message)));
+      el("btn-refresh-conta-azul-token").addEventListener("click", () => refreshContaAzulToken().catch((error) => toast(error.message)));
+      el("btn-copy-redirect-uri").addEventListener("click", () => copyContaAzulRedirectUri());
+      el("btn-save-lovable-settings").addEventListener("click", () => saveLovableSettings().catch((error) => toast(error.message)));
+      el("btn-refresh-lovable-syncs").addEventListener("click", () => loadLovableSyncs().catch((error) => toast(error.message)));
+      el("btn-copy-lovable-contracts-url").addEventListener("click", () => copyInputValue("fpa-lovable-contracts-url", "URL de contratos do Lovable copiada."));
+      el("btn-copy-lovable-receipts-url").addEventListener("click", () => copyInputValue("fpa-lovable-receipts-url", "URL de recebimentos do Lovable copiada."));
+      el("fpa-lovable-enabled").addEventListener("click", () => {
+        el("fpa-lovable-enabled").classList.toggle("active");
+      });
+      el("btn-load-conta-azul-people").addEventListener("click", () => loadContaAzulPeople("default").catch((error) => toast(error.message)));
+      el("btn-load-conta-azul-accounts").addEventListener("click", () => loadContaAzulFinancialAccounts("default").catch((error) => toast(error.message)));
+      el("btn-load-conta-azul-receivable-categories").addEventListener("click", () => loadContaAzulExportCategories("receivable").catch((error) => toast(error.message)));
+      el("btn-load-conta-azul-payable-categories").addEventListener("click", () => loadContaAzulExportCategories("payable").catch((error) => toast(error.message)));
+      el("fpa-conta-azul-contact-select").addEventListener("change", () => setContaAzulSelectedPerson("default", el("fpa-conta-azul-contact-select").value));
+      el("fpa-conta-azul-financial-account-select").addEventListener("change", () => setContaAzulSelectedFinancialAccount("default", el("fpa-conta-azul-financial-account-select").value));
+      el("fpa-conta-azul-receivable-category-select").addEventListener("change", () => setContaAzulSelectedExportCategory("receivable", el("fpa-conta-azul-receivable-category-select").value));
+      el("fpa-conta-azul-payable-category-select").addEventListener("change", () => setContaAzulSelectedExportCategory("payable", el("fpa-conta-azul-payable-category-select").value));
+      el("btn-fill-conta-azul-test-receivable").addEventListener("click", () => fillContaAzulTestLaunch("receivable"));
+      el("btn-fill-conta-azul-test-payable").addEventListener("click", () => fillContaAzulTestLaunch("payable"));
+      el("btn-create-conta-azul-test-launch").addEventListener("click", () => createContaAzulTestLaunch().catch((error) => toast(error.message)));
+      el("btn-load-conta-azul-test-people").addEventListener("click", () => loadContaAzulPeople("test").catch((error) => toast(error.message)));
+      el("btn-load-conta-azul-test-accounts").addEventListener("click", () => loadContaAzulFinancialAccounts("test").catch((error) => toast(error.message)));
+      el("btn-load-conta-azul-test-categories").addEventListener("click", () => loadContaAzulFinancialCategories().catch((error) => toast(error.message)));
+      el("fpa-ca-test-contact-select").addEventListener("change", () => setContaAzulSelectedPerson("test", el("fpa-ca-test-contact-select").value));
+      el("fpa-ca-test-financial-account-select").addEventListener("change", () => setContaAzulSelectedFinancialAccount("test", el("fpa-ca-test-financial-account-select").value));
+      el("fpa-ca-test-category-select").addEventListener("change", () => setContaAzulSelectedFinancialCategory(el("fpa-ca-test-category-select").value));
+      el("fpa-ca-test-type").addEventListener("change", () => {
+        if (!el("fpa-ca-test-description").value || el("fpa-ca-test-description").value.startsWith("TESTE FP&A - Conta")) {
+          fillContaAzulTestLaunch(el("fpa-ca-test-type").value);
+        } else {
+          el("fpa-ca-test-category-id").value = "";
+          state.fpa.contaAzulLookups.testFinancialCategories = [];
+          syncContaAzulLookupSelects();
+        }
+      });
+      el("btn-reset-dre-form").addEventListener("click", () => {
+        resetDreFormState();
+        renderDrePlan();
+      });
+
+      el("fpa-filter-account").addEventListener("change", () => {
+        state.fpa.selectedAccount = el("fpa-filter-account").value || "";
+        refreshFpa().catch((error) => toast(error.message));
+      });
+      el("fpa-report-from").addEventListener("change", () => {
+        state.fpa.from = el("fpa-report-from").value || "";
+        refreshFpa().catch((error) => toast(error.message));
+      });
+      el("fpa-report-to").addEventListener("change", () => {
+        state.fpa.to = el("fpa-report-to").value || "";
+        refreshFpa().catch((error) => toast(error.message));
+      });
+      el("fpa-report-prompt").addEventListener("input", () => { state.fpa.prompt = el("fpa-report-prompt").value; });
+      el("fpa-dre-name").addEventListener("input", () => { state.fpa.dreForm.name = el("fpa-dre-name").value; });
+      el("fpa-dre-type").addEventListener("change", () => { state.fpa.dreForm.type = el("fpa-dre-type").value || "expense"; });
+      el("fpa-dre-order").addEventListener("input", () => {
+        state.fpa.dreForm.orderIndex = el("fpa-dre-order").value === "" ? "" : Number(el("fpa-dre-order").value);
+      });
+      el("fpa-dre-notes").addEventListener("input", () => { state.fpa.dreForm.notes = el("fpa-dre-notes").value; });
+      el("fpa-conta-azul-only-unsent").addEventListener("click", () => {
+        el("fpa-conta-azul-only-unsent").classList.toggle("active");
+      });
+      el("fpa-conta-azul-include-transfers").addEventListener("click", () => {
+        el("fpa-conta-azul-include-transfers").classList.toggle("active");
+      });
+
+      (async function boot() {
+        await refreshFpa();
+        loadLovableSyncs().catch(() => {});
+        bootstrapContaAzulLookups().catch(() => {});
+        setInterval(() => {
+          loadFpaBootstrap().then(renderFpa).catch(() => {});
+        }, 20000);
+      })().catch((error) => {
+        toast(error.message || "Falha ao iniciar FP&A.");
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,2759 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>V4 · Cobrança WhatsApp</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Open+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      :root {
+        --red: #df2e30; --red-d: #b82426; --red-a: rgba(223, 46, 48, .12); --red-b: rgba(223, 46, 48, .25);
+        --green: #00b233; --green-a: rgba(0, 178, 51, .12); --green-b: rgba(0, 178, 51, .28);
+        --amber: #e8a020; --amber-a: rgba(232, 160, 32, .12); --amber-b: rgba(232, 160, 32, .28);
+        --black: #111; --bg: #161616; --s1: #1d1d1d; --s2: #242424; --s3: #2c2c2c; --s4: #343434;
+        --b1: #2e2e2e; --b2: #3a3a3a; --b3: #4a4a4a;
+        --t1: #f2f2f2; --t2: #aaa; --t3: #666;
+        --sidebar: 220px; --radius: 4px;
+      }
+      html, body { height: 100%; overflow: hidden; }
+      body {
+        font-family: "Open Sans", sans-serif;
+        font-size: 13px;
+        background: var(--bg);
+        color: var(--t1);
+        display: flex;
+      }
+      .sidebar {
+        width: var(--sidebar);
+        background: var(--black);
+        border-right: 1px solid var(--b1);
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        height: 100vh;
+        position: relative;
+        z-index: 20;
+      }
+      .sidebar::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 3px;
+        height: 100%;
+        background: var(--red);
+        pointer-events: none;
+      }
+      .sb-brand { padding: 22px 20px 20px; border-bottom: 1px solid var(--b1); }
+      .sb-logo { font-family: "Bebas Neue", sans-serif; font-size: 22px; letter-spacing: 2px; color: var(--t1); line-height: 1; }
+      .sb-logo span { color: var(--red); }
+      .sb-sub { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--t3); margin-top: 3px; }
+      .sb-section { padding: 16px 12px 4px; font-size: 9px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase; color: var(--t3); }
+      .sb-nav { flex: 1; overflow-y: auto; padding: 6px 0; }
+      .nav-item {
+        display: flex; align-items: center; gap: 11px; padding: 10px 20px; cursor: pointer; color: var(--t2);
+        font-size: 12px; font-weight: 500; letter-spacing: .3px; transition: all .15s; position: relative;
+        border-left: 3px solid transparent; margin-left: 3px;
+      }
+      .nav-item:hover { color: var(--t1); background: var(--s2); }
+      .nav-item.active { color: var(--t1); background: var(--red-a); border-left-color: var(--red); }
+      .nav-icon {
+        width: 32px; height: 32px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center;
+        font-size: 15px; flex-shrink: 0; background: var(--s2);
+      }
+      .nav-item.active .nav-icon { background: var(--red-a); }
+      .nav-badge {
+        margin-left: auto; background: var(--red); color: #fff; font-size: 9px; font-weight: 700;
+        padding: 2px 6px; border-radius: 20px; min-width: 18px; text-align: center;
+      }
+      .sb-status { margin-top: auto; padding: 14px 16px; border-top: 1px solid var(--b1); }
+      .conn-pill {
+        display: flex; align-items: center; gap: 8px; background: var(--green-a); border: 1px solid var(--green-b);
+        border-radius: var(--radius); padding: 8px 12px; font-size: 11px; color: var(--green); font-weight: 600; letter-spacing: .3px;
+      }
+      .conn-pill.bad { background: var(--red-a); border-color: var(--red-b); color: #f08080; }
+      .pulse { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: blink 2s infinite; }
+      @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+      .conn-num { font-size: 9px; color: var(--t3); margin-top: 3px; padding-left: 3px; line-height: 1.5; }
+
+      .content { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+      .topbar {
+        height: 54px; background: var(--s1); border-bottom: 1px solid var(--b1); display: flex;
+        align-items: center; padding: 0 28px; gap: 16px; flex-shrink: 0;
+      }
+      .topbar-title { font-family: "Bebas Neue", sans-serif; font-size: 20px; letter-spacing: 1.5px; color: var(--t1); }
+      .topbar-path { font-size: 11px; color: var(--t3); margin-left: 2px; }
+      .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+      .page { display: none; flex: 1; overflow-y: auto; padding: 28px; }
+      .page.active { display: block; }
+      .page::-webkit-scrollbar { width: 4px; }
+      .page::-webkit-scrollbar-track { background: var(--bg); }
+      .page::-webkit-scrollbar-thumb { background: var(--b2); border-radius: 2px; }
+
+      .page-header { margin-bottom: 24px; }
+      .page-title {
+        font-family: "Bebas Neue", sans-serif; font-size: 30px; letter-spacing: 1.5px; color: var(--t1);
+        display: flex; align-items: center; gap: 12px;
+      }
+      .page-title-bar { width: 4px; height: 28px; background: var(--red); }
+      .page-desc { font-size: 12px; color: var(--t2); margin-top: 4px; margin-left: 16px; }
+
+      .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+      .kpi-card {
+        background: var(--s1); border: 1px solid var(--b1); border-radius: var(--radius); padding: 16px;
+        position: relative; overflow: hidden; transition: border-color .2s;
+      }
+      .kpi-card:hover { border-color: var(--b3); }
+      .kpi-stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--red); }
+      .kpi-stripe.green { background: var(--green); }
+      .kpi-stripe.amber { background: var(--amber); }
+      .kpi-label { font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--t3); margin-bottom: 8px; }
+      .kpi-val { font-family: "Bebas Neue", sans-serif; font-size: 42px; line-height: 1; color: var(--t1); }
+      .kpi-val.red { color: var(--red); }
+      .kpi-val.amber { color: var(--amber); }
+      .kpi-val.green { color: var(--green); }
+      .kpi-sub { font-size: 10px; color: var(--t3); margin-top: 4px; }
+
+      .card { background: var(--s1); border: 1px solid var(--b1); border-radius: var(--radius); overflow: hidden; }
+      .card-head {
+        display: flex; align-items: center; justify-content: space-between; padding: 13px 18px;
+        border-bottom: 1px solid var(--b1); background: var(--s2); gap: 10px;
+      }
+      .card-title {
+        font-family: "Bebas Neue", sans-serif; font-size: 15px; letter-spacing: 1px; color: var(--t1);
+        display: flex; align-items: center; gap: 9px;
+      }
+      .card-icon {
+        width: 22px; height: 22px; background: var(--red); border-radius: 3px; display: flex; align-items: center;
+        justify-content: center; font-size: 11px; flex-shrink: 0;
+      }
+      .card-body { padding: 18px; }
+
+      .btn {
+        display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius);
+        font-family: "Open Sans", sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .6px;
+        text-transform: uppercase; cursor: pointer; transition: all .15s; border: none; white-space: nowrap;
+      }
+      .btn-primary { background: var(--red); color: #fff; }
+      .btn-primary:hover { background: var(--red-d); }
+      .btn-ghost { background: transparent; color: var(--t2); border: 1px solid var(--b2); }
+      .btn-ghost:hover { color: var(--t1); border-color: var(--b3); background: var(--s3); }
+      .btn-green { background: var(--green); color: #fff; }
+      .btn-green:hover { background: #009628; }
+      .btn-icon {
+        padding: 7px; border-radius: var(--radius); background: transparent; color: var(--t3); border: 1px solid var(--b1);
+        cursor: pointer; font-size: 13px; transition: all .15s;
+      }
+      .btn-icon:hover { color: var(--t1); border-color: var(--b2); background: var(--s3); }
+      .btn[disabled], .btn-icon[disabled] { opacity: .45; cursor: not-allowed; }
+      .btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+      .form-grid { display: grid; gap: 14px; }
+      .g2 { grid-template-columns: 1fr 1fr; }
+      .g3 { grid-template-columns: 1fr 1fr 1fr; }
+      .field { display: flex; flex-direction: column; gap: 5px; }
+      .field-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--t2); }
+      .field-input, .field-select, .field-textarea {
+        background: var(--s3); border: 1px solid var(--b2); border-radius: var(--radius); color: var(--t1);
+        font-family: "Open Sans", sans-serif; font-size: 13px; padding: 9px 12px; transition: border-color .15s; width: 100%;
+      }
+      .field-input:focus, .field-select:focus, .field-textarea:focus { outline: none; border-color: var(--red); }
+      .field-input::placeholder, .field-textarea::placeholder { color: var(--t3); }
+      .field-textarea { resize: vertical; min-height: 110px; line-height: 1.7; }
+      .field-select { appearance: none; cursor: pointer; }
+      .field-hint { font-size: 10px; color: var(--t3); line-height: 1.5; }
+      .data-table { width: 100%; border-collapse: collapse; }
+      .data-table thead tr { border-bottom: 2px solid var(--red); }
+      .data-table th {
+        padding: 10px 14px; font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+        color: var(--t3); text-align: left; white-space: nowrap;
+      }
+      .data-table td { padding: 11px 14px; border-bottom: 1px solid var(--b1); font-size: 12px; color: var(--t2); vertical-align: middle; }
+      .data-table tr:hover td { background: var(--s2); color: var(--t1); }
+      .data-table tr:last-child td { border-bottom: none; }
+      .avatar {
+        width: 30px; height: 30px; border-radius: 3px; background: var(--red); display: flex; align-items: center;
+        justify-content: center; font-family: "Bebas Neue", sans-serif; font-size: 13px; color: #fff; flex-shrink: 0;
+      }
+      .cell-name { display: flex; align-items: center; gap: 10px; }
+      .badge {
+        display: inline-flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 700; letter-spacing: .5px;
+        text-transform: uppercase; padding: 3px 8px; border-radius: 2px;
+      }
+      .badge-green { background: var(--green-a); color: var(--green); border: 1px solid var(--green-b); }
+      .badge-red { background: var(--red-a); color: #f08080; border: 1px solid var(--red-b); }
+      .badge-amber { background: var(--amber-a); color: var(--amber); border: 1px solid var(--amber-b); }
+      .badge-gray { background: var(--s3); color: var(--t3); border: 1px solid var(--b2); }
+      .action-cell { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+      .chip {
+        display: inline-flex; align-items: center; font-size: 10px; font-weight: 600; background: var(--red-a);
+        border: 1px solid var(--red-b); color: #f08080; border-radius: 3px; padding: 3px 9px; cursor: pointer;
+        transition: background .15s; letter-spacing: .3px;
+      }
+      .chip:hover { background: rgba(223, 46, 48, .22); }
+      .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+      .alert { padding: 10px 16px; border-radius: var(--radius); font-size: 12px; line-height: 1.6; display: flex; align-items: flex-start; gap: 10px; }
+      .alert-warn { background: rgba(223, 46, 48, .08); border: 1px solid rgba(223, 46, 48, .2); border-left: 3px solid var(--red); color: #f0a0a0; }
+      .alert-info { background: rgba(0, 178, 51, .06); border: 1px solid rgba(0, 178, 51, .18); border-left: 3px solid var(--green); color: var(--green); }
+      .sep { height: 1px; background: var(--b1); margin: 20px 0; }
+
+      .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--b1); }
+      .settings-row:last-child { border-bottom: none; }
+      .settings-name { font-size: 13px; font-weight: 600; color: var(--t1); margin-bottom: 2px; }
+      .settings-desc { font-size: 11px; color: var(--t3); }
+      .toggle { position: relative; width: 40px; height: 22px; flex-shrink: 0; cursor: pointer; }
+      .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+      .toggle-track { width: 40px; height: 22px; background: var(--b2); border-radius: 11px; transition: background .2s; display: block; }
+      .toggle input:checked + .toggle-track { background: var(--red); }
+      .toggle-thumb { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: left .2s; pointer-events: none; }
+      .toggle input:checked ~ .toggle-thumb { left: 21px; }
+
+      .qr-wrap { display: flex; align-items: center; gap: 24px; padding: 20px; background: var(--s2); border-radius: var(--radius); border: 1px solid var(--b2); }
+      .qr-box {
+        width: 150px; height: 150px; background: var(--s3); border: 1px dashed var(--b3); border-radius: var(--radius);
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--t3);
+        font-size: 11px; text-align: center; flex-shrink: 0; overflow: hidden;
+      }
+      .qr-box img { width: 100%; height: 100%; object-fit: contain; display: none; }
+      .qr-info { flex: 1; }
+      .qr-steps { font-size: 12px; color: var(--t2); line-height: 2; }
+      .qr-steps b { color: var(--t1); }
+      .conn-status-box {
+        display: inline-flex; align-items: center; gap: 8px; background: var(--green-a); border: 1px solid var(--green-b);
+        border-radius: var(--radius); padding: 8px 14px; font-size: 12px; color: var(--green); font-weight: 600; margin-top: 12px;
+      }
+      .conn-status-box.bad { background: var(--red-a); border-color: var(--red-b); color: #f08080; }
+
+      .msg-thread { display: flex; flex-direction: column; gap: 8px; }
+      .msg-bubble { padding: 10px 13px; border-radius: var(--radius); font-size: 12px; line-height: 1.6; }
+      .msg-bubble.in { background: var(--s3); border: 1px solid var(--b2); border-left: 3px solid var(--green); }
+      .msg-bubble.out { background: var(--red-a); border: 1px solid var(--red-b); border-left: 3px solid var(--red); margin-left: 24px; }
+      .msg-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+      .msg-tag { font-size: 9px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; padding: 2px 6px; border-radius: 2px; }
+      .tag-in { background: var(--green-a); color: var(--green); }
+      .tag-out { background: var(--red-a); color: #f08080; }
+      .msg-who { font-size: 10px; color: var(--t3); font-weight: 600; }
+      .msg-time { font-size: 10px; color: var(--t3); margin-left: auto; }
+
+      .tpl-card {
+        background: var(--s2); border: 1px solid var(--b1); border-radius: var(--radius); padding: 16px;
+        transition: border-color .15s; cursor: pointer; position: relative;
+      }
+      .tpl-card:hover { border-color: var(--b3); }
+      .tpl-card.selected { border-color: var(--red); background: var(--red-a); }
+      .tpl-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 10px; }
+      .tpl-name { font-weight: 700; font-size: 13px; color: var(--t1); }
+      .tpl-preview { font-size: 11px; color: var(--t2); line-height: 1.6; white-space: pre-wrap; max-height: 60px; overflow: hidden; }
+      .tpl-footer { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--b1); flex-wrap: wrap; }
+      .empty { text-align: center; padding: 48px 24px; color: var(--t3); }
+      .empty-icon { font-size: 36px; margin-bottom: 12px; opacity: .4; }
+      .empty-text { font-size: 13px; margin-bottom: 4px; color: var(--t2); }
+      .empty-sub { font-size: 11px; }
+
+      .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+      .row3 { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; }
+      .col { display: flex; flex-direction: column; gap: 18px; }
+
+      .toast {
+        position: fixed; right: 24px; bottom: 24px; padding: 12px 16px; border-radius: var(--radius);
+        background: var(--black); border: 1px solid var(--b2); color: var(--t1); box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+        opacity: 0; transform: translateY(8px); transition: all .18s; pointer-events: none; max-width: 360px; z-index: 100;
+      }
+      .toast.show { opacity: 1; transform: translateY(0); }
+      .hidden { display: none !important; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+      .report-stack { display: flex; flex-direction: column; gap: 14px; }
+      .insight-list { display: flex; flex-direction: column; gap: 10px; }
+      .insight-item {
+        padding: 12px 14px; border: 1px solid var(--b1); border-left: 3px solid var(--amber);
+        background: var(--s2); color: var(--t2); font-size: 12px; line-height: 1.7; border-radius: var(--radius);
+      }
+      .metric-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .metric-box {
+        background: var(--s2); border: 1px solid var(--b1); border-radius: var(--radius); padding: 12px;
+      }
+      .metric-box-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--t3); margin-bottom: 6px; }
+      .metric-box-value { font-family: "Bebas Neue", sans-serif; font-size: 28px; color: var(--t1); line-height: 1; }
+      .metric-box-sub { font-size: 10px; color: var(--t3); margin-top: 4px; }
+      .report-section-title { font-size: 12px; font-weight: 700; letter-spacing: .6px; color: var(--t1); }
+      .pill-soft {
+        display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px;
+        border: 1px solid var(--b2); background: var(--s2); color: var(--t2); font-size: 10px; font-weight: 700; letter-spacing: .4px;
+      }
+      .import-list { display: flex; flex-direction: column; gap: 10px; }
+      .import-card {
+        padding: 12px 14px; border: 1px solid var(--b1); border-radius: var(--radius); background: var(--s2);
+      }
+      .import-title { color: var(--t1); font-weight: 700; font-size: 12px; }
+      .import-meta { font-size: 10px; color: var(--t3); margin-top: 4px; line-height: 1.7; }
+
+      @media (max-width: 1180px) {
+        .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+        .row2, .row3 { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 900px) {
+        body { flex-direction: column; overflow: auto; }
+        .sidebar { width: 100%; height: auto; }
+        .content, .page { height: auto; }
+        .topbar { padding: 16px; height: auto; align-items: flex-start; flex-wrap: wrap; }
+      }
+      @media (max-width: 700px) {
+        .g2, .g3 { grid-template-columns: 1fr; }
+        .page { padding: 16px; }
+        .topbar-right { width: 100%; margin-left: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="sb-brand">
+        <div class="sb-logo"><span>V4</span> COBRANÇAS</div>
+        <div class="sb-sub">WhatsApp Automação</div>
+      </div>
+
+      <nav class="sb-nav">
+        <div class="sb-section">Principal</div>
+        <div class="nav-item active" data-page="dashboard">
+          <div class="nav-icon">⊞</div>
+          Dashboard
+        </div>
+        <div class="nav-item" data-page="inbox">
+          <div class="nav-icon">💬</div>
+          Inbox
+          <span class="nav-badge" id="sidebar-inbox-badge">0</span>
+        </div>
+
+        <div class="sb-section">Cadastros</div>
+        <div class="nav-item" data-page="clientes">
+          <div class="nav-icon">👥</div>
+          Clientes
+        </div>
+        <div class="nav-item" data-page="mensagens">
+          <div class="nav-icon">✉</div>
+          Mensagens
+        </div>
+
+        <div class="sb-section">Sistema</div>
+        <div class="nav-item" data-page="configuracoes">
+          <div class="nav-icon">⚙</div>
+          Configurações
+        </div>
+      </nav>
+
+      <div class="sb-status">
+        <div class="conn-pill" id="sidebar-wa-pill">
+          <div class="pulse"></div>
+          <span id="sidebar-wa-label">Carregando WhatsApp</span>
+        </div>
+        <div class="conn-num" id="sidebar-wa-meta">Aguardando status...</div>
+      </div>
+    </aside>
+
+    <div class="content">
+      <div class="topbar">
+        <div>
+          <div class="topbar-title" id="topbar-title">Dashboard</div>
+          <div class="topbar-path" id="topbar-path">V4 Cobranças / Visão Geral</div>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-ghost" id="btn-sync">↺ Sincronizar</button>
+          <button class="btn btn-ghost" id="btn-mass-billing">⇉ Cobrança em Massa</button>
+          <button class="btn btn-primary" id="btn-new-billing">+ Nova Cobrança</button>
+        </div>
+      </div>
+
+      <div class="page active" id="page-dashboard">
+        <div class="kpi-grid">
+          <div class="kpi-card"><div class="kpi-stripe"></div><div class="kpi-label">Clientes Ativos</div><div class="kpi-val" id="kpi-clients">0</div><div class="kpi-sub" id="kpi-clients-sub">Sem clientes cadastrados</div></div>
+          <div class="kpi-card"><div class="kpi-stripe"></div><div class="kpi-label">Cobranças Pendentes</div><div class="kpi-val" id="kpi-pending">0</div><div class="kpi-sub" id="kpi-pending-sub">Nenhuma na fila</div></div>
+          <div class="kpi-card"><div class="kpi-stripe amber"></div><div class="kpi-label">Falhas de Envio</div><div class="kpi-val amber" id="kpi-failed">0</div><div class="kpi-sub" id="kpi-failed-sub">Sem falhas</div></div>
+          <div class="kpi-card"><div class="kpi-stripe amber"></div><div class="kpi-label">Aguardando Retorno</div><div class="kpi-val amber" id="kpi-attention">0</div><div class="kpi-sub" id="kpi-attention-sub">Caixa limpa</div></div>
+          <div class="kpi-card"><div class="kpi-stripe"></div><div class="kpi-label">Inbox sem Vínculo</div><div class="kpi-val red" id="kpi-unmatched">0</div><div class="kpi-sub" id="kpi-unmatched-sub">Nenhuma mensagem solta</div></div>
+        </div>
+
+        <div class="alert alert-warn" style="margin-bottom:18px" id="dashboard-alert">
+          ⚠ <span id="dashboard-alert-text">Carregando resumo operacional...</span>
+        </div>
+
+        <div class="row2">
+          <div class="col">
+            <div class="card">
+              <div class="card-head">
+                <div class="card-title"><div class="card-icon">⚡</div> Atividade Recente</div>
+                <button class="btn btn-ghost" id="btn-go-inbox">Ver inbox</button>
+              </div>
+              <div class="card-body" style="padding:0">
+                <table class="data-table" style="width:100%">
+                  <thead><tr><th>Cliente</th><th>Tipo</th><th>Status</th><th>Data/Hora</th></tr></thead>
+                  <tbody id="recent-activity-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="card">
+              <div class="card-head"><div class="card-title"><div class="card-icon">📊</div> Resumo do Dia</div></div>
+              <div class="card-body">
+                <div style="display:flex;flex-direction:column;gap:12px">
+                  <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--b1)"><span style="color:var(--t2)">Cobranças enviadas hoje</span><span style="font-weight:700;color:var(--t1)" id="day-sent">0</span></div>
+                  <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--b1)"><span style="color:var(--t2)">Respostas recebidas hoje</span><span style="font-weight:700;color:var(--green)" id="day-replies">0</span></div>
+                  <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--b1)"><span style="color:var(--t2)">Falhas no envio</span><span style="font-weight:700;color:var(--red)" id="day-failures">0</span></div>
+                  <div style="display:flex;justify-content:space-between;padding:10px 0"><span style="color:var(--t2)">Taxa de entrega</span><span style="font-weight:700;color:var(--green)" id="day-rate">0%</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <div class="card-title"><div class="card-icon">📱</div> Conexão WhatsApp</div>
+                <button class="btn btn-ghost" id="btn-go-config">Detalhes</button>
+              </div>
+              <div class="card-body">
+                <div class="conn-status-box" id="dashboard-wa-box"><div class="pulse"></div> Verificando conexão...</div>
+                <div style="font-size:11px;color:var(--t3);margin-top:10px;line-height:1.8" id="dashboard-wa-info"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page" id="page-clientes">
+        <div class="page-header">
+          <div class="page-title"><div class="page-title-bar"></div>Cadastro de Clientes</div>
+          <div class="page-desc">Gerencie clientes, dados de cobrança e reenvio direto pelo painel</div>
+        </div>
+
+        <div class="row3">
+          <div class="col">
+            <div class="card">
+              <div class="card-head">
+                <div class="card-title"><div class="card-icon">+</div> <span id="client-form-title">Novo Cliente</span></div>
+              </div>
+              <div class="card-body">
+                <input type="hidden" id="client-edit-id" />
+                <div class="form-grid g2" style="margin-bottom:14px">
+                  <div class="field">
+                    <label class="field-label">Nome Completo</label>
+                    <input class="field-input" id="client-name" type="text" placeholder="Ex.: Maria da Silva" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Empresa / Razão Social</label>
+                    <input class="field-input" id="client-company" type="text" placeholder="Ex.: Padaria Boa Sorte" />
+                  </div>
+                </div>
+                <div class="form-grid g2" style="margin-bottom:14px">
+                  <div class="field">
+                    <label class="field-label">Telefone (c/ DDI e DDD)</label>
+                    <input class="field-input" id="client-phone" type="text" placeholder="5511999999999" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label">E-mail</label>
+                    <input class="field-input" id="client-email" type="email" placeholder="cliente@email.com" />
+                  </div>
+                </div>
+                <div class="form-grid g3" style="margin-bottom:14px">
+                  <div class="field">
+                    <label class="field-label">Valor da Cobrança</label>
+                    <input class="field-input" id="invoice-value" type="text" placeholder="R$ 0,00" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Vencimento</label>
+                    <input class="field-input" id="invoice-due-date" type="date" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Recorrência</label>
+                    <select class="field-select" id="invoice-recurrence">
+                      <option>Único</option>
+                      <option>Mensal</option>
+                      <option>Semanal</option>
+                      <option>Quinzenal</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-grid g2" style="margin-bottom:14px">
+                  <div class="field">
+                    <label class="field-label">Template de Mensagem</label>
+                    <select class="field-select" id="client-template"></select>
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Link de Pagamento</label>
+                    <input class="field-input" id="invoice-payment-link" type="url" placeholder="https://..." />
+                  </div>
+                </div>
+                <div class="form-grid g2" style="margin-bottom:14px">
+                  <div class="field">
+                    <label class="field-label">Anexar Boleto</label>
+                    <input class="field-input" id="invoice-boleto-file" type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xml,application/pdf,image/png,image/jpeg,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/xml,application/xml" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Anexar Nota Fiscal</label>
+                    <input class="field-input" id="invoice-nf-file" type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xml,application/pdf,image/png,image/jpeg,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/xml,application/xml" />
+                  </div>
+                </div>
+                <div class="form-grid" style="margin-bottom:14px">
+                  <div class="field">
+                    <label class="field-label">Outros Anexos da Cobrança</label>
+                    <input class="field-input" id="invoice-extra-files" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xml,application/pdf,image/png,image/jpeg,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/xml,application/xml" />
+                    <div style="font-size:10px;color:var(--t3);margin-top:6px">Use para contrato, comprovante, espelho da nota ou outros documentos de apoio.</div>
+                    <div style="font-size:10px;color:var(--t2);margin-top:8px;line-height:1.6" id="invoice-selected-attachments">Nenhum novo anexo selecionado para a próxima cobrança.</div>
+                    <div style="font-size:10px;color:var(--t3);margin-top:6px;line-height:1.6" id="invoice-current-attachments">Anexos da cobrança atual: nenhum.</div>
+                  </div>
+                </div>
+                <div class="form-grid" style="margin-bottom:16px">
+                  <div class="field">
+                    <label class="field-label">Observações</label>
+                    <textarea class="field-textarea" id="client-notes" placeholder="Informações adicionais sobre o cliente..." style="min-height:70px"></textarea>
+                  </div>
+                </div>
+                <div class="btn-row">
+                  <button class="btn btn-primary" id="btn-save-client">Salvar Cliente</button>
+                  <button class="btn btn-green" id="btn-save-client-with-invoice">Salvar + Cobrança</button>
+                  <button class="btn btn-ghost" id="btn-clear-client-form">Limpar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="card">
+              <div class="card-head"><div class="card-title"><div class="card-icon">📈</div> Resumo</div></div>
+              <div class="card-body" style="padding:0">
+                <div style="display:flex;flex-direction:column">
+                  <div style="display:flex;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--b1)"><span style="color:var(--t2)">Total de clientes</span><span style="font-family:'Bebas Neue';font-size:20px;color:var(--t1)" id="client-count">0</span></div>
+                  <div style="display:flex;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--b1)"><span style="color:var(--t2)">Com cobrança ativa</span><span style="font-family:'Bebas Neue';font-size:20px;color:var(--green)" id="client-active-invoices">0</span></div>
+                  <div style="display:flex;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--b1)"><span style="color:var(--t2)">Pendentes de envio</span><span style="font-family:'Bebas Neue';font-size:20px;color:var(--amber)" id="client-pending-count">0</span></div>
+                  <div style="display:flex;justify-content:space-between;padding:12px 18px"><span style="color:var(--t2)">Aguardando resposta</span><span style="font-family:'Bebas Neue';font-size:20px;color:var(--red)" id="client-attention-count">0</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div class="card-title"><div class="card-icon">💡</div> Dica</div></div>
+              <div class="card-body">
+                <div style="font-size:12px;color:var(--t2);line-height:1.8">
+                  Use o campo de telefone com DDI completo e aproveite o botão <b style="color:var(--t1)">Salvar + Cobrança</b> para já criar a primeira cobrança do cliente.
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div class="card-title"><div class="card-icon">⬆</div> Cadastro em Massa</div></div>
+              <div class="card-body">
+                <div style="font-size:12px;color:var(--t2);line-height:1.8;margin-bottom:14px">
+                  Baixe o modelo de Excel, preencha os clientes em lote e importe a planilha para cadastrar clientes e cobranças de uma vez só.
+                </div>
+                <div class="btn-row" style="margin-bottom:14px">
+                  <button class="btn btn-ghost" id="btn-download-client-template">⬇ Baixar Modelo Excel</button>
+                </div>
+                <div class="field">
+                  <label class="field-label">Planilha de Importação</label>
+                  <input
+                    class="field-input"
+                    id="client-import-file"
+                    type="file"
+                    accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+                  />
+                  <div style="font-size:10px;color:var(--t3);margin-top:6px;line-height:1.6">
+                    O modelo já inclui todos os campos do cadastro e uma linha de exemplo para facilitar o preenchimento.
+                  </div>
+                </div>
+                <div class="btn-row" style="margin-top:14px">
+                  <button class="btn btn-primary" id="btn-import-clients">Importar Planilha</button>
+                </div>
+                <div class="import-list" id="client-import-result" style="margin-top:14px"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:18px">
+          <div class="card-head">
+            <div class="card-title"><div class="card-icon">👥</div> Clientes Cadastrados</div>
+            <div class="btn-row">
+              <input class="field-input" id="client-search" type="text" placeholder="Buscar cliente..." style="width:220px;padding:6px 10px" />
+              <button class="btn btn-ghost" id="btn-clients-refresh">↺ Atualizar</button>
+            </div>
+          </div>
+              <div style="overflow-x:auto">
+            <table class="data-table" id="client-table">
+              <thead><tr><th>Cliente</th><th>Telefone</th><th>Empresa</th><th>Valor</th><th>Vencimento</th><th>Régua / Template</th><th>Status</th><th>Ações</th></tr></thead>
+              <tbody id="client-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="page" id="page-mensagens">
+        <div class="page-header">
+          <div class="page-title"><div class="page-title-bar"></div>Templates de Mensagens</div>
+          <div class="page-desc">Configure a régua de cobrança, o aging por vencimento e os modelos que o sistema deixa prontos para envio</div>
+        </div>
+
+        <div class="row3">
+          <div class="col">
+            <div class="card">
+              <div class="card-head">
+                <div class="card-title"><div class="card-icon">✎</div> Editor de Template</div>
+                <div class="btn-row">
+                  <button class="btn btn-ghost" id="btn-clear-template">＋ Nova Etapa</button>
+                  <button class="btn btn-primary" id="btn-save-template">✓ Salvar Template</button>
+                </div>
+              </div>
+              <div class="card-body">
+                <input type="hidden" id="tpl-id-input" />
+                <div class="alert alert-info" style="margin-bottom:14px">
+                  ℹ <span id="tpl-editor-hint">Preencha os campos para criar uma nova etapa da régua. Use editar nos cards ao lado apenas quando quiser alterar uma etapa existente.</span>
+                </div>
+                <div class="form-grid g2" style="margin-bottom:14px">
+                  <div class="field">
+                    <label class="field-label">Nome do Template</label>
+                    <input class="field-input" id="tpl-name-input" type="text" placeholder="Ex.: Cobrança Padrão" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Categoria</label>
+                    <select class="field-select" id="tpl-cat">
+                      <option>Cobrança</option>
+                      <option>Lembrete</option>
+                      <option>Aviso</option>
+                      <option>Confirmação</option>
+                      <option>Outro</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-grid g2" style="margin-bottom:14px">
+                  <div class="field">
+                    <label class="field-label">Etapa da Régua (dias vs vencimento)</label>
+                    <input class="field-input" id="tpl-rule-offset" type="number" min="-365" max="365" placeholder="Ex.: -3, 0, 5" />
+                    <div class="field-hint">Deixe em branco para usar como template manual. Negativo = antes do vencimento, zero = no dia, positivo = após o vencimento.</div>
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Resumo da Etapa</label>
+                    <div style="background:var(--s2);border:1px solid var(--b1);border-radius:var(--radius);padding:12px 14px;min-height:42px;display:flex;align-items:center;color:var(--t1);font-weight:600" id="tpl-rule-summary">Template fora da régua</div>
+                    <div class="field-hint">A régua usa esse offset para cruzar com a data de vencimento da cobrança.</div>
+                  </div>
+                </div>
+
+                <div class="field" style="margin-bottom:10px">
+                  <label class="field-label">Variáveis disponíveis — clique para inserir no cursor</label>
+                  <div class="chips" style="margin-top:6px">
+                    <span class="chip" data-template-var="[nome do cliente]">[nome do cliente]</span>
+                    <span class="chip" data-template-var="[valor]">[valor]</span>
+                    <span class="chip" data-template-var="[data de pagamento]">[data de pagamento]</span>
+                    <span class="chip" data-template-var="[forma de pagamento]">[forma de pagamento]</span>
+                    <span class="chip" data-template-var="[instruções de pagamento]">[instruções de pagamento]</span>
+                    <span class="chip" data-template-var="[anexos da cobrança]">[anexos da cobrança]</span>
+                    <span class="chip" data-template-var="[Link do pagamento]">[Link do pagamento]</span>
+                  </div>
+                  <div class="field-hint" style="margin-top:8px">Use `[instruções de pagamento]` para o sistema adaptar automaticamente a mensagem quando houver boleto em anexo, link de pagamento ou ambos.</div>
+                </div>
+
+                <div class="field" style="margin-bottom:14px">
+                  <label class="field-label">Corpo da Mensagem</label>
+                  <textarea class="field-textarea" id="tpl-body" style="min-height:150px" placeholder="Digite o texto da mensagem aqui..."></textarea>
+                </div>
+
+                <div class="field" style="margin-bottom:14px">
+                  <label class="field-label">Enviar boleto como anexo?</label>
+                  <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+                    <label class="toggle">
+                      <input type="checkbox" id="tpl-boleto" />
+                      <span class="toggle-track"></span>
+                      <span class="toggle-thumb"></span>
+                    </label>
+                    <span style="font-size:12px;color:var(--t2)">Quando ativo, o texto vira legenda do arquivo</span>
+                  </div>
+                </div>
+
+                <div class="btn-row">
+                  <button class="btn btn-ghost" id="btn-activate-template">Tornar padrão</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="card">
+              <div class="card-head"><div class="card-title"><div class="card-icon">👁</div> Pré-visualização</div></div>
+              <div class="card-body">
+                <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Como aparece no WhatsApp</div>
+                <div style="background:var(--s2);border-radius:8px;padding:14px;position:relative">
+                  <div style="background:#1f3c2b;border-radius:6px 6px 6px 0;padding:10px 12px;max-width:85%;font-size:12px;color:#d0f0d0;line-height:1.8;white-space:pre-wrap;position:relative" id="preview-bubble"></div>
+                  <div style="font-size:9px;color:var(--t3);text-align:right;margin-top:6px">Exemplo • ✓✓</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><div class="card-title"><div class="card-icon">🧭</div> Régua Ativa</div></div>
+              <div id="rule-list" style="padding:12px;display:flex;flex-direction:column;gap:8px"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><div class="card-title"><div class="card-icon">📋</div> Templates Salvos</div></div>
+              <div id="tpl-list" style="padding:12px;display:flex;flex-direction:column;gap:8px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page" id="page-inbox">
+        <div class="page-header">
+          <div class="page-title"><div class="page-title-bar"></div>Inbox & Histórico</div>
+          <div class="page-desc">Acompanhe respostas e histórico de conversas com clientes</div>
+        </div>
+
+        <div class="row3">
+          <div class="col">
+            <div class="card">
+              <div class="card-head">
+                <div class="card-title"><div class="card-icon">💬</div> Conversa</div>
+                <div class="btn-row">
+                  <select class="field-select" id="inbox-client-select" style="width:260px;padding:6px 10px"></select>
+                  <button class="btn btn-ghost" id="btn-refresh-conversation">↺</button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="msg-thread" id="conversation-thread" style="max-height:320px;overflow-y:auto;padding-right:4px;margin-bottom:16px"></div>
+                <div class="sep" style="margin:0 0 14px"></div>
+                <div class="field-label" style="margin-bottom:6px">Resposta Manual</div>
+                <div style="display:flex;gap:8px;align-items:flex-end">
+                  <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+                    <input class="field-input" id="reply-input" type="text" placeholder="Digite sua resposta..." style="flex:1" />
+                    <input class="field-input" id="reply-attachments" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xml,application/pdf,image/png,image/jpeg,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/xml,application/xml" />
+                    <div style="font-size:10px;color:var(--t3);line-height:1.6" id="reply-attachments-summary">Você pode enviar boleto, contrato, nota fiscal e outros anexos junto com a resposta.</div>
+                  </div>
+                  <button class="btn btn-primary" id="btn-send-reply">▶ Enviar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="card">
+              <div class="card-head"><div class="card-title"><div class="card-icon">📥</div> Mensagens sem Vínculo</div></div>
+              <div class="card-body" style="padding:0">
+                <div style="padding:10px 18px;background:var(--red-a);border-bottom:1px solid var(--red-b);font-size:11px;color:#f08080" id="unmatched-header">0 mensagens recebidas de números não cadastrados</div>
+                <div style="overflow-x:auto">
+                  <table class="data-table">
+                    <thead><tr><th>Número</th><th>Mensagem</th><th>Data</th><th>Vincular</th></tr></thead>
+                    <tbody id="unmatched-body"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page" id="page-configuracoes">
+        <div class="page-header">
+          <div class="page-title"><div class="page-title-bar"></div>Configurações</div>
+          <div class="page-desc">Gerencie conexão WhatsApp, status do sistema e preferências visuais do painel</div>
+        </div>
+
+        <div class="row2">
+          <div class="col">
+            <div class="card">
+              <div class="card-head"><div class="card-title"><div class="card-icon">📱</div> Conexão WhatsApp</div></div>
+              <div class="card-body">
+                <div class="qr-wrap">
+                  <div class="qr-box">
+                    <img id="qr-image" alt="QR Code WhatsApp" />
+                    <div id="qr-placeholder"><div style="font-size:28px;opacity:.3">▦</div><div>Sem QR<br />(talvez já conectado)</div></div>
+                  </div>
+                  <div class="qr-info">
+                    <div class="qr-steps">
+                      1. Abra o WhatsApp no celular<br />
+                      2. <b>Configurações → Aparelhos Conectados</b><br />
+                      3. <b>Conectar um Aparelho</b><br />
+                      4. Escaneie o QR Code ao lado
+                    </div>
+                    <div class="conn-status-box" id="config-wa-status"><div class="pulse"></div> Verificando...</div>
+                    <div style="font-size:10px;color:var(--t3);margin-top:8px" id="config-wa-meta">Aguardando dados de sessão.</div>
+                    <div class="btn-row" style="margin-top:12px">
+                      <button class="btn btn-ghost" id="btn-refresh-qr">↺ Atualizar QR</button>
+                      <button class="btn btn-ghost" id="btn-disconnect" style="color:var(--red)">✕ Desconectar</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><div class="card-title"><div class="card-icon">📤</div> Comportamento de Envio</div></div>
+              <div class="card-body">
+                <div class="settings-row">
+                  <div>
+                    <div class="settings-name">Fila serial de envios</div>
+                    <div class="settings-desc">Ativa por padrão para reduzir concorrência no WhatsApp</div>
+                  </div>
+                  <span class="badge badge-green">Ativo</span>
+                </div>
+                <div class="settings-row">
+                  <div>
+                    <div class="settings-name">Cobrança em massa com delay</div>
+                    <div class="settings-desc" id="settings-batch-status">Cada disparo aguarda o intervalo configurado antes do próximo envio.</div>
+                  </div>
+                  <span class="badge badge-gray" id="settings-batch-badge">Pronto</span>
+                </div>
+                <div class="settings-row">
+                  <div>
+                    <div class="settings-name">Mensagens duplicadas</div>
+                    <div class="settings-desc">Deduplicação de inbound já habilitada no backend</div>
+                  </div>
+                  <span class="badge badge-green">Ativo</span>
+                </div>
+                <div class="settings-row">
+                  <div>
+                    <div class="settings-name">Integracao Gmail</div>
+                    <div class="settings-desc" id="settings-email-status">Configure GMAIL_USER e GMAIL_APP_PASSWORD para habilitar o envio por e-mail.</div>
+                  </div>
+                  <span class="badge badge-gray" id="settings-email-badge">Nao configurado</span>
+                </div>
+                <div class="settings-row">
+                  <div>
+                    <div class="settings-name">Filtros de grupos/broadcast</div>
+                    <div class="settings-desc">Mensagens irrelevantes não entram no inbox operacional</div>
+                  </div>
+                  <span class="badge badge-green">Ativo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="card">
+              <div class="card-head"><div class="card-title"><div class="card-icon">🔔</div> Notificações & Pendências</div></div>
+              <div class="card-body">
+                <div class="settings-row">
+                  <div>
+                    <div class="settings-name">Falhas de envio</div>
+                    <div class="settings-desc">Exibidas no dashboard e na tabela de clientes</div>
+                  </div>
+                  <span class="badge badge-amber" id="settings-failed-count">0</span>
+                </div>
+                <div class="settings-row">
+                  <div>
+                    <div class="settings-name">Mensagens sem vínculo</div>
+                    <div class="settings-desc">Podem ser vinculadas a um cliente existente pela Inbox</div>
+                  </div>
+                  <span class="badge badge-red" id="settings-unmatched-count">0</span>
+                </div>
+                <div class="settings-row">
+                  <div>
+                    <div class="settings-name">Template ativo</div>
+                    <div class="settings-desc" id="settings-active-template">Carregando...</div>
+                  </div>
+                  <span class="badge badge-green">Padrão</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <div class="card-title"><div class="card-icon">✉</div> Canal de E-mail</div>
+                <button class="btn btn-primary" id="btn-save-email-settings">Salvar e Validar Gmail</button>
+              </div>
+              <div class="card-body">
+                <div style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden" aria-hidden="true">
+                  <input type="text" autocomplete="username" tabindex="-1" />
+                  <input type="password" autocomplete="current-password" tabindex="-1" />
+                </div>
+                <div class="form-grid g2" style="margin-bottom:14px">
+                  <div class="field">
+                    <label class="field-label">Conta Gmail</label>
+                    <input class="field-input" id="gmail-user" type="email" placeholder="financeiro@gmail.com" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Nome do Remetente</label>
+                    <input class="field-input" id="gmail-from-name" type="text" placeholder="Financeiro V4" />
+                  </div>
+                </div>
+                <div class="form-grid" style="margin-bottom:12px">
+                  <div class="field">
+                    <label class="field-label">Senha / App Password do Gmail</label>
+                    <input class="field-input" id="gmail-app-password" name="gmail_app_password_ui" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-1p-ignore="true" data-lpignore="true" readonly placeholder="Cole aqui para conectar ou atualizar" />
+                    <div class="field-hint" id="gmail-password-status">Cole a senha do Gmail ou a App Password. O sistema vai testar a autenticação antes de salvar.</div>
+                  </div>
+                </div>
+                <div class="alert alert-info">
+                  ℹ <span id="gmail-panel-hint">Cadastre a conta e a senha do Gmail para liberar o envio de cobranças por e-mail.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><div class="card-title"><div class="card-icon">ℹ</div> Sobre</div></div>
+              <div class="card-body">
+                <div style="font-size:12px;color:var(--t2);line-height:2">
+                  <div style="display:flex;justify-content:space-between"><span>Versão</span><span style="color:var(--t1);font-weight:600">2.0.0-local</span></div>
+                  <div style="display:flex;justify-content:space-between"><span>Ambiente</span><span style="color:var(--t1);font-weight:600" id="about-env">localhost:3000</span></div>
+                  <div style="display:flex;justify-content:space-between"><span>Empresa</span><span style="color:var(--t1);font-weight:600">Holding V4 Colli&Co</span></div>
+                  <div style="display:flex;justify-content:space-between"><span>WhatsApp lib</span><span style="color:var(--t1);font-weight:600">whatsapp-web.js</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      const pages = {
+        dashboard: { title: "Dashboard", path: "V4 Cobranças / Visão Geral" },
+        clientes: { title: "Clientes", path: "V4 Cobranças / Cadastro de Clientes" },
+        mensagens: { title: "Mensagens", path: "V4 Cobranças / Templates de Mensagem" },
+        inbox: { title: "Inbox", path: "V4 Cobranças / Inbox & Histórico" },
+        configuracoes: { title: "Configurações", path: "V4 Cobranças / Configurações do Sistema" },
+      };
+
+      const state = {
+        currentPage: "dashboard",
+        dashboard: null,
+        settings: null,
+        templates: [],
+        clients: [],
+        invoices: [],
+        messages: [],
+        conversation: [],
+        batchSend: null,
+        selectedTemplateId: null,
+        templateEditorDirty: false,
+        editingClientId: null,
+        currentInvoiceAttachmentsPreview: [],
+        clientImportSummary: null,
+        selectedInboxClientId: "",
+      };
+
+      const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+      const integerFormat = new Intl.NumberFormat("pt-BR");
+
+      function el(id) {
+        return document.getElementById(id);
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function toast(message) {
+        const node = el("toast");
+        node.textContent = message;
+        node.classList.add("show");
+        clearTimeout(window.__toastTimer);
+        window.__toastTimer = setTimeout(() => node.classList.remove("show"), 2800);
+      }
+
+      async function api(path, options) {
+        const response = await fetch(path, options);
+        const json = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(json.error || "Falha na API");
+        }
+        return json;
+      }
+
+      function formatMoney(valueCents) {
+        return currency.format((Number(valueCents) || 0) / 100);
+      }
+
+      function formatInteger(value) {
+        return integerFormat.format(Number(value) || 0);
+      }
+
+      function formatDateTime(value) {
+        if (!value) return "";
+        const date = typeof value === "number" ? new Date(value) : new Date(value);
+        if (Number.isNaN(date.getTime())) return "";
+        return date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+      }
+
+      function formatShortDate(value) {
+        if (!value) return "—";
+        const date = new Date(`${value}T00:00:00`);
+        if (Number.isNaN(date.getTime())) return value;
+        return date.toLocaleDateString("pt-BR");
+      }
+
+      function buildQueryString(params) {
+        const search = new URLSearchParams();
+        Object.entries(params || {}).forEach(([key, value]) => {
+          if (value == null || value === "") return;
+          search.set(key, value);
+        });
+        const query = search.toString();
+        return query ? `?${query}` : "";
+      }
+
+      function getTopbarActions() {
+        return {
+          sync: true,
+          batch: state.currentPage !== "fpa",
+          newBilling: state.currentPage !== "fpa",
+        };
+      }
+
+      function getAttachmentDisplayName(attachment) {
+        return attachment?.label || attachment?.originalName || attachment?.filename || "Anexo";
+      }
+
+      function getAttachmentUrl(attachment) {
+        if (!attachment?.filename) return "#";
+        return `/uploads/${encodeURIComponent(attachment.filename)}`;
+      }
+
+      function readFiles(inputId) {
+        return Array.from(el(inputId)?.files || []);
+      }
+
+      function formatAttachmentNames(items, emptyText) {
+        const source = Array.isArray(items) ? items : [];
+        if (!source.length) return emptyText;
+        return source.map((item) => getAttachmentDisplayName(item) || item?.name || "Arquivo").join(", ");
+      }
+
+      function renderMessageAttachments(attachments) {
+        const safeAttachments = Array.isArray(attachments) ? attachments.filter((attachment) => attachment?.filename) : [];
+        if (!safeAttachments.length) return "";
+
+        return `
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
+            ${safeAttachments
+              .map(
+                (attachment) => `
+                  <a href="${escapeHtml(getAttachmentUrl(attachment))}" target="_blank" rel="noreferrer" style="display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid var(--b1);border-radius:999px;background:rgba(255,255,255,.04);color:var(--t1);font-size:10px;text-decoration:none">
+                    📎 ${escapeHtml(getAttachmentDisplayName(attachment))}
+                  </a>
+                `
+              )
+              .join("")}
+          </div>
+        `;
+      }
+
+      function nowStartOfDay() {
+        const date = new Date();
+        date.setHours(0, 0, 0, 0);
+        return date.getTime();
+      }
+
+      function isToday(value) {
+        if (!value) return false;
+        const date = typeof value === "number" ? value : new Date(value).getTime();
+        if (!Number.isFinite(date)) return false;
+        return date >= nowStartOfDay();
+      }
+
+      function getActiveTemplate() {
+        return (
+          state.templates.find((template) => template.isActive && !Number.isInteger(template.ruleOffsetDays)) ||
+          state.templates.find((template) => template.isActive) ||
+          state.templates.find((template) => !Number.isInteger(template.ruleOffsetDays)) ||
+          state.templates[0] ||
+          null
+        );
+      }
+
+      function getRuleTemplates() {
+        return state.templates
+          .filter((template) => Number.isInteger(template.ruleOffsetDays))
+          .slice()
+          .sort((a, b) => a.ruleOffsetDays - b.ruleOffsetDays || String(a.id || "").localeCompare(String(b.id || "")));
+      }
+
+      function getManualTemplates() {
+        return state.templates.filter((template) => !Number.isInteger(template.ruleOffsetDays));
+      }
+
+      function formatRuleOffsetDays(offsetDays) {
+        if (!Number.isInteger(offsetDays)) return "Template manual";
+        if (offsetDays === 0) return "No vencimento";
+        if (offsetDays < 0) return `${Math.abs(offsetDays)} dia(s) antes`;
+        return `${offsetDays} dia(s) após`;
+      }
+
+      function getEligibleBatchInvoices() {
+        return state.invoices.filter((invoice) => ["pending", "failed"].includes(invoice.status));
+      }
+
+      function formatDelaySeconds(delayMs) {
+        const seconds = (Number(delayMs) || 0) / 1000;
+        return Number.isInteger(seconds) ? String(seconds) : seconds.toFixed(1).replace(".", ",");
+      }
+
+      function normalizeAppPasswordInput(value) {
+        return String(value || "").trim();
+      }
+
+      function resetEmailPasswordField({ focus = false } = {}) {
+        const field = el("gmail-app-password");
+        field.value = "";
+        field.setAttribute("readonly", "readonly");
+        if (focus) {
+          window.requestAnimationFrame(() => {
+            field.removeAttribute("readonly");
+            field.focus();
+          });
+        }
+      }
+
+      function unlockEmailPasswordField() {
+        const field = el("gmail-app-password");
+        if (field.hasAttribute("readonly")) {
+          field.removeAttribute("readonly");
+          field.value = "";
+        }
+      }
+
+      function getClientById(clientId) {
+        return state.clients.find((client) => client.id === clientId) || null;
+      }
+
+      function formatClientDisplayName(client, { includePhone = true } = {}) {
+        if (!client) return "Cliente";
+        const primaryLabel = client.companyName ? `${client.name} • ${client.companyName}` : client.name;
+        return includePhone ? `${primaryLabel} (${client.phone})` : primaryLabel;
+      }
+
+      function renderClientImportSummary() {
+        const node = el("client-import-result");
+        if (!node) return;
+
+        const summary = state.clientImportSummary;
+        if (!summary) {
+          node.innerHTML = `
+            <div class="import-card">
+              <div class="import-title">Modelo pronto para preencher</div>
+              <div class="import-meta">
+                Campos incluídos: nome, empresa, telefone, e-mail, observações, criação de cobrança, valor, vencimento, recorrência, template e link de pagamento.
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        node.innerHTML = `
+          <div class="import-card">
+            <div class="import-title">${summary.failedRows ? "Importação concluída com ajustes" : "Importação concluída com sucesso"}</div>
+            <div class="import-meta">
+              ${escapeHtml(String(summary.totalRows || 0))} linha(s) lida(s)<br>
+              ${escapeHtml(String(summary.createdClients || 0))} cliente(s) criado(s)<br>
+              ${escapeHtml(String(summary.createdInvoices || 0))} cobrança(s) criada(s)<br>
+              ${escapeHtml(String(summary.failedRows || 0))} linha(s) com erro
+            </div>
+          </div>
+          ${(summary.errors || [])
+            .slice(0, 8)
+            .map(
+              (entry) => `
+                <div class="import-card" style="border-color:rgba(237, 49, 49, 0.4)">
+                  <div class="import-title">Linha ${escapeHtml(String(entry.rowNumber || "—"))}${entry.clientName ? ` · ${escapeHtml(entry.clientName)}` : ""}</div>
+                  <div class="import-meta">${escapeHtml(entry.error || "Falha ao importar a linha.")}</div>
+                </div>
+              `
+            )
+            .join("")}
+        `;
+      }
+
+      function getInvoicesForClient(clientId) {
+        return state.invoices
+          .filter((invoice) => invoice.clientId === clientId)
+          .slice()
+          .sort((a, b) => {
+            const aTime = new Date(a.lastAttemptAt || a.lastSentAt || a.createdAt || 0).getTime();
+            const bTime = new Date(b.lastAttemptAt || b.lastSentAt || b.createdAt || 0).getTime();
+            return bTime - aTime;
+          });
+      }
+
+      function getLatestInvoiceForClient(clientId) {
+        return getInvoicesForClient(clientId)[0] || null;
+      }
+
+      function getClientNeedsAttention(client) {
+        if (!client?.lastInboundAt) return false;
+        if (!client?.lastOutboundAt) return true;
+        return new Date(client.lastInboundAt).getTime() > new Date(client.lastOutboundAt).getTime();
+      }
+
+      function clientInitials(name) {
+        return String(name || "")
+          .split(" ")
+          .filter(Boolean)
+          .map((part) => part[0])
+          .join("")
+          .slice(0, 2)
+          .toUpperCase() || "CL";
+      }
+
+      function badgeClassForInvoiceStatus(status) {
+        if (status === "paid") return "badge-green";
+        if (status === "sent") return "badge-green";
+        if (status === "failed") return "badge-red";
+        if (status === "scheduled") return "badge-gray";
+        return "badge-amber";
+      }
+
+      function labelForInvoiceStatus(status, client, invoice) {
+        if (status === "paid") return "✓ Quitada";
+        if (invoice?.billingRule?.enabled) {
+          const stageLabel = invoice.billingRule.currentRuleLabel || invoice.billingRule.nextRuleLabel || null;
+          if (status === "scheduled") return stageLabel ? `Agendada · ${stageLabel}` : "Agendada";
+          if (status === "sent") return stageLabel ? `Enviada · ${stageLabel}` : "Enviada";
+          if (status === "failed") return stageLabel ? `Falhou · ${stageLabel}` : "Falhou";
+          if (status === "sending") return stageLabel ? `Enviando · ${stageLabel}` : "Enviando";
+          return stageLabel ? `Pronta · ${stageLabel}` : "Pronta";
+        }
+        if (getClientNeedsAttention(client)) return "Sem Retorno";
+        if (status === "sent") return "Enviado";
+        if (status === "failed") return "Falhou";
+        if (status === "sending") return "Enviando";
+        if (status === "scheduled") return "Agendada";
+        return "Pendente";
+      }
+
+      function navigate(pageId) {
+        state.currentPage = pageId;
+        document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === pageId));
+        document.querySelectorAll(".page").forEach((page) => page.classList.toggle("active", page.id === `page-${pageId}`));
+        el("topbar-title").textContent = pages[pageId]?.title || pageId;
+        el("topbar-path").textContent = pages[pageId]?.path || "";
+        renderTopbarActions();
+      }
+
+      function renderTopbarActions() {
+        const actions = getTopbarActions();
+        el("btn-sync").classList.toggle("hidden", !actions.sync);
+        el("btn-mass-billing").classList.toggle("hidden", !actions.batch);
+        el("btn-new-billing").classList.toggle("hidden", !actions.newBilling);
+      }
+
+      async function loadBootstrap() {
+        const data = await api("/api/bootstrap");
+        state.dashboard = data.dashboard;
+        state.settings = data.settings;
+        state.templates = data.templates;
+        state.clients = data.clients;
+        state.invoices = data.invoices;
+        state.messages = data.messages;
+        state.batchSend = data.batchSend || null;
+
+        if (!state.selectedTemplateId) {
+          state.selectedTemplateId = getActiveTemplate()?.id || null;
+        }
+
+        if (!state.selectedInboxClientId && state.clients.length) {
+          const clientWithActivity = state.clients.find((client) => client.lastInboundAt || client.lastOutboundAt);
+          state.selectedInboxClientId = clientWithActivity?.id || state.clients[0].id;
+        }
+      }
+
+      async function loadFpaBootstrap() {
+        const query = buildQueryString({
+          from: state.fpa.from,
+          to: state.fpa.to,
+          prompt: state.fpa.prompt,
+          limit: 160,
+        });
+        const data = await api(`/api/fpa/bootstrap${query}`);
+        state.fpa.categories = Array.isArray(data.categories) ? data.categories : [];
+        state.fpa.imports = Array.isArray(data.imports) ? data.imports : [];
+        state.fpa.overview = data.overview || null;
+        state.fpa.report = data.report || null;
+        state.fpa.transactions = Array.isArray(data.transactions) ? data.transactions : [];
+
+        if (!state.fpa.from && data.overview?.period?.from) {
+          state.fpa.from = data.overview.period.from;
+        }
+        if (!state.fpa.to && data.overview?.period?.to) {
+          state.fpa.to = data.overview.period.to;
+        }
+      }
+
+      async function loadConversation(clientId) {
+        if (!clientId) {
+          state.conversation = [];
+          return;
+        }
+        state.conversation = await api(`/api/clients/${clientId}/messages?limit=50`);
+      }
+
+      async function refreshQrStatus() {
+        const qr = await api("/api/whatsapp/qr");
+        const qrImg = el("qr-image");
+        const placeholder = el("qr-placeholder");
+        if (qr.dataUrl) {
+          qrImg.src = qr.dataUrl;
+          qrImg.style.display = "block";
+          placeholder.classList.add("hidden");
+        } else {
+          qrImg.removeAttribute("src");
+          qrImg.style.display = "none";
+          placeholder.classList.remove("hidden");
+        }
+      }
+
+      function renderSidebarStatus() {
+        const whatsapp = state.dashboard?.whatsapp || {};
+        const ready = whatsapp.status === "ready" || whatsapp.status === "authenticated";
+        const pill = el("sidebar-wa-pill");
+        pill.classList.toggle("bad", !ready);
+        el("sidebar-wa-label").textContent = ready ? "WhatsApp Conectado" : `WhatsApp ${whatsapp.status || "offline"}`;
+
+        const metaParts = [];
+        if (whatsapp.clientInfo?.pushname) metaParts.push(`Conectado como ${whatsapp.clientInfo.pushname}`);
+        if (whatsapp.lastReadyAt) metaParts.push(`Última conexão: ${formatDateTime(whatsapp.lastReadyAt)}`);
+        if (whatsapp.queueSize) metaParts.push(`Fila: ${whatsapp.queueSize}`);
+        el("sidebar-wa-meta").textContent = metaParts.join(" · ") || "Aguardando autenticação";
+
+        el("sidebar-inbox-badge").textContent = String(state.dashboard?.unmatchedInboxCount || 0);
+      }
+
+      function renderBatchButton() {
+        const button = el("btn-mass-billing");
+        const whatsapp = state.dashboard?.whatsapp || {};
+        const ready = whatsapp.status === "ready" || whatsapp.status === "authenticated";
+        const eligibleInvoices = getEligibleBatchInvoices();
+        const batchSend = state.batchSend || {};
+
+        if (batchSend.status === "running") {
+          button.disabled = true;
+          button.textContent = `⇉ Lote ${batchSend.attempted || 0}/${batchSend.total || eligibleInvoices.length || 0}`;
+          button.title = batchSend.currentClientName
+            ? `Enviando para ${batchSend.currentClientName} com ${formatDelaySeconds(batchSend.delayMs)}s de intervalo`
+            : `Envio em massa em andamento com ${formatDelaySeconds(batchSend.delayMs)}s de intervalo`;
+          return;
+        }
+
+        button.textContent = eligibleInvoices.length ? `⇉ Enviar em Massa (${eligibleInvoices.length})` : "⇉ Cobrança em Massa";
+        button.disabled = !ready || !eligibleInvoices.length;
+        if (!ready) {
+          button.title = "Conecte o WhatsApp para habilitar o envio em massa.";
+        } else if (!eligibleInvoices.length) {
+          button.title = "Não há cobranças pendentes ou com falha para envio em massa.";
+        } else {
+          button.title = "Dispara as cobranças pendentes com intervalo entre um envio e outro.";
+        }
+      }
+
+      function renderDashboard() {
+        const dashboard = state.dashboard || {};
+        el("kpi-clients").textContent = dashboard.clientsCount || 0;
+        el("kpi-clients-sub").textContent = dashboard.clientsCount ? `${dashboard.clientsCount} cliente(s) na operação` : "Sem clientes cadastrados";
+        el("kpi-pending").textContent = dashboard.invoicesPendingCount || 0;
+        el("kpi-pending-sub").textContent = dashboard.invoicesPendingCount ? "Prontas para envio" : "Nenhuma na fila";
+        el("kpi-failed").textContent = dashboard.invoicesFailedCount || 0;
+        el("kpi-failed-sub").textContent = dashboard.invoicesFailedCount ? "Requer reenvio" : "Sem falhas";
+        el("kpi-attention").textContent = dashboard.clientsNeedingAttention || 0;
+        el("kpi-attention-sub").textContent = dashboard.clientsNeedingAttention ? "Cliente respondeu" : "Caixa limpa";
+        el("kpi-unmatched").textContent = dashboard.unmatchedInboxCount || 0;
+        el("kpi-unmatched-sub").textContent = dashboard.unmatchedInboxCount ? "Msgs não vinculadas" : "Nenhuma mensagem solta";
+
+        const warnings = [];
+        if (state.batchSend?.status === "running") {
+          const currentTarget = state.batchSend.currentClientName ? ` Enviando para ${state.batchSend.currentClientName}.` : "";
+          warnings.push(
+            `Disparo em massa em andamento: ${state.batchSend.attempted || 0}/${state.batchSend.total || 0} processada(s) com ${formatDelaySeconds(state.batchSend.delayMs)}s de intervalo.${currentTarget}`
+          );
+        }
+        if (dashboard.invoicesFailedCount) warnings.push(`${dashboard.invoicesFailedCount} cobrança(s) falharam e precisam de reenvio.`);
+        if (dashboard.clientsNeedingAttention) warnings.push(`${dashboard.clientsNeedingAttention} cliente(s) responderam e aguardam atenção.`);
+        if (dashboard.unmatchedInboxCount) warnings.push(`${dashboard.unmatchedInboxCount} mensagem(ns) chegaram sem vínculo com cliente.`);
+        el("dashboard-alert-text").textContent = warnings.length ? warnings.join(" · ") : "Operação estável no momento.";
+
+        const activity = [];
+        state.invoices.forEach((invoice) => {
+          const client = getClientById(invoice.clientId);
+          activity.push({
+            client,
+            type: "Cobrança",
+            status: labelForInvoiceStatus(invoice.status, client),
+            statusClass: badgeClassForInvoiceStatus(invoice.status),
+            when: invoice.lastAttemptAt || invoice.lastSentAt || invoice.createdAt,
+          });
+        });
+        state.messages
+          .filter((message) => message.clientId)
+          .forEach((message) => {
+            activity.push({
+              client: getClientById(message.clientId),
+              type: "Resposta",
+              status: "Recebida",
+              statusClass: "badge-green",
+              when: message.timestampMs,
+            });
+          });
+        activity.sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime());
+
+        const recentBody = el("recent-activity-body");
+        recentBody.innerHTML = "";
+        if (!activity.length) {
+          recentBody.innerHTML = `<tr><td colspan="4"><div class="empty"><div class="empty-text">Sem atividade recente</div><div class="empty-sub">As movimentações aparecem aqui conforme o sistema for usado.</div></div></td></tr>`;
+        } else {
+          activity.slice(0, 6).forEach((entry) => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+              <td><div class="cell-name"><div class="avatar">${escapeHtml(clientInitials(entry.client?.name))}</div>${escapeHtml(entry.client?.name || "Sem cliente")}</div></td>
+              <td>${escapeHtml(entry.type)}</td>
+              <td><span class="badge ${entry.statusClass}">${escapeHtml(entry.status)}</span></td>
+              <td style="color:var(--t3)">${escapeHtml(formatDateTime(entry.when))}</td>
+            `;
+            recentBody.appendChild(row);
+          });
+        }
+
+        const sentToday = state.invoices.filter((invoice) => isToday(invoice.lastSentAt)).length;
+        const repliesToday = state.messages.filter((message) => message.clientId && isToday(message.timestampMs)).length;
+        const failedToday = state.invoices.filter((invoice) => invoice.status === "failed" && isToday(invoice.lastAttemptAt)).length;
+        const attemptsToday = sentToday + failedToday;
+        const deliveryRate = attemptsToday ? Math.round((sentToday / attemptsToday) * 100) : 100;
+
+        el("day-sent").textContent = sentToday;
+        el("day-replies").textContent = repliesToday;
+        el("day-failures").textContent = failedToday;
+        el("day-rate").textContent = `${deliveryRate}%`;
+
+        const whatsapp = dashboard.whatsapp || {};
+        const waBox = el("dashboard-wa-box");
+        const ready = whatsapp.status === "ready" || whatsapp.status === "authenticated";
+        waBox.classList.toggle("bad", !ready);
+        waBox.innerHTML = `<div class="pulse"></div> ${ready ? "Conectado e operacional" : `Status: ${escapeHtml(whatsapp.status || "offline")}`}`;
+        el("dashboard-wa-info").innerHTML = `
+          Número: <span style="color:var(--t1)">${escapeHtml(whatsapp.clientInfo?.wid || "não identificado")}</span><br>
+          Última conexão: <span style="color:var(--t1)">${escapeHtml(formatDateTime(whatsapp.lastReadyAt) || "aguardando")}</span><br>
+          Fila atual: <span style="color:var(--t1)">${escapeHtml(String(whatsapp.queueSize || 0))}</span>
+        `;
+      }
+
+      function renderFpaSection(section) {
+        const rows = Array.isArray(section?.rows) ? section.rows : [];
+        const columns = Array.isArray(section?.columns) ? section.columns : [];
+        if (!rows.length || !columns.length) {
+          return `
+            <div class="metric-box">
+              <div class="report-section-title">${escapeHtml(section?.title || "Seção")}</div>
+              <div style="font-size:11px;color:var(--t3);margin-top:8px">Sem dados suficientes para esta visão.</div>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="metric-box">
+            <div class="report-section-title">${escapeHtml(section.title || "Seção")}</div>
+            <div style="overflow-x:auto;margin-top:10px">
+              <table class="data-table">
+                <thead>
+                  <tr>${columns.map((column) => `<th>${escapeHtml(column.label || column.key)}</th>`).join("")}</tr>
+                </thead>
+                <tbody>
+                  ${rows
+                    .map(
+                      (row) => `
+                        <tr>
+                          ${columns
+                            .map((column) => {
+                              const value = row?.[column.key];
+                              if (column.type === "currency") return `<td>${escapeHtml(formatMoney(value))}</td>`;
+                              if (column.type === "number") return `<td>${escapeHtml(formatInteger(value))}</td>`;
+                              return `<td>${escapeHtml(value ?? "—")}</td>`;
+                            })
+                            .join("")}
+                        </tr>
+                      `
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+
+      function renderFpa() {
+        const overview = state.fpa.overview || {
+          period: { label: "Sem período" },
+          insights: [],
+          expenseBreakdown: [],
+        };
+        const report = state.fpa.report || {
+          title: "Visão Geral de FP&A",
+          summaryText: "Assim que houver extratos importados, o sistema monta a leitura gerencial automaticamente.",
+          sections: [],
+          insights: [],
+        };
+
+        el("fpa-report-from").value = state.fpa.from || "";
+        el("fpa-report-to").value = state.fpa.to || "";
+        el("fpa-report-prompt").value = state.fpa.prompt || "";
+
+        el("fpa-kpi-inflows").textContent = formatMoney(overview.inflowsCents);
+        el("fpa-kpi-inflows-sub").textContent = `${formatInteger(overview.reportableTransactionsCount || 0)} lançamento(s) considerados`;
+        el("fpa-kpi-outflows").textContent = formatMoney(overview.outflowsCents);
+        el("fpa-kpi-outflows-sub").textContent = overview.expenseBreakdown?.[0]
+          ? `Maior categoria: ${overview.expenseBreakdown[0].category}`
+          : "Sem despesas mapeadas";
+        el("fpa-kpi-net").textContent = formatMoney(overview.netCashCents);
+        el("fpa-kpi-net").style.color =
+          overview.netCashCents < 0 ? "var(--red)" : overview.netCashCents > 0 ? "var(--green)" : "var(--t1)";
+        el("fpa-kpi-net-sub").textContent = overview.period?.label || "Resultado do período";
+        el("fpa-kpi-burn").textContent = formatMoney(overview.averageMonthlyBurnCents);
+        el("fpa-kpi-burn-sub").textContent = "Queima média nos meses negativos";
+        el("fpa-kpi-cash").textContent = formatMoney(overview.latestKnownCashCents);
+        el("fpa-kpi-cash-sub").textContent = overview.accountsWithBalance
+          ? `${formatInteger(overview.accountsWithBalance)} conta(s) com saldo`
+          : "Sem saldo disponível no extrato";
+
+        el("fpa-overview-alert-text").textContent = overview.insights?.[0] || "Importe um extrato para começar a leitura financeira do negócio.";
+        el("fpa-metric-transactions").textContent = formatInteger(overview.transactionsCount);
+        el("fpa-metric-transactions-sub").textContent = overview.transactionsCount
+          ? `${formatInteger(overview.reportableTransactionsCount || 0)} lançamento(s) entraram nos relatórios`
+          : "Sem movimento importado";
+        el("fpa-metric-transfers").textContent = formatInteger(overview.internalTransfersCount);
+        el("fpa-metric-period").textContent = overview.period?.from && overview.period?.to ? `${overview.period.from.slice(5, 7)}/${overview.period.from.slice(0, 4)}` : "—";
+        el("fpa-metric-accounts").textContent = formatInteger(overview.accountsWithBalance);
+        el("fpa-report-period").textContent = overview.period?.label || "Sem período";
+        el("fpa-report-title").textContent = report.title || "Visão Geral de FP&A";
+        el("fpa-report-summary").textContent = report.summaryText || "";
+
+        const insightsNode = el("fpa-insights");
+        insightsNode.innerHTML = "";
+        const insightItems = Array.isArray(report.insights) && report.insights.length ? report.insights : overview.insights || [];
+        if (!insightItems.length) {
+          insightsNode.innerHTML = `<div class="insight-item">Sem insights ainda. Importe extratos para o analista montar a leitura financeira.</div>`;
+        } else {
+          insightsNode.innerHTML = insightItems.map((item) => `<div class="insight-item">${escapeHtml(item)}</div>`).join("");
+        }
+
+        const sectionsNode = el("fpa-report-sections");
+        sectionsNode.innerHTML = Array.isArray(report.sections) && report.sections.length
+          ? report.sections.map(renderFpaSection).join("")
+          : `<div class="metric-box"><div class="report-section-title">Sem relatório</div><div style="font-size:11px;color:var(--t3);margin-top:8px">Faça o primeiro pedido de análise para gerar tabelas e síntese gerencial.</div></div>`;
+
+        const importsNode = el("fpa-imports-list");
+        if (!state.fpa.imports.length) {
+          importsNode.innerHTML = `<div class="import-card"><div class="import-title">Nenhum extrato importado</div><div class="import-meta">Os arquivos CSV e OFX enviados passam a alimentar os relatórios automaticamente.</div></div>`;
+        } else {
+          importsNode.innerHTML = state.fpa.imports
+            .map(
+              (entry) => `
+                <div class="import-card">
+                  <div class="import-title">${escapeHtml(entry.accountName || entry.originalFilename || "Extrato")}</div>
+                  <div class="import-meta">
+                    ${escapeHtml(entry.originalFilename || "extrato")} · ${escapeHtml((entry.sourceType || "").toUpperCase())}<br>
+                    Importado em ${escapeHtml(formatDateTime(entry.importedAt))}<br>
+                    ${escapeHtml(String(entry.importedCount || 0))} lançamento(s) novos · ${escapeHtml(String(entry.duplicateCount || 0))} duplicado(s)
+                  </div>
+                </div>
+              `
+            )
+            .join("");
+        }
+
+        const transactionsBody = el("fpa-transactions-body");
+        transactionsBody.innerHTML = "";
+        if (!state.fpa.transactions.length) {
+          transactionsBody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-text">Sem lançamentos financeiros</div><div class="empty-sub">Importe um extrato para começar a consolidar o caixa.</div></div></td></tr>`;
+          return;
+        }
+
+        state.fpa.transactions.forEach((transaction) => {
+          const categoryOptions = Array.from(new Set([...(state.fpa.categories || []), transaction.category].filter(Boolean)));
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${escapeHtml(formatShortDate(transaction.transactionDate))}</td>
+            <td>${escapeHtml(transaction.accountName || "—")}</td>
+            <td>
+              <div style="color:var(--t1);font-weight:600">${escapeHtml(transaction.description || "—")}</div>
+              <div style="font-size:10px;color:var(--t3);margin-top:4px">${escapeHtml(transaction.subcategory || transaction.counterparty || "Sem detalhe adicional")}</div>
+            </td>
+            <td>
+              <select class="field-select" id="fpa-category-${escapeHtml(transaction.id)}" style="padding:6px 10px;min-width:180px">
+                ${categoryOptions
+                  .map(
+                    (category) =>
+                      `<option value="${escapeHtml(category)}" ${category === transaction.category ? "selected" : ""}>${escapeHtml(category)}</option>`
+                  )
+                  .join("")}
+              </select>
+            </td>
+            <td style="color:${transaction.amountCents < 0 ? "var(--red)" : "var(--green)"};font-weight:700">${escapeHtml(
+              formatMoney(transaction.amountCents)
+            )}</td>
+            <td><button class="btn btn-ghost" data-save-fpa-transaction="${escapeHtml(transaction.id)}" style="padding:5px 10px;font-size:10px">Salvar</button></td>
+          `;
+          transactionsBody.appendChild(row);
+        });
+
+        transactionsBody.querySelectorAll("[data-save-fpa-transaction]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            const transactionId = button.dataset.saveFpaTransaction;
+            const category = el(`fpa-category-${transactionId}`)?.value || "";
+            button.disabled = true;
+            try {
+              await api(`/api/fpa/transactions/${transactionId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  category,
+                  isInternalTransfer: category === "Transferências Internas",
+                }),
+              });
+              toast("Categoria financeira atualizada.");
+              await loadFpaBootstrap();
+              renderFpa();
+            } catch (error) {
+              toast(error.message);
+            } finally {
+              button.disabled = false;
+            }
+          })
+        );
+      }
+
+      function renderTemplateOptions() {
+        const select = el("client-template");
+        const selectedValue = select.value || getActiveTemplate()?.id || "";
+        select.innerHTML = "";
+        const options = getManualTemplates();
+        options.forEach((template) => {
+          const option = document.createElement("option");
+          option.value = template.id;
+          option.textContent = `${template.name}${template.isActive ? " (padrão)" : ""}`;
+          select.appendChild(option);
+        });
+        if (!options.length) {
+          const option = document.createElement("option");
+          option.value = "";
+          option.textContent = "Cadastre um template manual";
+          select.appendChild(option);
+          select.value = "";
+          return;
+        }
+        if (options.some((template) => template.id === selectedValue)) {
+          select.value = selectedValue;
+        }
+      }
+
+      function updateInvoiceAttachmentSummary() {
+        const selectedFiles = [
+          ...readFiles("invoice-boleto-file"),
+          ...readFiles("invoice-nf-file"),
+          ...readFiles("invoice-extra-files"),
+        ];
+        const currentAttachments = Array.isArray(state.currentInvoiceAttachmentsPreview)
+          ? state.currentInvoiceAttachmentsPreview
+          : [];
+
+        el("invoice-selected-attachments").textContent = selectedFiles.length
+          ? `Novos anexos prontos para envio: ${selectedFiles.map((file) => file.name).join(", ")}`
+          : "Nenhum novo anexo selecionado para a próxima cobrança.";
+        el("invoice-current-attachments").textContent = currentAttachments.length
+          ? `Anexos da cobrança atual: ${formatAttachmentNames(currentAttachments, "nenhum")}.`
+          : "Anexos da cobrança atual: nenhum.";
+      }
+
+      function resetInvoiceAttachmentInputs() {
+        el("invoice-boleto-file").value = "";
+        el("invoice-nf-file").value = "";
+        el("invoice-extra-files").value = "";
+        updateInvoiceAttachmentSummary();
+      }
+
+      function updateReplyAttachmentSummary() {
+        const files = readFiles("reply-attachments");
+        el("reply-attachments-summary").textContent = files.length
+          ? `Anexos para envio: ${files.map((file) => file.name).join(", ")}`
+          : "Você pode enviar boleto, contrato, nota fiscal e outros anexos junto com a resposta.";
+      }
+
+      function resetReplyAttachmentInput() {
+        el("reply-attachments").value = "";
+        updateReplyAttachmentSummary();
+      }
+
+      function clearClientForm() {
+        state.editingClientId = null;
+        state.currentInvoiceAttachmentsPreview = [];
+        el("client-edit-id").value = "";
+        el("client-form-title").textContent = "Novo Cliente";
+        el("client-name").value = "";
+        el("client-company").value = "";
+        el("client-phone").value = "";
+        el("client-email").value = "";
+        el("invoice-value").value = "";
+        el("invoice-due-date").value = "";
+        el("invoice-recurrence").value = "Único";
+        el("invoice-payment-link").value = "";
+        el("client-notes").value = "";
+        const activeTemplate = getActiveTemplate();
+        el("client-template").value = activeTemplate?.id || "";
+        resetInvoiceAttachmentInputs();
+      }
+
+      function fillClientForm(clientId) {
+        const client = getClientById(clientId);
+        if (!client) return;
+        const latestInvoice = getLatestInvoiceForClient(clientId);
+        state.editingClientId = client.id;
+        el("client-edit-id").value = client.id;
+        el("client-form-title").textContent = `Editar Cliente · ${client.name}`;
+        el("client-name").value = client.name || "";
+        el("client-company").value = client.companyName || "";
+        el("client-phone").value = client.phone || "";
+        el("client-email").value = client.email || "";
+        el("client-notes").value = client.notes || "";
+        el("client-template").value = client.defaultTemplateId || getActiveTemplate()?.id || "";
+        el("invoice-value").value = latestInvoice ? formatMoney(latestInvoice.valueCents) : "";
+        el("invoice-due-date").value = latestInvoice?.dueDate || "";
+        el("invoice-recurrence").value = latestInvoice?.recurrence || "Único";
+        el("invoice-payment-link").value = latestInvoice?.paymentLink || "";
+        state.currentInvoiceAttachmentsPreview = Array.isArray(latestInvoice?.attachments) ? latestInvoice.attachments : [];
+        resetInvoiceAttachmentInputs();
+        navigate("clientes");
+      }
+
+      function renderClients() {
+        renderTemplateOptions();
+        renderClientImportSummary();
+        if (state.editingClientId) {
+          const latestInvoiceForEditing = getLatestInvoiceForClient(state.editingClientId);
+          state.currentInvoiceAttachmentsPreview = Array.isArray(latestInvoiceForEditing?.attachments)
+            ? latestInvoiceForEditing.attachments
+            : [];
+        }
+        updateInvoiceAttachmentSummary();
+        el("client-count").textContent = state.clients.length;
+        el("client-active-invoices").textContent = state.clients.filter((client) => getInvoicesForClient(client.id).length).length;
+        el("client-pending-count").textContent = state.invoices.filter((invoice) => ["pending", "failed", "sending"].includes(invoice.status)).length;
+        el("client-attention-count").textContent = state.clients.filter(getClientNeedsAttention).length;
+
+        const search = el("client-search").value.trim().toLowerCase();
+        const tableBody = el("client-tbody");
+        tableBody.innerHTML = "";
+
+        const filteredClients = state.clients.filter((client) => {
+          if (!search) return true;
+          return [client.name, client.phone, client.companyName, client.email].some((value) =>
+            String(value || "").toLowerCase().includes(search)
+          );
+        });
+
+        if (!filteredClients.length) {
+          tableBody.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-text">Nenhum cliente encontrado</div><div class="empty-sub">Tente outro termo de busca ou cadastre um novo cliente.</div></div></td></tr>`;
+          return;
+        }
+
+        filteredClients.forEach((client) => {
+          const latestInvoice = getLatestInvoiceForClient(client.id);
+          const template = latestInvoice?.resolvedTemplateName
+            ? { name: latestInvoice.resolvedTemplateName }
+            : state.templates.find((item) => item.id === client.defaultTemplateId) || getActiveTemplate();
+          const ruleInfo = latestInvoice?.billingRule || null;
+          const emailReady = Boolean(state.dashboard?.email?.configured);
+          const isPaid = latestInvoice?.status === "paid";
+          const sendBlockedBySchedule = latestInvoice?.status === "scheduled";
+          const canSendEmail = Boolean(latestInvoice && client.email && emailReady && !sendBlockedBySchedule && !isPaid);
+          const emailTitle = isPaid
+            ? "Cobrança quitada"
+            : sendBlockedBySchedule
+            ? `Próxima etapa da régua: ${ruleInfo?.nextRuleLabel || "ainda não liberada"}`
+            : !client.email
+            ? "Cliente sem e-mail cadastrado"
+            : !emailReady
+              ? "Configure o Gmail para habilitar o envio por e-mail"
+              : "Enviar cobrança por e-mail";
+          const statusLabel = latestInvoice ? labelForInvoiceStatus(latestInvoice.status, client, latestInvoice) : "Sem cobrança";
+          const statusClass = latestInvoice ? badgeClassForInvoiceStatus(latestInvoice.status) : "badge-gray";
+          const sendButtonLabel = !latestInvoice
+            ? ""
+            : latestInvoice.status === "failed"
+              ? "↩ Reenviar"
+              : latestInvoice.status === "sent"
+                ? "↺ Reenviar"
+                : latestInvoice.status === "scheduled"
+                  ? "⏳ Agendada"
+                  : latestInvoice.status === "sending"
+                    ? "… Enviando"
+                    : "▶ Enviar";
+          const sendButtonTitle = !latestInvoice
+            ? ""
+            : latestInvoice.status === "scheduled"
+              ? `Próxima etapa: ${ruleInfo?.nextRuleLabel || "aguardando aging"}`
+              : latestInvoice.status === "sent" && ruleInfo?.currentRuleLabel
+                ? `Etapa já enviada: ${ruleInfo.currentRuleLabel}`
+                : ruleInfo?.currentRuleLabel
+                  ? `Etapa atual: ${ruleInfo.currentRuleLabel}`
+                  : "Enviar cobrança";
+
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td><div class="cell-name"><div class="avatar">${escapeHtml(clientInitials(client.name))}</div><div><div style="color:var(--t1);font-weight:600">${escapeHtml(client.name)}</div><div style="font-size:10px;color:var(--t3)">${escapeHtml(client.email || "sem e-mail")}</div>${getClientNeedsAttention(client) ? '<div style="margin-top:4px"><span class="badge badge-amber">Respondeu</span></div>' : ""}</div></div></td>
+            <td>${escapeHtml(client.phone || "—")}</td>
+            <td>${escapeHtml(client.companyName || "—")}</td>
+            <td style="color:var(--t1);font-weight:600">${escapeHtml(latestInvoice ? formatMoney(latestInvoice.valueCents) : "—")}</td>
+            <td>${escapeHtml(latestInvoice ? formatShortDate(latestInvoice.dueDate) : "—")}</td>
+            <td>
+              <div style="color:var(--t1);font-weight:600">${escapeHtml(template?.name || "—")}</div>
+              ${
+                latestInvoice?.billingRule?.enabled
+                  ? `<div style="font-size:10px;color:var(--t3);margin-top:3px">${escapeHtml(
+                      `${latestInvoice.billingRule.currentRuleLabel || `Próxima: ${latestInvoice.billingRule.nextRuleLabel || "—"}`} · ${latestInvoice.billingRule.agingLabel || ""}`
+                    )}</div>`
+                  : ""
+              }
+            </td>
+            <td><span class="badge ${statusClass}">${escapeHtml(statusLabel)}</span>${latestInvoice?.lastError ? `<div style="font-size:10px;color:#f08080;margin-top:4px;max-width:240px">${escapeHtml(latestInvoice.lastError)}</div>` : ""}</td>
+            <td>
+              <div class="action-cell">
+                <button class="btn-icon" data-edit-client="${client.id}" title="Editar">✏</button>
+                ${latestInvoice && !isPaid ? `<button class="btn ${latestInvoice.status === "failed" ? "btn-primary" : "btn-ghost"}" data-send-invoice="${latestInvoice.id}" style="padding:5px 10px;font-size:10px" ${latestInvoice.status === "scheduled" || latestInvoice.status === "sending" ? "disabled" : ""} title="${escapeHtml(sendButtonTitle)}">${sendButtonLabel}</button>` : ""}
+                ${latestInvoice && !isPaid ? `<button class="btn btn-ghost" data-send-email="${latestInvoice.id}" style="padding:5px 10px;font-size:10px" ${canSendEmail ? "" : "disabled"} title="${escapeHtml(emailTitle)}">✉ E-mail</button>` : ""}
+                ${latestInvoice && !isPaid ? `<button class="btn btn-ghost" data-mark-paid="${latestInvoice.id}" style="padding:5px 10px;font-size:10px;color:var(--green)" title="Marcar como quitada (para de enviar cobranças)">✓ Quitar</button>` : ""}
+                <button class="btn-icon" data-delete-client="${client.id}" style="color:var(--red)" title="Excluir">✕</button>
+              </div>
+            </td>
+          `;
+          tableBody.appendChild(row);
+        });
+
+        tableBody.querySelectorAll("[data-edit-client]").forEach((button) =>
+          button.addEventListener("click", () => fillClientForm(button.dataset.editClient))
+        );
+        tableBody.querySelectorAll("[data-delete-client]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            const client = getClientById(button.dataset.deleteClient);
+            if (!client) return;
+            if (!window.confirm(`Excluir o cliente ${client.name}? As cobranças relacionadas também serão removidas.`)) return;
+            await api(`/api/clients/${client.id}`, { method: "DELETE" });
+            toast("Cliente removido.");
+            await refreshAll();
+            clearClientForm();
+          })
+        );
+        tableBody.querySelectorAll("[data-send-invoice]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            button.disabled = true;
+            try {
+              await api(`/api/invoices/${button.dataset.sendInvoice}/send`, { method: "POST" });
+              toast("Cobrança enviada.");
+            } catch (error) {
+              toast(error.message);
+            } finally {
+              await refreshAll();
+              button.disabled = false;
+            }
+          })
+        );
+        tableBody.querySelectorAll("[data-mark-paid]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            if (!window.confirm("Marcar esta cobrança como quitada? O sistema vai parar de enviar cobranças para este cliente.")) return;
+            button.disabled = true;
+            try {
+              await api(`/api/invoices/${button.dataset.markPaid}/mark-paid`, { method: "POST" });
+              toast("Cobrança marcada como quitada.");
+              await refreshAll();
+            } catch (error) {
+              toast(error.message);
+              button.disabled = false;
+            }
+          })
+        );
+        tableBody.querySelectorAll("[data-send-email]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            button.disabled = true;
+            try {
+              await api(`/api/invoices/${button.dataset.sendEmail}/send-email`, { method: "POST" });
+              toast("Cobrança enviada por e-mail.");
+              if (state.selectedInboxClientId) {
+                await loadConversation(state.selectedInboxClientId);
+              }
+            } catch (error) {
+              toast(error.message);
+            } finally {
+              await refreshAll();
+              button.disabled = false;
+            }
+          })
+        );
+      }
+
+      function renderTemplateEditor(options = {}) {
+        if (options.preserveDraft && state.templateEditorDirty) {
+          return;
+        }
+
+        const selected = state.templates.find((template) => template.id === state.selectedTemplateId) || null;
+        if (!selected) {
+          el("tpl-id-input").value = "";
+          el("tpl-name-input").value = "";
+          el("tpl-cat").value = "Cobrança";
+          el("tpl-rule-offset").value = "";
+          el("tpl-body").value = "";
+          el("tpl-boleto").checked = false;
+          el("preview-bubble").textContent = "";
+          el("tpl-editor-hint").textContent =
+            "Preencha os campos para criar uma nova etapa da régua. Use editar nos cards ao lado apenas quando quiser alterar uma etapa existente.";
+          updateRuleSummary();
+          el("btn-activate-template").disabled = true;
+          el("btn-activate-template").title = "Selecione um template manual salvo.";
+          el("btn-save-template").textContent = "✓ Salvar Nova Etapa";
+          state.templateEditorDirty = false;
+          return;
+        }
+
+        el("tpl-id-input").value = selected.id;
+        el("tpl-name-input").value = selected.name || "";
+        el("tpl-cat").value = selected.category || "Cobrança";
+        el("tpl-rule-offset").value = Number.isInteger(selected.ruleOffsetDays) ? String(selected.ruleOffsetDays) : "";
+        el("tpl-body").value = selected.body || "";
+        el("tpl-boleto").checked = selected.sendAttachment === true;
+        el("preview-bubble").textContent = selected.body || "";
+        el("tpl-editor-hint").textContent = `Você está editando "${selected.name}". Clique em "Nova Etapa" para cadastrar uma nova mensagem sem substituir a atual.`;
+        updateRuleSummary();
+        el("btn-activate-template").disabled = selected.isActive || Number.isInteger(selected.ruleOffsetDays);
+        el("btn-activate-template").title = Number.isInteger(selected.ruleOffsetDays)
+          ? "Templates da régua não podem ser o padrão manual."
+          : selected.isActive
+            ? "Este template já é o padrão."
+            : "Tornar padrão";
+        el("btn-save-template").textContent = "✓ Atualizar Template";
+        state.templateEditorDirty = false;
+      }
+
+      function renderTemplateList() {
+        const list = el("tpl-list");
+        list.innerHTML = "";
+
+        state.templates.forEach((template) => {
+          const isRuleTemplate = Number.isInteger(template.ruleOffsetDays);
+          const card = document.createElement("div");
+          card.className = `tpl-card${template.id === state.selectedTemplateId ? " selected" : ""}`;
+          card.innerHTML = `
+            <div class="tpl-card-head">
+              <span class="tpl-name">${escapeHtml(template.name)}</span>
+              <span class="badge ${template.isActive ? "badge-green" : "badge-gray"}">${template.isActive ? "Ativo" : "Rascunho"}</span>
+            </div>
+            <div class="tpl-preview">${escapeHtml(template.body)}</div>
+            <div class="tpl-footer">
+              <span class="badge badge-gray">${escapeHtml(template.category)}</span>
+              ${isRuleTemplate ? `<span class="badge badge-red">Régua · ${escapeHtml(formatRuleOffsetDays(template.ruleOffsetDays))}</span>` : ""}
+              ${template.sendAttachment ? '<span class="badge badge-amber">📎 Com boleto</span>' : ""}
+              <div class="btn-row" style="margin-left:auto">
+                ${template.isActive || isRuleTemplate ? "" : `<button class="btn-icon" data-activate-template="${template.id}" title="Tornar padrão">★</button>`}
+                <button class="btn-icon" data-edit-template="${template.id}" title="Editar">✏</button>
+                <button class="btn-icon" data-delete-template="${template.id}" style="color:var(--red)" title="Excluir">✕</button>
+              </div>
+            </div>
+          `;
+          list.appendChild(card);
+        });
+
+        list.querySelectorAll("[data-edit-template]").forEach((button) =>
+          button.addEventListener("click", () => {
+            state.selectedTemplateId = button.dataset.editTemplate;
+            state.templateEditorDirty = false;
+            renderTemplateList();
+            renderTemplateEditor();
+          })
+        );
+        list.querySelectorAll("[data-activate-template]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            await api(`/api/templates/${button.dataset.activateTemplate}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ isActive: true }),
+            });
+            toast("Template padrão atualizado.");
+            await refreshAll();
+          })
+        );
+        list.querySelectorAll("[data-delete-template]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            if (!window.confirm("Excluir este template?")) return;
+            try {
+              await api(`/api/templates/${button.dataset.deleteTemplate}`, { method: "DELETE" });
+              toast("Template removido.");
+              if (state.selectedTemplateId === button.dataset.deleteTemplate) {
+                state.selectedTemplateId = null;
+              }
+              await refreshAll();
+            } catch (error) {
+              toast(error.message);
+            }
+          })
+        );
+      }
+
+      function renderRuleList() {
+        const list = el("rule-list");
+        list.innerHTML = "";
+        const ruleTemplates = getRuleTemplates();
+
+        if (!ruleTemplates.length) {
+          list.innerHTML = `<div class="empty"><div class="empty-text">Nenhuma etapa cadastrada</div><div class="empty-sub">Use o offset de dias no editor para montar a régua de cobrança.</div></div>`;
+          return;
+        }
+
+        ruleTemplates.forEach((template) => {
+          const activeInvoices = state.invoices.filter((invoice) => invoice.billingRule?.currentTemplateId === template.id);
+          const futureInvoices = state.invoices.filter(
+            (invoice) => invoice.billingRule?.currentTemplateId !== template.id && invoice.billingRule?.nextTemplateId === template.id
+          );
+          const readyCount = activeInvoices.filter((invoice) => invoice.status === "pending").length;
+          const failedCount = activeInvoices.filter((invoice) => invoice.status === "failed").length;
+          const sentCount = activeInvoices.filter((invoice) => invoice.status === "sent").length;
+
+          const card = document.createElement("div");
+          card.className = "tpl-card";
+          card.innerHTML = `
+            <div class="tpl-card-head">
+              <span class="tpl-name">${escapeHtml(template.name)}</span>
+              <span class="badge badge-red">${escapeHtml(formatRuleOffsetDays(template.ruleOffsetDays))}</span>
+            </div>
+            <div class="tpl-preview">${escapeHtml(template.body)}</div>
+            <div class="tpl-footer">
+              <span class="badge badge-amber">${readyCount} pronta(s)</span>
+              ${failedCount ? `<span class="badge badge-red">${failedCount} falha(s)</span>` : ""}
+              ${sentCount ? `<span class="badge badge-green">${sentCount} enviada(s)</span>` : ""}
+              <span class="badge badge-gray">${futureInvoices.length} futura(s)</span>
+            </div>
+          `;
+          list.appendChild(card);
+        });
+      }
+
+      function clearTemplateForm() {
+        state.selectedTemplateId = null;
+        state.templateEditorDirty = false;
+        renderTemplateList();
+        renderRuleList();
+        renderTemplateEditor();
+      }
+
+      function renderTemplates(options = {}) {
+        if (state.selectedTemplateId && !state.templates.some((template) => template.id === state.selectedTemplateId)) {
+          state.selectedTemplateId = null;
+        }
+        renderTemplateList();
+        renderTemplateEditor({ preserveDraft: options.preserveDraft });
+        renderRuleList();
+      }
+
+      function renderConversation() {
+        const selectedClient = getClientById(state.selectedInboxClientId);
+        const select = el("inbox-client-select");
+        const previousValue = state.selectedInboxClientId;
+        select.innerHTML = `<option value="">Selecione um cliente...</option>`;
+        state.clients.forEach((client) => {
+          const option = document.createElement("option");
+          option.value = client.id;
+          option.textContent = formatClientDisplayName(client);
+          select.appendChild(option);
+        });
+        if (state.clients.some((client) => client.id === previousValue)) {
+          select.value = previousValue;
+        }
+
+        const thread = el("conversation-thread");
+        thread.innerHTML = "";
+        if (!state.selectedInboxClientId) {
+          thread.innerHTML = `<div class="empty"><div class="empty-icon">💬</div><div class="empty-text">Selecione um cliente</div><div class="empty-sub">O histórico completo da conversa aparece aqui.</div></div>`;
+          return;
+        }
+
+        if (!state.conversation.length) {
+          thread.innerHTML = `<div class="empty"><div class="empty-text">Sem histórico para este cliente</div><div class="empty-sub">As mensagens enviadas e recebidas aparecerão aqui.</div></div>`;
+          return;
+        }
+
+        state.conversation
+          .slice()
+          .sort((a, b) => (a.timestampMs || 0) - (b.timestampMs || 0))
+          .forEach((message) => {
+            const isEmailMessage = message.messageType === "email";
+            const tagLabel = message.direction === "out" ? (isEmailMessage ? "E-mail" : "Enviada") : "Recebida";
+            const whoLabel = message.direction === "out"
+              ? (isEmailMessage ? "Gmail" : "Bot V4")
+              : selectedClient
+                ? formatClientDisplayName(selectedClient, { includePhone: false })
+                : message.fromPhone || "cliente";
+            const bubble = document.createElement("div");
+            bubble.className = `msg-bubble ${message.direction === "out" ? "out" : "in"}`;
+            bubble.innerHTML = `
+              <div class="msg-meta">
+                <span class="msg-tag ${message.direction === "out" ? "tag-out" : "tag-in"}">${escapeHtml(tagLabel)}</span>
+                <span class="msg-who">${escapeHtml(whoLabel)}</span>
+                <span class="msg-time">${escapeHtml(formatDateTime(message.timestampMs))}</span>
+              </div>
+              ${escapeHtml(message.body || "")}
+              ${renderMessageAttachments(message.attachments)}
+              ${message.errorMessage ? `<div style="margin-top:6px;color:#f08080;font-size:10px">${escapeHtml(message.errorMessage)}</div>` : ""}
+            `;
+            thread.appendChild(bubble);
+          });
+
+        thread.scrollTop = thread.scrollHeight;
+      }
+
+      function renderUnmatchedMessages() {
+        const unmatched = state.messages.filter((message) => !message.clientId);
+        el("unmatched-header").textContent = `${unmatched.length} mensagem(ns) recebida(s) de números não cadastrados`;
+        const body = el("unmatched-body");
+        body.innerHTML = "";
+
+        if (!unmatched.length) {
+          body.innerHTML = `<tr><td colspan="4"><div class="empty"><div class="empty-text">Nenhuma mensagem sem vínculo</div><div class="empty-sub">Quando chegar uma mensagem de um número não cadastrado, ela aparece aqui.</div></div></td></tr>`;
+          return;
+        }
+
+        unmatched.slice(0, 20).forEach((message) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${escapeHtml(message.fromPhone || "—")}</td>
+            <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(message.body || "")}</td>
+            <td style="color:var(--t3);white-space:nowrap">${escapeHtml(formatDateTime(message.timestampMs))}</td>
+            <td>
+              <div class="action-cell">
+                <select class="field-select" data-link-select="${message.id}" style="width:170px;padding:5px 8px">
+                  <option value="">Escolha um cliente...</option>
+                  ${state.clients.map((client) => `<option value="${escapeHtml(client.id)}">${escapeHtml(formatClientDisplayName(client, { includePhone: false }))}</option>`).join("")}
+                </select>
+                <button class="btn btn-ghost" data-link-message="${message.id}" style="font-size:9px;padding:4px 8px">Vincular</button>
+                <button class="btn btn-ghost" data-delete-message="${message.id}" style="font-size:9px;padding:4px 8px;color:#f08080;border-color:var(--red-b)">Excluir Msg</button>
+                <button class="btn btn-ghost" data-delete-phone="${message.fromPhone || ""}" style="font-size:9px;padding:4px 8px;color:#f08080;border-color:var(--red-b)">Excluir Conversa</button>
+              </div>
+            </td>
+          `;
+          body.appendChild(row);
+        });
+
+        body.querySelectorAll("[data-link-message]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            const select = body.querySelector(`[data-link-select="${button.dataset.linkMessage}"]`);
+            if (!select?.value) {
+              toast("Escolha um cliente para vincular.");
+              return;
+            }
+            await api(`/api/messages/${button.dataset.linkMessage}/link`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ clientId: select.value }),
+            });
+            toast("Mensagem vinculada ao cliente.");
+            state.selectedInboxClientId = select.value;
+            await refreshAll();
+            await loadConversation(state.selectedInboxClientId);
+            renderConversation();
+          })
+        );
+        body.querySelectorAll("[data-delete-message]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            if (!window.confirm("Excluir esta mensagem sem vínculo do arquivo?")) return;
+            await api(`/api/messages/${button.dataset.deleteMessage}`, { method: "DELETE" });
+            toast("Mensagem removida do arquivo.");
+            await refreshAll();
+          })
+        );
+        body.querySelectorAll("[data-delete-phone]").forEach((button) =>
+          button.addEventListener("click", async () => {
+            const phone = button.dataset.deletePhone;
+            const relatedCount = unmatched.filter((message) => String(message.fromPhone || "") === String(phone || "")).length;
+            if (!phone) {
+              toast("Número inválido para exclusão.");
+              return;
+            }
+            if (
+              !window.confirm(
+                `Excluir ${relatedCount} mensagem(ns) sem vínculo deste número do arquivo?`
+              )
+            ) {
+              return;
+            }
+            const response = await api(`/api/messages/conversation/${encodeURIComponent(phone)}`, { method: "DELETE" });
+            toast(
+              response.deletedCount
+                ? `Conversa removida. ${response.deletedCount} mensagem(ns) apagada(s).`
+                : "Nenhuma mensagem foi removida."
+            );
+            await refreshAll();
+          })
+        );
+      }
+
+      function renderInbox() {
+        renderConversation();
+        renderUnmatchedMessages();
+      }
+
+      function renderConfig() {
+        const whatsapp = state.dashboard?.whatsapp || {};
+        const ready = whatsapp.status === "ready" || whatsapp.status === "authenticated";
+        const configBox = el("config-wa-status");
+        configBox.classList.toggle("bad", !ready);
+        configBox.innerHTML = `<div class="pulse"></div> ${ready ? "Aparelho conectado" : `Status: ${escapeHtml(whatsapp.status || "offline")}`}`;
+        el("config-wa-meta").textContent = `Última conexão: ${formatDateTime(whatsapp.lastReadyAt) || "aguardando"}${whatsapp.clientInfo?.wid ? ` · ${whatsapp.clientInfo.wid}` : ""}`;
+        el("settings-failed-count").textContent = String(state.dashboard?.invoicesFailedCount || 0);
+        el("settings-unmatched-count").textContent = String(state.dashboard?.unmatchedInboxCount || 0);
+        el("settings-active-template").textContent = getActiveTemplate()?.name || "Nenhum template ativo";
+        el("about-env").textContent = window.location.host;
+
+        const batchBadge = el("settings-batch-badge");
+        const batchStatus = el("settings-batch-status");
+        const batchSend = state.batchSend || {};
+        batchBadge.className = "badge badge-gray";
+        if (batchSend.status === "running") {
+          batchBadge.className = "badge badge-amber";
+          batchBadge.textContent = `${batchSend.attempted || 0}/${batchSend.total || 0}`;
+          batchStatus.textContent = batchSend.currentClientName
+            ? `Lote em andamento com ${formatDelaySeconds(batchSend.delayMs)}s de intervalo. Agora: ${batchSend.currentClientName}.`
+            : `Lote em andamento com ${formatDelaySeconds(batchSend.delayMs)}s de intervalo entre cada disparo.`;
+        } else if (batchSend.status === "completed_with_errors") {
+          batchBadge.className = "badge badge-red";
+          batchBadge.textContent = `${batchSend.failed || 0} falha(s)`;
+          batchStatus.textContent = `Último lote finalizado com ${batchSend.sent || 0} envio(s) e ${batchSend.failed || 0} falha(s).`;
+        } else if (batchSend.status === "completed") {
+          batchBadge.className = "badge badge-green";
+          batchBadge.textContent = `${batchSend.sent || 0} enviado(s)`;
+          batchStatus.textContent = `Último lote concluído com intervalo de ${formatDelaySeconds(batchSend.delayMs)}s.`;
+        } else if (batchSend.status === "failed") {
+          batchBadge.className = "badge badge-red";
+          batchBadge.textContent = "Erro";
+          batchStatus.textContent = batchSend.errorMessage || "O último lote encontrou um erro inesperado.";
+        } else {
+          batchBadge.textContent = "Pronto";
+          batchStatus.textContent = "Cada disparo aguarda o intervalo configurado antes do próximo envio.";
+        }
+
+        const emailBadge = el("settings-email-badge");
+        const emailStatus = el("settings-email-status");
+        const email = state.dashboard?.email || {};
+        const gmailSettings = state.settings?.gmail || {};
+        const hasStoredPassword = gmailSettings.hasAppPassword === true;
+        emailBadge.className = "badge badge-gray";
+        if (email.configured) {
+          emailBadge.className = "badge badge-green";
+          emailBadge.textContent = "Ativo";
+          emailStatus.textContent = email.maskedEmail
+            ? `Gmail pronto para envio com ${email.maskedEmail}.`
+            : "Gmail configurado para envio.";
+        } else {
+          emailBadge.className = hasStoredPassword ? "badge badge-amber" : "badge badge-gray";
+          emailBadge.textContent = hasStoredPassword ? "Revisar senha" : "Nao configurado";
+          emailStatus.textContent = hasStoredPassword
+            ? "Existe uma senha salva, mas a conexão não está válida. Atualize a credencial e salve novamente."
+            : "Cadastre a conta Gmail e a senha aqui na tela para habilitar o envio por e-mail.";
+        }
+        el("gmail-user").value = gmailSettings.user || email.fromEmail || "";
+        el("gmail-from-name").value = gmailSettings.fromName || email.fromName || "V4 Cobranças";
+        el("gmail-password-status").textContent = hasStoredPassword
+          ? "Já existe uma senha salva. Clique no campo apenas se quiser trocar a credencial atual."
+          : "Cole a senha do Gmail ou a App Password. O sistema vai testar a autenticação antes de salvar.";
+        el("gmail-panel-hint").textContent = email.configured
+          ? `Conta pronta para uso${email.maskedEmail ? `: ${email.maskedEmail}` : ""}.`
+          : hasStoredPassword
+            ? "A conta foi encontrada, mas a senha atual precisa ser revisada para liberar o envio por e-mail."
+            : "Cadastre a conta e a senha do Gmail para liberar o envio de cobranças por e-mail.";
+      }
+
+      function renderAll(options = {}) {
+        renderSidebarStatus();
+        renderBatchButton();
+        renderTopbarActions();
+        renderDashboard();
+        renderClients();
+        renderTemplates({ preserveDraft: options.preserveTemplateDraft });
+        renderInbox();
+        renderConfig();
+      }
+
+      function updateTemplatePreview() {
+        el("preview-bubble").textContent = el("tpl-body").value;
+      }
+
+      function markTemplateEditorDirty() {
+        state.templateEditorDirty = true;
+      }
+
+      function updateRuleSummary() {
+        const rawValue = el("tpl-rule-offset").value.trim();
+        if (!rawValue) {
+          el("tpl-rule-summary").textContent = "Template fora da régua";
+          return;
+        }
+
+        const offsetDays = Number(rawValue);
+        if (!Number.isFinite(offsetDays)) {
+          el("tpl-rule-summary").textContent = "Offset inválido";
+          return;
+        }
+
+        el("tpl-rule-summary").textContent = `Etapa da régua: ${formatRuleOffsetDays(Math.trunc(offsetDays))}`;
+      }
+
+      function insertTemplateVariable(variable) {
+        const textarea = el("tpl-body");
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const currentValue = textarea.value;
+        textarea.value = `${currentValue.slice(0, start)}${variable}${currentValue.slice(end)}`;
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = start + variable.length;
+        markTemplateEditorDirty();
+        updateTemplatePreview();
+      }
+
+      async function saveClient(withInvoice) {
+        const payload = {
+          name: el("client-name").value.trim(),
+          companyName: el("client-company").value.trim(),
+          phone: el("client-phone").value.trim(),
+          email: el("client-email").value.trim(),
+          notes: el("client-notes").value.trim(),
+          defaultTemplateId: el("client-template").value || null,
+        };
+
+        if (!payload.name || !payload.phone) {
+          toast("Nome e telefone são obrigatórios.");
+          return;
+        }
+
+        let clientId = state.editingClientId;
+        if (clientId) {
+          await api(`/api/clients/${clientId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+        } else {
+          const created = await api("/api/clients", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          clientId = created.id;
+        }
+
+        if (withInvoice) {
+          const invoicePayload = {
+            clientId,
+            value: el("invoice-value").value.trim(),
+            dueDate: el("invoice-due-date").value,
+            recurrence: el("invoice-recurrence").value,
+            paymentLink: el("invoice-payment-link").value.trim(),
+            templateId: el("client-template").value || null,
+          };
+          const invoiceForm = new FormData();
+          Object.entries(invoicePayload).forEach(([key, value]) => {
+            if (value != null && value !== "") invoiceForm.append(key, value);
+          });
+          const boletoFile = readFiles("invoice-boleto-file")[0];
+          const notaFiscalFile = readFiles("invoice-nf-file")[0];
+          const extraFiles = readFiles("invoice-extra-files");
+
+          if (!invoicePayload.value || !invoicePayload.dueDate) {
+            toast("Para criar a cobrança, preencha valor e vencimento.");
+            return;
+          }
+
+          if (boletoFile) invoiceForm.append("boleto", boletoFile);
+          if (notaFiscalFile) invoiceForm.append("notaFiscal", notaFiscalFile);
+          extraFiles.forEach((file) => invoiceForm.append("attachments", file));
+
+          await api("/api/invoices", {
+            method: "POST",
+            body: invoiceForm,
+          });
+        }
+
+        toast(withInvoice ? "Cliente e cobrança salvos." : "Cliente salvo.");
+        await refreshAll();
+        clearClientForm();
+      }
+
+      function downloadClientImportTemplate() {
+        window.location.assign("/api/clients/import-template");
+      }
+
+      async function importClientsSpreadsheet() {
+        const file = readFiles("client-import-file")[0];
+        if (!file) {
+          toast("Selecione a planilha antes de importar.");
+          return;
+        }
+
+        const button = el("btn-import-clients");
+        const previousLabel = button.textContent;
+        button.disabled = true;
+        button.textContent = "Importando...";
+
+        try {
+          const form = new FormData();
+          form.append("file", file);
+
+          const result = await api("/api/clients/import", {
+            method: "POST",
+            body: form,
+          });
+
+          state.clientImportSummary = result;
+          renderClientImportSummary();
+          el("client-import-file").value = "";
+          toast(
+            result.failedRows
+              ? `Importação concluída com ajustes: ${result.createdClients} cliente(s) e ${result.createdInvoices} cobrança(s).`
+              : `Importação concluída: ${result.createdClients} cliente(s) e ${result.createdInvoices} cobrança(s).`
+          );
+          await refreshAll();
+        } finally {
+          button.disabled = false;
+          button.textContent = previousLabel;
+        }
+      }
+
+      async function saveTemplate() {
+        const rawRuleOffsetDays = el("tpl-rule-offset").value.trim();
+        const payload = {
+          name: el("tpl-name-input").value.trim(),
+          category: el("tpl-cat").value,
+          body: el("tpl-body").value.trim(),
+          sendAttachment: el("tpl-boleto").checked,
+          ruleOffsetDays: rawRuleOffsetDays === "" ? null : Number(rawRuleOffsetDays),
+        };
+
+        if (!payload.name || !payload.body) {
+          toast("Preencha o nome e o corpo do template.");
+          return;
+        }
+        if (rawRuleOffsetDays !== "" && !Number.isFinite(payload.ruleOffsetDays)) {
+          toast("Informe um offset válido para a régua.");
+          return;
+        }
+
+        const templateId = el("tpl-id-input").value.trim();
+        if (templateId) {
+          await api(`/api/templates/${templateId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          state.selectedTemplateId = templateId;
+          state.templateEditorDirty = false;
+          toast("Template atualizado.");
+        } else {
+          await api("/api/templates", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          state.selectedTemplateId = null;
+          state.templateEditorDirty = false;
+          toast("Nova etapa criada.");
+        }
+        await refreshAll();
+        if (!templateId) {
+          clearTemplateForm();
+        }
+      }
+
+      async function activateSelectedTemplate() {
+        const templateId = el("tpl-id-input").value.trim();
+        if (!templateId) return;
+        const selected = state.templates.find((template) => template.id === templateId);
+        if (selected && Number.isInteger(selected.ruleOffsetDays)) {
+          toast("Templates da régua não podem ser definidos como padrão manual.");
+          return;
+        }
+        await api(`/api/templates/${templateId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: true }),
+        });
+        toast("Template padrão atualizado.");
+        await refreshAll();
+      }
+
+      async function sendReply() {
+        if (!state.selectedInboxClientId) {
+          toast("Selecione um cliente na conversa.");
+          return;
+        }
+        const text = el("reply-input").value.trim();
+        const attachments = readFiles("reply-attachments");
+        if (!text && !attachments.length) {
+          toast("Digite uma resposta ou anexe pelo menos um arquivo.");
+          return;
+        }
+
+        const formData = new FormData();
+        if (text) formData.append("text", text);
+        attachments.forEach((file) => formData.append("attachments", file));
+
+        await api(`/api/clients/${state.selectedInboxClientId}/reply`, {
+          method: "POST",
+          body: formData,
+        });
+
+        el("reply-input").value = "";
+        resetReplyAttachmentInput();
+        toast("Resposta enviada.");
+        await refreshAll();
+        await loadConversation(state.selectedInboxClientId);
+        renderConversation();
+      }
+
+      async function saveEmailSettings() {
+        const saveButton = el("btn-save-email-settings");
+        const normalizedPassword = normalizeAppPasswordInput(el("gmail-app-password").value);
+        const payload = {
+          gmail: {
+            user: el("gmail-user").value.trim(),
+            fromName: el("gmail-from-name").value.trim(),
+            appPassword: normalizedPassword,
+          },
+        };
+
+        if (!payload.gmail.user) {
+          toast("Informe a conta Gmail.");
+          return;
+        }
+
+        if (!normalizedPassword && !state.settings?.gmail?.hasAppPassword) {
+          toast("Cole a senha do Gmail para validar a conexão.");
+          resetEmailPasswordField({ focus: true });
+          return;
+        }
+
+        saveButton.disabled = true;
+        saveButton.textContent = "Salvando...";
+        try {
+          await api("/api/settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          resetEmailPasswordField();
+          toast(normalizedPassword ? "Gmail validado e salvo." : "Configuração do Gmail atualizada.");
+          await refreshAll();
+        } catch (error) {
+          resetEmailPasswordField({ focus: true });
+          throw error;
+        } finally {
+          saveButton.disabled = false;
+          saveButton.textContent = "Salvar e Validar Gmail";
+        }
+      }
+
+      async function sendBatchInvoices() {
+        if (state.batchSend?.status === "running") {
+          toast("Já existe um envio em massa em andamento.");
+          return;
+        }
+
+        const whatsapp = state.dashboard?.whatsapp || {};
+        const ready = whatsapp.status === "ready" || whatsapp.status === "authenticated";
+        if (!ready) {
+          toast("Conecte o WhatsApp antes de iniciar o envio em massa.");
+          return;
+        }
+
+        const eligibleInvoices = getEligibleBatchInvoices();
+        if (!eligibleInvoices.length) {
+          toast("Não há cobranças pendentes ou com falha para envio em massa.");
+          return;
+        }
+
+        const savedDelayMs = Number(window.localStorage.getItem("v4_batch_delay_ms")) || 15000;
+        const promptValue = String(savedDelayMs / 1000);
+        const rawSeconds = window.prompt(
+          "Intervalo entre envios em segundos. Recomendado para WhatsApp Web sem API oficial: 15.",
+          promptValue
+        );
+        if (rawSeconds === null) return;
+
+        const seconds = Number(String(rawSeconds).replace(",", "."));
+        if (!Number.isFinite(seconds) || seconds < 3) {
+          toast("Informe um intervalo válido de pelo menos 3 segundos.");
+          return;
+        }
+
+        const delayMs = Math.round(seconds * 1000);
+        if (
+          !window.confirm(
+            `Enviar ${eligibleInvoices.length} cobrança(s) com ${seconds}s de intervalo entre cada disparo?`
+          )
+        ) {
+          return;
+        }
+
+        window.localStorage.setItem("v4_batch_delay_ms", String(delayMs));
+
+        try {
+          const response = await api("/api/invoices/send-batch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ delayMs }),
+          });
+          state.batchSend = response.batchSend || null;
+          renderBatchButton();
+          toast(
+            response.started
+              ? `Envio em massa iniciado para ${response.batchSend?.total || eligibleInvoices.length} cobrança(s).`
+              : response.message || "Nenhuma cobrança elegível encontrada."
+          );
+        } catch (error) {
+          toast(error.message);
+        } finally {
+          await refreshAll();
+        }
+      }
+
+      function syncFpaFiltersFromInputs() {
+        state.fpa.from = el("fpa-report-from").value || "";
+        state.fpa.to = el("fpa-report-to").value || "";
+        state.fpa.prompt = el("fpa-report-prompt").value.trim() || "visão geral de caixa";
+      }
+
+      async function refreshFpa() {
+        syncFpaFiltersFromInputs();
+        await loadFpaBootstrap();
+        renderFpa();
+      }
+
+      async function importFpaStatement() {
+        const button = el("btn-import-statement");
+        const file = readFiles("fpa-statement-file")[0];
+        if (!file) {
+          toast("Selecione um arquivo CSV ou OFX para importar.");
+          return;
+        }
+
+        const formData = new FormData();
+        const accountName = el("fpa-account-name").value.trim();
+        if (accountName) formData.append("accountName", accountName);
+        formData.append("statement", file);
+
+        button.disabled = true;
+        button.textContent = "Importando...";
+        try {
+          const result = await api("/api/fpa/imports", {
+            method: "POST",
+            body: formData,
+          });
+          el("fpa-statement-file").value = "";
+          toast(
+            result.duplicateCount
+              ? `Extrato importado: ${result.importedCount} novo(s), ${result.duplicateCount} duplicado(s).`
+              : `Extrato importado com ${result.importedCount} lançamento(s).`
+          );
+          await refreshAll();
+        } finally {
+          button.disabled = false;
+          button.textContent = "Importar";
+        }
+      }
+
+      async function refreshAll(options = {}) {
+        await loadBootstrap();
+        if (state.selectedInboxClientId) {
+          await loadConversation(state.selectedInboxClientId);
+        }
+        renderAll(options);
+        await refreshQrStatus();
+      }
+
+      document.querySelectorAll(".nav-item").forEach((item) =>
+        item.addEventListener("click", () => navigate(item.dataset.page))
+      );
+      document.querySelectorAll("[data-template-var]").forEach((chip) =>
+        chip.addEventListener("click", () => insertTemplateVariable(chip.dataset.templateVar))
+      );
+
+      el("btn-sync").addEventListener("click", () => refreshAll().then(() => toast("Painel sincronizado.")).catch((error) => toast(error.message)));
+      el("btn-mass-billing").addEventListener("click", () => sendBatchInvoices().catch((error) => toast(error.message)));
+      el("btn-new-billing").addEventListener("click", () => {
+        navigate("clientes");
+        el("invoice-value").focus();
+      });
+      el("btn-go-inbox").addEventListener("click", () => navigate("inbox"));
+      el("btn-go-config").addEventListener("click", () => navigate("configuracoes"));
+      el("btn-clear-client-form").addEventListener("click", clearClientForm);
+      el("btn-save-client").addEventListener("click", () => saveClient(false).catch((error) => toast(error.message)));
+      el("btn-save-client-with-invoice").addEventListener("click", () => saveClient(true).catch((error) => toast(error.message)));
+      el("btn-download-client-template").addEventListener("click", downloadClientImportTemplate);
+      el("btn-import-clients").addEventListener("click", () => importClientsSpreadsheet().catch((error) => toast(error.message)));
+      el("btn-clients-refresh").addEventListener("click", () => refreshAll().catch((error) => toast(error.message)));
+      el("client-search").addEventListener("input", renderClients);
+      el("invoice-boleto-file").addEventListener("change", updateInvoiceAttachmentSummary);
+      el("invoice-nf-file").addEventListener("change", updateInvoiceAttachmentSummary);
+      el("invoice-extra-files").addEventListener("change", updateInvoiceAttachmentSummary);
+
+      el("tpl-name-input").addEventListener("input", markTemplateEditorDirty);
+      el("tpl-cat").addEventListener("change", markTemplateEditorDirty);
+      el("tpl-body").addEventListener("input", updateTemplatePreview);
+      el("tpl-body").addEventListener("input", markTemplateEditorDirty);
+      el("tpl-rule-offset").addEventListener("input", updateRuleSummary);
+      el("tpl-rule-offset").addEventListener("input", markTemplateEditorDirty);
+      el("tpl-boleto").addEventListener("change", markTemplateEditorDirty);
+      el("btn-clear-template").addEventListener("click", clearTemplateForm);
+      el("btn-save-template").addEventListener("click", () => saveTemplate().catch((error) => toast(error.message)));
+      el("btn-activate-template").addEventListener("click", () => activateSelectedTemplate().catch((error) => toast(error.message)));
+
+      el("inbox-client-select").addEventListener("change", async (event) => {
+        state.selectedInboxClientId = event.target.value;
+        el("reply-input").value = "";
+        resetReplyAttachmentInput();
+        await loadConversation(state.selectedInboxClientId);
+        renderConversation();
+      });
+      el("btn-refresh-conversation").addEventListener("click", async () => {
+        await loadConversation(state.selectedInboxClientId);
+        renderConversation();
+      });
+      el("btn-send-reply").addEventListener("click", () => sendReply().catch((error) => toast(error.message)));
+      el("reply-attachments").addEventListener("change", updateReplyAttachmentSummary);
+
+      el("btn-refresh-qr").addEventListener("click", () => refreshAll().then(() => toast("Status do WhatsApp atualizado.")).catch((error) => toast(error.message)));
+      el("btn-disconnect").addEventListener("click", async () => {
+        if (!confirm("Tem certeza que deseja desconectar o WhatsApp? Você precisará escanear o QR Code novamente para reconectar.")) return;
+        try {
+          await api("/api/whatsapp/logout", { method: "POST" });
+          toast("WhatsApp desconectado. Escaneie o QR Code para conectar outro número.");
+          await refreshAll();
+        } catch (error) {
+          toast(error.message || "Falha ao desconectar.");
+        }
+      });
+      el("btn-save-email-settings").addEventListener("click", () => saveEmailSettings().catch((error) => toast(error.message)));
+      el("gmail-app-password").addEventListener("focus", unlockEmailPasswordField);
+      el("gmail-app-password").addEventListener("pointerdown", unlockEmailPasswordField);
+
+      (async function boot() {
+        await refreshAll();
+        resetEmailPasswordField();
+        resetInvoiceAttachmentInputs();
+        resetReplyAttachmentInput();
+        navigate(state.currentPage);
+        setInterval(() => {
+          refreshAll({ preserveTemplateDraft: true }).catch(() => {});
+        }, 15000);
+      })().catch((error) => {
+        toast(error.message || "Falha ao iniciar painel.");
+      });
+    </script>
+  </body>
+</html>
