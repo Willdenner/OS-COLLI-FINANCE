@@ -259,6 +259,116 @@ function resolveModuleUrl(envKeys) {
   return readFirstEnvValue(envKeys);
 }
 
+function normalizeProxyBaseUrl(rawValue) {
+  const value = String(rawValue || "").trim().replace(/\/+$/, "");
+  if (!value) return "";
+  return /^https?:\/\//i.test(value) ? value : `http://${value}`;
+}
+
+function buildProxyHeaders(req) {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(req.headers || {})) {
+    const lowerKey = key.toLowerCase();
+    if (["connection", "content-length", "host", "transfer-encoding"].includes(lowerKey)) continue;
+    if (Array.isArray(value)) {
+      value.forEach((item) => headers.append(key, item));
+    } else if (value != null) {
+      headers.set(key, String(value));
+    }
+  }
+  return headers;
+}
+
+function buildProxyBody(req) {
+  if (["GET", "HEAD"].includes(req.method)) return undefined;
+  const contentType = String(req.headers["content-type"] || "").toLowerCase();
+  if (contentType.includes("application/json") && req.body && typeof req.body === "object") {
+    return JSON.stringify(req.body);
+  }
+  if (contentType.includes("application/x-www-form-urlencoded") && req.body && typeof req.body === "object") {
+    return new URLSearchParams(req.body).toString();
+  }
+  return req;
+}
+
+function rewriteCobrancasHtml(html) {
+  return String(html || "")
+    .replaceAll('"/api/', '"/cobrancas/api/')
+    .replaceAll("'/api/", "'/cobrancas/api/")
+    .replaceAll("`/api/", "`/cobrancas/api/")
+    .replaceAll('"/uploads/', '"/cobrancas/uploads/')
+    .replaceAll("'/uploads/", "'/cobrancas/uploads/")
+    .replaceAll("`/uploads/", "`/cobrancas/uploads/");
+}
+
+function copyProxyResponseHeaders(proxyResponse, res, { contentLength = null } = {}) {
+  proxyResponse.headers.forEach((value, key) => {
+    const lowerKey = key.toLowerCase();
+    if (["connection", "content-encoding", "content-length", "transfer-encoding"].includes(lowerKey)) return;
+    if (lowerKey === "location" && value.startsWith("/")) {
+      res.setHeader(key, `/cobrancas${value}`);
+      return;
+    }
+    res.setHeader(key, value);
+  });
+  if (contentLength != null) res.setHeader("content-length", String(contentLength));
+}
+
+async function proxyCobrancasModule(req, res) {
+  const internalBaseUrl = normalizeProxyBaseUrl(
+    readFirstEnvValue(["COBRANCAS_INTERNAL_URL", "BOT_COBRANCA_INTERNAL_URL"])
+  );
+  if (!internalBaseUrl) {
+    const cobrancasUrl = resolveModuleUrl(["COBRANCAS_URL", "BOT_COBRANCA_URL"]);
+    if (cobrancasUrl) {
+      res.redirect(302, cobrancasUrl);
+      return;
+    }
+
+    res.status(503).type("html").send(`
+      <!doctype html>
+      <html lang="pt-BR">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Modulo de cobrancas nao configurado</title>
+        </head>
+        <body style="font-family: system-ui, sans-serif; margin: 40px; line-height: 1.5;">
+          <h1>Modulo de cobrancas nao configurado</h1>
+          <p>Defina <code>COBRANCAS_INTERNAL_URL</code> apontando para o servico <code>bot-cobranca</code> ou sincronize o Blueprint do Render.</p>
+          <p><a href="/">Voltar ao Colli Finance OS</a></p>
+        </body>
+      </html>
+    `);
+    return;
+  }
+
+  const suffix = req.originalUrl.slice("/cobrancas".length) || "/";
+  const targetPath = suffix === "/" ? "/" : suffix;
+  const targetUrl = new URL(targetPath, `${internalBaseUrl}/`);
+  const proxyOptions = {
+    method: req.method,
+    headers: buildProxyHeaders(req),
+    body: buildProxyBody(req),
+    redirect: "manual",
+  };
+  if (proxyOptions.body && proxyOptions.body === req) proxyOptions.duplex = "half";
+
+  const proxyResponse = await fetch(targetUrl, proxyOptions);
+  const contentType = String(proxyResponse.headers.get("content-type") || "");
+  if (contentType.includes("text/html")) {
+    const html = rewriteCobrancasHtml(await proxyResponse.text());
+    const payload = Buffer.from(html, "utf8");
+    copyProxyResponseHeaders(proxyResponse, res, { contentLength: payload.length });
+    res.status(proxyResponse.status).send(payload);
+    return;
+  }
+
+  const payload = Buffer.from(await proxyResponse.arrayBuffer());
+  copyProxyResponseHeaders(proxyResponse, res, { contentLength: payload.length });
+  res.status(proxyResponse.status).send(payload);
+}
+
 async function readContaAzulResponse(response) {
   const rawText = await response.text();
   const preview = buildContaAzulResponsePreview(rawText);
@@ -973,29 +1083,7 @@ function sendAppPage(req, res) {
 }
 app.get("/", sendHomePage);
 app.get("/fpa", sendAppPage);
-app.get("/cobrancas", (req, res) => {
-  const cobrancasUrl = resolveModuleUrl(["COBRANCAS_URL", "BOT_COBRANCA_URL"]);
-  if (cobrancasUrl) {
-    res.redirect(302, cobrancasUrl);
-    return;
-  }
-
-  res.status(503).type("html").send(`
-    <!doctype html>
-    <html lang="pt-BR">
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Modulo de cobrancas nao configurado</title>
-      </head>
-      <body style="font-family: system-ui, sans-serif; margin: 40px; line-height: 1.5;">
-        <h1>Modulo de cobrancas nao configurado</h1>
-        <p>Defina a variavel de ambiente <code>COBRANCAS_URL</code> com a URL do servico de cobrancas no Render.</p>
-        <p><a href="/">Voltar ao Colli Finance OS</a></p>
-      </body>
-    </html>
-  `);
-});
+app.use("/cobrancas", asyncHandler(proxyCobrancasModule));
 app.get("/extrator", (req, res) => {
   const extratorUrl = resolveModuleUrl(["EXTRATOR_URL", "BOT_EXTRATOR_URL"]);
   if (extratorUrl) {

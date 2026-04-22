@@ -36,6 +36,11 @@ services:
           name: bot-cobranca
           type: web
           envVarKey: RENDER_EXTERNAL_URL
+      - key: COBRANCAS_INTERNAL_URL
+        fromService:
+          name: bot-cobranca
+          type: web
+          property: hostport
       - key: EXTRATOR_URL
         fromService:
           name: bot-extrator
