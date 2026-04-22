@@ -754,6 +754,10 @@ const adminAuthMiddleware = createBasicAuthMiddleware({
 app.use("/uploads", express.static(UPLOADS_DIR));
 app.use("/static", express.static(STATIC_DIR));
 
+app.get("/healthz", (req, res) => {
+  res.json({ ok: true, service: "bot-cobranca" });
+});
+
 const wa = createWhatsAppService({
   uploadsDir: UPLOADS_DIR,
   onInboundMessage: async ({ externalId, fromPhone, body, timestampMs, fromId, messageType }) => {

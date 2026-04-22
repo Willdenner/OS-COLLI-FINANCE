@@ -25,7 +25,6 @@ RUN npm ci --omit=dev \
 COPY src src
 COPY database database
 COPY README.md .
-COPY .env.example .
 
 RUN mkdir -p /app/data/uploads /app/data/.wwebjs_auth
 

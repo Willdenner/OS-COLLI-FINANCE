@@ -1,23 +1,31 @@
-FROM python:3.11-slim
+FROM node:20-slim
 
 WORKDIR /app
 
-# Dependências do sistema (PDF parsing, etc.)
-RUN apt-get update && apt-get install -y \
-    gcc \
-    libpq-dev \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+ENV NODE_ENV=production \
+    PORT=3000 \
+    BOT_DATA_DIR=/app/data
 
-# Instalar dependências Python
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    dumb-init \
+  && rm -rf /var/lib/apt/lists/*
 
-# Copiar código
-COPY . .
+COPY agent/package*.json ./
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
+RUN npm ci --omit=dev \
+  && npm cache clean --force
 
-CMD ["python", "-m", "agent.main"]
+COPY agent/src ./src
+COPY agent/database ./database
+COPY agent/README.md ./
+
+RUN mkdir -p /app/data
+
+EXPOSE 3000
+
+VOLUME ["/app/data"]
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "src/server.js"]

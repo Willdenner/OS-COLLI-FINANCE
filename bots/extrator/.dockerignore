@@ -1,0 +1,13 @@
+.git
+.DS_Store
+
+.env
+.env.*
+!.env.example
+
+__pycache__
+.pytest_cache
+*.pyc
+screenshots
+
+*.json

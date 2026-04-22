@@ -650,6 +650,10 @@ app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(STATIC_DIR));
 
+app.get("/healthz", (req, res) => {
+  res.json({ ok: true, service: "analista-fpa" });
+});
+
 app.get(
   "/api/conta-azul/oauth/callback",
   asyncHandler(async (req, res) => {

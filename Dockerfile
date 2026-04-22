@@ -12,14 +12,14 @@ RUN apt-get update \
     dumb-init \
   && rm -rf /var/lib/apt/lists/*
 
-COPY package*.json .
+COPY core/agent/package*.json ./
 
 RUN npm ci --omit=dev \
   && npm cache clean --force
 
-COPY src src
-COPY database database
-COPY README.md .
+COPY core/agent/src ./src
+COPY core/agent/database ./database
+COPY core/agent/README.md ./
 
 RUN mkdir -p /app/data
 

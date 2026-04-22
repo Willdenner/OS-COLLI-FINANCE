@@ -1,7 +1,8 @@
 import logging
+import json
 import gspread
 from google.oauth2.service_account import Credentials
-from config.settings import GOOGLE_CREDENTIALS_PATH, SPREADSHEET_ID
+from config.settings import GOOGLE_CREDENTIALS_PATH, GOOGLE_SERVICE_ACCOUNT_JSON, SPREADSHEET_ID
 from models.deal import Deal
 
 logger = logging.getLogger(__name__)
@@ -38,11 +39,18 @@ PARCELAS_HEADERS = [
 ]
 
 
+def load_google_credentials() -> Credentials:
+    """Load credentials from Render env first, then fall back to a local file."""
+    if GOOGLE_SERVICE_ACCOUNT_JSON:
+        return Credentials.from_service_account_info(json.loads(GOOGLE_SERVICE_ACCOUNT_JSON), scopes=SCOPES)
+    return Credentials.from_service_account_file(GOOGLE_CREDENTIALS_PATH, scopes=SCOPES)
+
+
 def export_to_sheets(deals: list[Deal]) -> str:
     """Exporta os deals para Google Sheets. Retorna a URL da planilha."""
     logger.info(f"Exportando {len(deals)} deals para Google Sheets")
 
-    creds = Credentials.from_service_account_file(GOOGLE_CREDENTIALS_PATH, scopes=SCOPES)
+    creds = load_google_credentials()
     gc = gspread.authorize(creds)
 
     spreadsheet = gc.open_by_key(SPREADSHEET_ID)
