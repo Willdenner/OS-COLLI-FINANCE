@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: analista-fpa
+    name: os-colli-finance
     runtime: docker
     dockerfilePath: core/agent/Dockerfile
     dockerContext: core/agent
@@ -8,7 +8,7 @@ services:
     healthCheckPath: /healthz
     envVars:
       - key: SERVICE_NAME
-        value: analista-fpa
+        value: os-colli-finance
       - key: PORT
         value: "10000"
       - key: NODE_ENV

@@ -25,6 +25,8 @@ test("servidor resolve links dos modulos web pelo Render ou por variaveis", asyn
   const server = await fs.readFile(path.join(__dirname, "..", "src", "server.js"), "utf8");
   const renderYaml = await fs.readFile(path.join(__dirname, "..", "..", "..", "render.yaml"), "utf8");
 
+  assert.match(renderYaml, /name: os-colli-finance/);
+  assert.doesNotMatch(renderYaml, /name: analista-fpa/);
   assert.match(server, /async function proxyCobrancasModule/);
   assert.match(server, /async function proxyExtratorModule/);
   assert.match(server, /function buildInternalModuleAuthorizationHeader/);
