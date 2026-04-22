@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Colli Finance OS</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --gold: #f5a623;
+    --gold-bright: #ffd166;
+    --gold-dim: #a86a0a;
+    --amber: #ff8c00;
+    --bg: #050608;
+    --surface: rgba(245,166,35,0.04);
+    --border: rgba(245,166,35,0.15);
+    --text: #e8d5a3;
+    --text-dim: rgba(232,213,163,0.4);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    min-height: 100svh;
+    overflow: hidden;
+    cursor: none;
+  }
+
+  /* ── Custom cursor ── */
+  #cursor {
+    position: fixed;
+    width: 8px; height: 8px;
+    background: var(--gold-bright);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transition: transform 0.1s;
+    box-shadow: 0 0 10px var(--gold-bright), 0 0 20px var(--gold);
+  }
+  #cursor-ring {
+    position: fixed;
+    width: 28px; height: 28px;
+    border: 1px solid rgba(245,166,35,0.5);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9998;
+    transition: transform 0.15s, width 0.2s, height 0.2s;
+  }
+
+  /* ── Canvas ── */
+  #canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+  }
+
+  /* ── Scan lines overlay ── */
+  #scanlines {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ── Vignette ── */
+  #vignette {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(5,6,8,0.85) 100%);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* ── Main UI ── */
+  #ui {
+    position: relative;
+    z-index: 10;
+    width: 100%; min-height: 100vh; min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── Header ── */
+  #header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: 24px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 20;
+  }
+
+  .logo {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+  }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+  }
+
+  .status-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: #00ff88;
+    box-shadow: 0 0 6px #00ff88;
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ── Center content ── */
+  #center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    opacity: 0;
+    animation: fade-in 1.5s ease 1.2s forwards;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  #title-block {
+    text-align: center;
+    margin-bottom: 56px;
+    position: relative;
+  }
+
+  #system-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.5em;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    opacity: 0;
+    animation: fade-in 1s ease 1.8s forwards;
+  }
+
+  h1 {
+    font-size: 52px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, var(--gold-bright) 0%, var(--gold) 50%, var(--amber) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+    opacity: 0;
+    animation: fade-in 1s ease 2s forwards;
+  }
+
+  #subtitle {
+    font-size: 13px;
+    letter-spacing: 0.4em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-top: 10px;
+    opacity: 0;
+    animation: fade-in 1s ease 2.2s forwards;
+  }
+
+  /* ── Nav modules ── */
+  #nav {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+    width: clamp(600px, 70vw, 900px);
+  }
+
+  .module {
+    position: relative;
+    padding: 28px 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    cursor: none;
+    transition: all 0.3s ease;
+    overflow: hidden;
+    text-align: center;
+    opacity: 0;
+    animation: slide-up 0.6s ease forwards;
+    text-decoration: none;
+    display: block;
+  }
+
+  .module:nth-child(1) { animation-delay: 2.4s; }
+  .module:nth-child(2) { animation-delay: 2.55s; }
+  .module:nth-child(3) { animation-delay: 2.7s; }
+  .module:nth-child(4) { animation-delay: 2.85s; }
+
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .module::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(245,166,35,0.08), transparent);
+    transition: left 0.5s ease;
+  }
+
+  .module:hover::before { left: 100%; }
+
+  .module::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+  }
+
+  .module:hover::after { transform: scaleX(1); }
+
+  .module:hover {
+    background: rgba(245,166,35,0.08);
+    border-color: rgba(245,166,35,0.4);
+    transform: translateY(-3px);
+  }
+
+  .module-icon {
+    font-size: 22px;
+    margin-bottom: 12px;
+    display: block;
+    filter: drop-shadow(0 0 8px var(--gold));
+  }
+
+  .module-name {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--gold);
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .module-desc {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    display: block;
+    line-height: 1.6;
+  }
+
+  .module-index {
+    position: absolute;
+    top: 10px; right: 12px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 8px;
+    color: var(--border);
+    letter-spacing: 0.1em;
+  }
+
+  /* ── Corner decorations ── */
+  .corner {
+    position: fixed;
+    width: 40px; height: 40px;
+    z-index: 15;
+  }
+  .corner::before, .corner::after {
+    content: '';
+    position: absolute;
+    background: var(--gold-dim);
+  }
+  .corner::before { width: 100%; height: 1px; }
+  .corner::after { width: 1px; height: 100%; }
+
+  .corner-tl { top: 20px; left: 20px; }
+  .corner-tl::before { top: 0; left: 0; }
+  .corner-tl::after { top: 0; left: 0; }
+
+  .corner-tr { top: 20px; right: 20px; }
+  .corner-tr::before { top: 0; right: 0; }
+  .corner-tr::after { top: 0; right: 0; }
+
+  .corner-bl { bottom: 20px; left: 20px; }
+  .corner-bl::before { bottom: 0; left: 0; }
+  .corner-bl::after { bottom: 0; left: 0; }
+
+  .corner-br { bottom: 20px; right: 20px; }
+  .corner-br::before { bottom: 0; right: 0; }
+  .corner-br::after { bottom: 0; right: 0; }
+
+  /* ── Bottom bar ── */
+  #bottom-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    padding: 16px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 20;
+    border-top: 1px solid var(--border);
+    background: linear-gradient(to top, rgba(5,6,8,0.8), transparent);
+  }
+
+  .bottom-info {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  #clock {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--gold-dim);
+    letter-spacing: 0.2em;
+  }
+
+  /* ── Hover tooltip ── */
+  .module-tooltip {
+    position: absolute;
+    top: -36px; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: var(--gold-bright);
+    letter-spacing: 0.2em;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .module:hover .module-tooltip { opacity: 1; }
+
+  @media (max-width: 760px) {
+    body {
+      height: auto;
+      overflow-y: auto;
+      cursor: auto;
+    }
+
+    #cursor,
+    #cursor-ring {
+      display: none;
+    }
+
+    #header {
+      padding: 20px 22px;
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .status-bar {
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 9px;
+    }
+
+    #ui {
+      height: auto;
+      padding: 112px 20px 40px;
+      justify-content: flex-start;
+    }
+
+    #title-block {
+      margin-bottom: 32px;
+    }
+
+    h1 {
+      font-size: 36px;
+      line-height: 1.05;
+      letter-spacing: 0.1em;
+    }
+
+    #subtitle {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+    }
+
+    #nav {
+      grid-template-columns: 1fr;
+      width: min(100%, 420px);
+      gap: 8px;
+    }
+
+    .module {
+      padding: 22px 20px;
+      cursor: pointer;
+    }
+
+    .module-tooltip {
+      display: none;
+    }
+
+    #bottom-bar {
+      position: relative;
+      padding: 18px 20px;
+      flex-direction: column;
+      gap: 8px;
+      text-align: center;
+    }
+
+    .corner {
+      width: 28px;
+      height: 28px;
+    }
+  }
+
+  @media (pointer: coarse) {
+    body {
+      cursor: auto;
+    }
+
+    #cursor,
+    #cursor-ring {
+      display: none;
+    }
+
+    .module {
+      cursor: pointer;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+
+<canvas id="canvas"></canvas>
+<div id="scanlines"></div>
+<div id="vignette"></div>
+
+<!-- Corner decorations -->
+<div class="corner corner-tl"></div>
+<div class="corner corner-tr"></div>
+<div class="corner corner-bl"></div>
+<div class="corner corner-br"></div>
+
+<!-- Header -->
+<div id="header">
+  <div class="logo">Holding V4 Colli&amp;Co // Finance OS</div>
+  <div class="status-bar">
+    <span class="status-dot"></span>
+    <span>SISTEMA OPERACIONAL</span>
+    <span>|</span>
+    <span id="uptime">UP 00:00:00</span>
+  </div>
+</div>
+
+<!-- Main UI -->
+<div id="ui">
+  <div id="center">
+    <div id="title-block">
+      <div id="system-label">Sistema de Tesouraria Autônoma</div>
+      <h1>Colli Finance OS</h1>
+      <div id="subtitle">Agente Orquestrador Ativo</div>
+    </div>
+
+    <div id="nav">
+
+      <a class="module" href="/fpa">
+        <div class="module-tooltip">ACESSAR MÓDULO</div>
+        <span class="module-index">01</span>
+        <span class="module-icon">◎</span>
+        <span class="module-name">FP&amp;A</span>
+        <span class="module-desc">Agente Orquestrador<br>DRE · DFC · Balanço</span>
+      </a>
+
+      <a class="module" href="/cobrancas">
+        <div class="module-tooltip">ACESSAR MÓDULO</div>
+        <span class="module-index">02</span>
+        <span class="module-icon">⬡</span>
+        <span class="module-name">Cobranças</span>
+        <span class="module-desc">Régua Automática<br>Aging List · WhatsApp</span>
+      </a>
+
+      <a class="module" href="/extrator">
+        <div class="module-tooltip">ACESSAR MÓDULO</div>
+        <span class="module-index">03</span>
+        <span class="module-icon">⟁</span>
+        <span class="module-name">Bot Extrator</span>
+        <span class="module-desc">CRM V4 → Sheets<br>Cadastro Automático</span>
+      </a>
+
+      <a class="module" href="/fpa#lovable-integration">
+        <div class="module-tooltip">ACESSAR MÓDULO</div>
+        <span class="module-index">04</span>
+        <span class="module-icon">⚙</span>
+        <span class="module-name">Configurações</span>
+        <span class="module-desc">Thresholds · Bancos<br>Agendamentos</span>
+      </a>
+
+    </div>
+  </div>
+</div>
+
+<!-- Bottom bar -->
+<div id="bottom-bar">
+  <div class="bottom-info">V4 Colli&amp;Co // Tesouraria Autônoma // Build 2026</div>
+  <div id="clock">--:--:--</div>
+  <div class="bottom-info">São Paulo, BR</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── Custom cursor ─────────────────────────────
+const cursor = document.getElementById('cursor');
+const cursorRing = document.getElementById('cursor-ring');
+let mx = 0, my = 0, rx = 0, ry = 0;
+
+document.addEventListener('mousemove', e => {
+  mx = e.clientX; my = e.clientY;
+  cursor.style.left = mx - 4 + 'px';
+  cursor.style.top  = my - 4 + 'px';
+});
+
+setInterval(() => {
+  rx += (mx - rx) * 0.12;
+  ry += (my - ry) * 0.12;
+  cursorRing.style.left = rx - 14 + 'px';
+  cursorRing.style.top  = ry - 14 + 'px';
+}, 16);
+
+document.querySelectorAll('.module').forEach(m => {
+  m.addEventListener('mouseenter', () => {
+    cursor.style.transform = 'scale(2)';
+    cursorRing.style.width = '48px';
+    cursorRing.style.height = '48px';
+  });
+  m.addEventListener('mouseleave', () => {
+    cursor.style.transform = 'scale(1)';
+    cursorRing.style.width = '28px';
+    cursorRing.style.height = '28px';
+  });
+});
+
+// ── Clock & Uptime ────────────────────────────
+const startTime = Date.now();
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('pt-BR', { hour12: false });
+
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const h = String(Math.floor(elapsed / 3600)).padStart(2, '0');
+  const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
+  const s = String(elapsed % 60).padStart(2, '0');
+  document.getElementById('uptime').textContent = `UP ${h}:${m}:${s}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+function canUseWebGL() {
+  try {
+    const testCanvas = document.createElement('canvas');
+    return Boolean(
+      window.WebGLRenderingContext &&
+      (testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl'))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function initFallbackOrb() {
+  const fallbackCanvas = document.getElementById('canvas');
+  const ctx = fallbackCanvas.getContext('2d');
+  if (!ctx) return;
+
+  const particles = Array.from({ length: 160 }, (_, index) => ({
+    angle: (index / 160) * Math.PI * 2,
+    radius: 90 + Math.random() * 160,
+    speed: 0.0015 + Math.random() * 0.0025,
+    size: 1 + Math.random() * 2,
+  }));
+
+  function resizeFallbackCanvas() {
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    fallbackCanvas.width = Math.floor(window.innerWidth * pixelRatio);
+    fallbackCanvas.height = Math.floor(window.innerHeight * pixelRatio);
+    fallbackCanvas.style.width = `${window.innerWidth}px`;
+    fallbackCanvas.style.height = `${window.innerHeight}px`;
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  }
+
+  window.addEventListener('resize', resizeFallbackCanvas);
+  resizeFallbackCanvas();
+
+  function drawFallbackOrb() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const time = Date.now() * 0.001;
+
+    ctx.clearRect(0, 0, width, height);
+
+    const glow = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, Math.min(width, height) * 0.42);
+    glow.addColorStop(0, 'rgba(255, 209, 102, 0.34)');
+    glow.addColorStop(0.18, 'rgba(245, 166, 35, 0.15)');
+    glow.addColorStop(1, 'rgba(245, 166, 35, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.strokeStyle = 'rgba(255, 209, 102, 0.42)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 4; i++) {
+      ctx.save();
+      ctx.rotate(time * (0.18 + i * 0.05) + i);
+      ctx.scale(1, 0.28 + i * 0.1);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 120 + i * 18, 120 + i * 18, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    particles.forEach((particle) => {
+      particle.angle += particle.speed;
+      const x = Math.cos(particle.angle + time * 0.08) * particle.radius;
+      const y = Math.sin(particle.angle * 1.6 + time * 0.05) * particle.radius * 0.45;
+      ctx.fillStyle = 'rgba(245, 166, 35, 0.48)';
+      ctx.beginPath();
+      ctx.arc(x, y, particle.size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    const core = ctx.createRadialGradient(0, 0, 0, 0, 0, 42);
+    core.addColorStop(0, 'rgba(255, 229, 150, 1)');
+    core.addColorStop(0.45, 'rgba(245, 166, 35, 0.72)');
+    core.addColorStop(1, 'rgba(245, 166, 35, 0)');
+    ctx.fillStyle = core;
+    ctx.beginPath();
+    ctx.arc(0, 0, 42, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    requestAnimationFrame(drawFallbackOrb);
+  }
+
+  drawFallbackOrb();
+}
+
+// ── Three.js Orb ──────────────────────────────
+if (window.THREE && canUseWebGL()) {
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x000000, 0);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 0, 3.5);
+
+// ── Colors ────────────────────────────────────
+const GOLD       = new THREE.Color(0xf5a623);
+const GOLD_BRIGHT= new THREE.Color(0xffd166);
+const AMBER      = new THREE.Color(0xff8c00);
+
+// ── Core glowing sphere ───────────────────────
+const coreGeo = new THREE.SphereGeometry(0.18, 32, 32);
+const coreMat = new THREE.MeshBasicMaterial({ color: GOLD_BRIGHT });
+const core = new THREE.Mesh(coreGeo, coreMat);
+scene.add(core);
+
+// Core glow (additive layered spheres)
+for (let i = 1; i <= 4; i++) {
+  const g = new THREE.SphereGeometry(0.18 + i * 0.09, 16, 16);
+  const m = new THREE.MeshBasicMaterial({
+    color: GOLD,
+    transparent: true,
+    opacity: 0.06 / i,
+    depthWrite: false
+  });
+  scene.add(new THREE.Mesh(g, m));
+}
+
+// ── Orbital rings ─────────────────────────────
+function makeRing(radius, tubeRadius, color, rotX, rotY, rotZ) {
+  const geo = new THREE.TorusGeometry(radius, tubeRadius, 8, 120);
+  const mat = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 0.6,
+    depthWrite: false
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.rotation.set(rotX, rotY, rotZ);
+  scene.add(mesh);
+  return mesh;
+}
+
+const ring1 = makeRing(0.85, 0.003, GOLD_BRIGHT, Math.PI/2, 0, 0);
+const ring2 = makeRing(0.92, 0.002, GOLD, 0.4, 0.8, 0.2);
+const ring3 = makeRing(1.0,  0.002, AMBER, 1.1, 0.3, 1.4);
+const ring4 = makeRing(1.12, 0.0015, GOLD, 0.2, 1.2, 0.6);
+
+// ── Energy arcs (curved lines on sphere surface) ──
+function makeArc(startPhi, startTheta, endPhi, endTheta, r, color) {
+  const points = [];
+  const steps = 60;
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const phi   = startPhi   + (endPhi - startPhi) * t;
+    const theta = startTheta + (endTheta - startTheta) * t;
+    const noise = (Math.random() - 0.5) * 0.04;
+    points.push(new THREE.Vector3(
+      (r + noise) * Math.sin(phi) * Math.cos(theta),
+      (r + noise) * Math.cos(phi),
+      (r + noise) * Math.sin(phi) * Math.sin(theta)
+    ));
+  }
+  const geo = new THREE.BufferGeometry().setFromPoints(points);
+  const mat = new THREE.LineBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 0.3 + Math.random() * 0.3,
+    depthWrite: false
+  });
+  return new THREE.Line(geo, mat);
+}
+
+const arcs = [];
+for (let i = 0; i < 18; i++) {
+  const arc = makeArc(
+    Math.random() * Math.PI,
+    Math.random() * Math.PI * 2,
+    Math.random() * Math.PI,
+    Math.random() * Math.PI * 2,
+    0.82 + Math.random() * 0.25,
+    i % 3 === 0 ? GOLD_BRIGHT : i % 3 === 1 ? GOLD : AMBER
+  );
+  scene.add(arc);
+  arcs.push(arc);
+}
+
+// ── Particle field ────────────────────────────
+const particleCount = 800;
+const positions = new Float32Array(particleCount * 3);
+const particleSizes = new Float32Array(particleCount);
+
+for (let i = 0; i < particleCount; i++) {
+  const r = 0.9 + Math.random() * 0.8;
+  const phi = Math.acos(2 * Math.random() - 1);
+  const theta = Math.random() * Math.PI * 2;
+  positions[i*3]   = r * Math.sin(phi) * Math.cos(theta);
+  positions[i*3+1] = r * Math.cos(phi);
+  positions[i*3+2] = r * Math.sin(phi) * Math.sin(theta);
+  particleSizes[i] = Math.random() * 2.5;
+}
+
+const particleGeo = new THREE.BufferGeometry();
+particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+particleGeo.setAttribute('size', new THREE.BufferAttribute(particleSizes, 1));
+
+const particleMat = new THREE.PointsMaterial({
+  color: GOLD,
+  size: 0.012,
+  transparent: true,
+  opacity: 0.55,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending
+});
+
+const particles = new THREE.Points(particleGeo, particleMat);
+scene.add(particles);
+
+// ── Outer atmosphere halo ─────────────────────
+const haloGeo = new THREE.SphereGeometry(1.4, 32, 32);
+const haloMat = new THREE.MeshBasicMaterial({
+  color: GOLD,
+  transparent: true,
+  opacity: 0.015,
+  side: THREE.BackSide,
+  depthWrite: false
+});
+scene.add(new THREE.Mesh(haloGeo, haloMat));
+
+// ── Spoke lines (lattice) ─────────────────────
+const spokeGroup = new THREE.Group();
+for (let i = 0; i < 12; i++) {
+  const phi = (i / 12) * Math.PI * 2;
+  const pts = [
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(
+      0.82 * Math.cos(phi),
+      0.82 * Math.sin(phi) * 0.3,
+      0.82 * Math.sin(phi)
+    )
+  ];
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineBasicMaterial({
+    color: GOLD,
+    transparent: true,
+    opacity: 0.12,
+    depthWrite: false
+  });
+  spokeGroup.add(new THREE.Line(geo, mat));
+}
+scene.add(spokeGroup);
+
+// ── Mouse parallax ────────────────────────────
+let targetRotX = 0, targetRotY = 0;
+let currentRotX = 0, currentRotY = 0;
+
+document.addEventListener('mousemove', e => {
+  targetRotY = (e.clientX / window.innerWidth - 0.5) * 0.6;
+  targetRotX = (e.clientY / window.innerHeight - 0.5) * 0.4;
+});
+
+// ── Resize ────────────────────────────────────
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ── Main group ────────────────────────────────
+const mainGroup = new THREE.Group();
+mainGroup.add(core, ring1, ring2, ring3, ring4, particles, spokeGroup);
+arcs.forEach(a => mainGroup.add(a));
+scene.add(mainGroup);
+
+// ── Intro scale animation ──────────────────────
+mainGroup.scale.set(0, 0, 0);
+let introProgress = 0;
+
+// ── Animation loop ────────────────────────────
+let t = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  t += 0.008;
+
+  // Intro
+  if (introProgress < 1) {
+    introProgress = Math.min(1, introProgress + 0.008);
+    const ease = 1 - Math.pow(1 - introProgress, 3);
+    mainGroup.scale.setScalar(ease);
+  }
+
+  // Smooth mouse follow
+  currentRotX += (targetRotX - currentRotX) * 0.05;
+  currentRotY += (targetRotY - currentRotY) * 0.05;
+  mainGroup.rotation.x = currentRotX;
+  mainGroup.rotation.y = currentRotY;
+
+  // Ring rotations
+  ring1.rotation.z += 0.003;
+  ring2.rotation.x += 0.002;
+  ring2.rotation.y += 0.001;
+  ring3.rotation.z -= 0.0025;
+  ring3.rotation.x += 0.0015;
+  ring4.rotation.y += 0.002;
+  ring4.rotation.z -= 0.001;
+
+  // Spoke slow drift
+  spokeGroup.rotation.y += 0.001;
+  spokeGroup.rotation.z += 0.0005;
+
+  // Pulsing core
+  const pulse = 1 + Math.sin(t * 2.5) * 0.15;
+  core.scale.setScalar(pulse);
+
+  // Arc opacity shimmer
+  arcs.forEach((arc, i) => {
+    arc.material.opacity = 0.15 + Math.abs(Math.sin(t * 1.5 + i * 0.7)) * 0.45;
+  });
+
+  // Particle drift
+  particles.rotation.y += 0.0006;
+  particles.rotation.x += 0.0003;
+
+  renderer.render(scene, camera);
+}
+animate();
+} else {
+  initFallbackOrb();
+}
+</script>
+</body>
+</html>

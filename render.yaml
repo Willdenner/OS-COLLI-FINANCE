@@ -31,6 +31,8 @@ services:
         sync: false
       - key: LOVABLE_WEBHOOK_SECRET
         sync: false
+      - key: COBRANCAS_URL
+        sync: false
 
   - type: worker
     name: bot-extrator

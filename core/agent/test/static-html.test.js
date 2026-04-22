@@ -3,6 +3,24 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 
+test("pagina inicial Colli Finance OS aponta para os modulos principais", async () => {
+  const html = await fs.readFile(path.join(__dirname, "..", "src", "static", "index.html"), "utf8");
+
+  assert.match(html, /<title>Colli Finance OS<\/title>/);
+  assert.match(html, /href="\/fpa"/);
+  assert.match(html, /href="\/cobrancas"/);
+  assert.match(html, /href="\/extrator"/);
+  assert.match(html, /href="\/fpa#lovable-integration"/);
+  assert.match(html, /@media \(max-width: 760px\)/);
+  assert.doesNotMatch(html, /href="#fpsa"/);
+});
+
+test("servidor nao entrega a home estatica antes do Basic Auth", async () => {
+  const server = await fs.readFile(path.join(__dirname, "..", "src", "server.js"), "utf8");
+
+  assert.match(server, /express\.static\(STATIC_DIR,\s*\{\s*index:\s*false\s*\}\)/);
+});
+
 test("pagina FP&A nao usa aspas tipograficas em atributos HTML", async () => {
   const html = await fs.readFile(path.join(__dirname, "..", "src", "static", "fpa.html"), "utf8");
 

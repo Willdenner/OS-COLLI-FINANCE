@@ -82,6 +82,7 @@ const {
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 const STATIC_DIR = path.join(__dirname, "static");
+const HOME_INDEX = path.join(STATIC_DIR, "index.html");
 const FPA_INDEX = path.join(STATIC_DIR, "fpa.html");
 
 function nowIso() {
@@ -648,7 +649,7 @@ const statementUpload = multer({ storage: multer.memoryStorage(), limits: { file
 app.disable("x-powered-by");
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(STATIC_DIR));
+app.use(express.static(STATIC_DIR, { index: false }));
 
 app.get("/healthz", (req, res) => {
   res.json({ ok: true, service: "analista-fpa" });
@@ -949,12 +950,58 @@ const adminAuthMiddleware = createBasicAuthMiddleware({
 });
 app.use(adminAuthMiddleware);
 
+function sendHomePage(req, res) {
+  res.setHeader("Cache-Control", "no-store");
+  res.sendFile(HOME_INDEX);
+}
+
 function sendAppPage(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.sendFile(FPA_INDEX);
 }
-app.get("/", sendAppPage);
+app.get("/", sendHomePage);
 app.get("/fpa", sendAppPage);
+app.get("/cobrancas", (req, res) => {
+  const cobrancasUrl = String(process.env.COBRANCAS_URL || process.env.BOT_COBRANCA_URL || "").trim();
+  if (cobrancasUrl) {
+    res.redirect(302, cobrancasUrl);
+    return;
+  }
+
+  res.status(503).type("html").send(`
+    <!doctype html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Modulo de cobrancas nao configurado</title>
+      </head>
+      <body style="font-family: system-ui, sans-serif; margin: 40px; line-height: 1.5;">
+        <h1>Modulo de cobrancas nao configurado</h1>
+        <p>Defina a variavel de ambiente <code>COBRANCAS_URL</code> com a URL do servico de cobrancas no Render.</p>
+        <p><a href="/">Voltar ao Colli Finance OS</a></p>
+      </body>
+    </html>
+  `);
+});
+app.get("/extrator", (req, res) => {
+  res.type("html").send(`
+    <!doctype html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Bot Extrator</title>
+      </head>
+      <body style="font-family: system-ui, sans-serif; margin: 40px; line-height: 1.5;">
+        <h1>Bot Extrator</h1>
+        <p>Este modulo roda como worker no Render e nao possui painel web proprio.</p>
+        <p>Configure <code>LOGIN_EMAIL</code>, <code>LOGIN_PASSWORD</code>, <code>GOOGLE_SERVICE_ACCOUNT_JSON</code> e <code>SPREADSHEET_ID</code> no servico <code>bot-extrator</code>.</p>
+        <p><a href="/">Voltar ao Colli Finance OS</a></p>
+      </body>
+    </html>
+  `);
+});
 
 app.get(
   "/api/settings",
