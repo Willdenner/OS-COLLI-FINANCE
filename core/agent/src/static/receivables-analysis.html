@@ -6,235 +6,378 @@
   <title>Analise do Orquestrador</title>
   <style>
     :root {
-      --bg: #0b0f12;
-      --panel: #161b20;
-      --panel-2: #1b2228;
-      --panel-3: #202930;
-      --border: rgba(255,255,255,.08);
-      --text: #f4f7fb;
-      --muted: #95a2b3;
-      --dim: #718093;
-      --brand: #27d49d;
-      --brand-soft: rgba(39,212,157,.12);
-      --warning: #ffb020;
-      --warning-soft: rgba(255,176,32,.12);
-      --danger: #ff6b6b;
-      --danger-soft: rgba(255,107,107,.12);
-      --accent: #7c8cff;
-      --radius: 8px;
+      --kc-bg: #0f1012;
+      --kc-surface: #181a1e;
+      --kc-surface-2: #1e2026;
+      --kc-surface-3: #232731;
+      --kc-border: #2a2d35;
+      --kc-border-2: #33363f;
+      --kc-text: #e8eaf0;
+      --kc-text-muted: #8a8f9e;
+      --kc-text-dim: #555a68;
+      --kc-green: #1fa974;
+      --kc-green-bg: rgba(31, 169, 116, .12);
+      --kc-teal: #18bfcc;
+      --kc-teal-bg: rgba(24, 191, 204, .12);
+      --kc-amber: #e8a030;
+      --kc-amber-bg: rgba(232, 160, 48, .12);
+      --kc-red: #e24b4a;
+      --kc-red-bg: rgba(226, 75, 74, .12);
+      --kc-blue: #4a9eff;
+      --kc-blue-bg: rgba(74, 158, 255, .12);
+      --kc-purple: #9b7ffe;
+      --kc-purple-bg: rgba(155, 127, 254, .12);
+      --kc-radius: 6px;
+      --kc-radius-lg: 10px;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
-      background: var(--bg);
-      color: var(--text);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--kc-bg);
+      color: var(--kc-text);
+      font-family: "IBM Plex Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-    .page {
-      width: min(1480px, calc(100vw - 32px));
-      margin: 0 auto;
-      padding: 24px 0 40px;
-    }
-    .topbar {
+    .kc-header {
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      align-items: flex-start;
-      gap: 16px;
-      margin-bottom: 20px;
+      gap: 12px;
+      padding: 0 24px;
+      min-height: 56px;
+      border-bottom: 1px solid var(--kc-border);
+      background: var(--kc-surface);
+      position: sticky;
+      top: 0;
+      z-index: 20;
     }
-    .title {
-      font-size: 30px;
-      font-weight: 800;
-      line-height: 1.1;
-      margin: 0;
-    }
-    .subtitle {
-      margin-top: 6px;
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.6;
-    }
-    .tools {
+    .kc-header-title {
       display: flex;
-      gap: 10px;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .kc-brand {
+      font-family: "IBM Plex Mono", "Fira Code", monospace;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--kc-teal);
+      letter-spacing: .03em;
+      text-transform: uppercase;
+    }
+    .kc-header-sep {
+      color: var(--kc-border-2);
+      font-size: 14px;
+    }
+    .kc-header-sub {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--kc-text);
+      letter-spacing: .02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .kc-header-nav {
+      display: flex;
+      gap: 6px;
       flex-wrap: wrap;
       align-items: center;
+      justify-content: flex-end;
     }
-    .btn {
+    .kc-nav-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      border: 1px solid var(--border);
+      border: 1px solid var(--kc-border-2);
       background: transparent;
-      color: var(--text);
+      color: var(--kc-text-muted);
       text-decoration: none;
-      padding: 10px 14px;
-      border-radius: var(--radius);
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: .04em;
-      text-transform: uppercase;
-    }
-    .btn:hover { background: var(--panel-3); }
-    .btn-primary {
-      background: var(--brand);
-      border-color: var(--brand);
-      color: #07130f;
-    }
-    .alert {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 14px 16px;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.7;
-      margin-bottom: 18px;
-    }
-    .metric-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
-      margin-bottom: 18px;
-    }
-    .metric {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 14px;
-    }
-    .metric-label {
-      color: var(--dim);
       font-size: 11px;
-      font-weight: 700;
-      letter-spacing: .08em;
+      font-weight: 600;
+      letter-spacing: .06em;
       text-transform: uppercase;
-      margin-bottom: 8px;
-    }
-    .metric-value {
-      font-size: 28px;
-      font-weight: 800;
-      line-height: 1;
-    }
-    .layout {
-      display: grid;
-      grid-template-columns: 320px minmax(0, 1fr);
-      gap: 18px;
-      align-items: start;
-    }
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      overflow: hidden;
-    }
-    .panel-head {
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--border);
-      background: var(--panel-2);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-    }
-    .panel-title {
-      font-size: 16px;
-      font-weight: 800;
-      line-height: 1.2;
-    }
-    .panel-body {
-      padding: 16px;
-    }
-    .stack {
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-    }
-    .run-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .run-item {
-      width: 100%;
-      text-align: left;
-      border: 1px solid var(--border);
-      background: var(--panel-2);
-      color: var(--text);
-      border-radius: var(--radius);
-      padding: 12px;
+      padding: 6px 14px;
+      border-radius: var(--kc-radius);
       cursor: pointer;
+      transition: background .15s, color .15s, border-color .15s;
     }
-    .run-item.active {
-      border-color: rgba(39,212,157,.34);
-      background: rgba(39,212,157,.08);
+    .kc-nav-btn:hover {
+      background: var(--kc-surface-2);
+      color: var(--kc-text);
     }
-    .run-item-title {
-      font-size: 14px;
-      font-weight: 800;
-      margin-bottom: 4px;
+    .kc-nav-btn--primary {
+      background: var(--kc-teal);
+      border-color: var(--kc-teal);
+      color: #0f1012;
     }
-    .run-item-meta {
-      color: var(--muted);
+    .kc-nav-btn--primary:hover {
+      background: #22d4e3;
+      border-color: #22d4e3;
+      color: #0f1012;
+    }
+    .kc-statusbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 24px;
+      border-bottom: 1px solid var(--kc-border);
+      background: var(--kc-surface);
+      font-family: "IBM Plex Mono", "Fira Code", monospace;
+      font-size: 12px;
+      flex-wrap: wrap;
+    }
+    .kc-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      flex-shrink: 0;
+    }
+    .status--done .kc-status-dot { background: var(--kc-green); box-shadow: 0 0 6px rgba(31, 169, 116, .45); }
+    .status--loading .kc-status-dot { background: var(--kc-amber); animation: pulse .9s infinite; }
+    .status--error .kc-status-dot { background: var(--kc-red); }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .35; }
+    }
+    .kc-status-text { color: var(--kc-text); font-weight: 500; }
+    .kc-status-sep { color: var(--kc-text-dim); }
+    .kc-status-date { color: var(--kc-text-muted); }
+    .kc-status-time { color: var(--kc-text-dim); }
+    .kc-status-error { color: var(--kc-red); }
+    .kc-kpi-row {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 1px;
+      background: var(--kc-border);
+      border-bottom: 1px solid var(--kc-border);
+    }
+    .kc-kpi {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 16px 24px;
+      background: var(--kc-surface);
+    }
+    .kc-kpi-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--kc-text-muted);
+    }
+    .kc-kpi-value {
+      font-family: "IBM Plex Mono", "Fira Code", monospace;
+      font-size: 28px;
+      font-weight: 500;
+      line-height: 1;
+      color: var(--kc-text);
+    }
+    .analysis-note {
+      margin: 18px 20px 0;
+      padding: 12px 14px;
+      border: 1px solid var(--kc-border);
+      border-radius: var(--kc-radius-lg);
+      background: var(--kc-surface);
+      color: var(--kc-text-muted);
       font-size: 12px;
       line-height: 1.6;
     }
-    .section-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 18px;
+    .analysis-shell {
+      padding: 20px;
     }
-    .item-list, .tag-list {
+    .kc-board {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      align-items: start;
+    }
+    .kc-col,
+    .detail-panel {
+      background: var(--kc-surface);
+      border: 1px solid var(--kc-border);
+      border-radius: var(--kc-radius-lg);
+      overflow: hidden;
+    }
+    .kc-col-head,
+    .detail-head {
+      padding: 12px 14px 10px;
+      border-bottom: 1px solid var(--kc-border);
+      border-top: 2px solid transparent;
+      background: var(--kc-surface);
+    }
+    .kc-col-head--green,
+    .detail-head--green { border-top-color: var(--kc-green); }
+    .kc-col-head--amber,
+    .detail-head--amber { border-top-color: var(--kc-amber); }
+    .kc-col-head--red,
+    .detail-head--red { border-top-color: var(--kc-red); }
+    .kc-col-head--blue,
+    .detail-head--blue { border-top-color: var(--kc-blue); }
+    .kc-col-head--purple,
+    .detail-head--purple { border-top-color: var(--kc-purple); }
+    .kc-col-head--neutral,
+    .detail-head--neutral { border-top-color: var(--kc-border-2); }
+    .kc-col-label,
+    .detail-label {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--kc-text-muted);
+      margin-bottom: 4px;
+    }
+    .kc-col-count {
+      font-family: "IBM Plex Mono", "Fira Code", monospace;
+      font-size: 22px;
+      font-weight: 500;
+      line-height: 1;
+      color: var(--kc-text);
+      min-height: 22px;
+    }
+    .kc-col-api {
+      font-family: "IBM Plex Mono", "Fira Code", monospace;
+      font-size: 9px;
+      color: var(--kc-text-dim);
+      margin-top: 4px;
+      min-height: 12px;
+    }
+    .kc-col-body {
+      padding: 10px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 6px;
+      max-height: 560px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--kc-border-2) transparent;
+    }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .detail-panel--wide {
+      grid-column: 1 / -1;
+    }
+    .detail-body {
+      padding: 14px;
+    }
+    .item-list,
+    .run-list,
+    .tag-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
     .tag-list {
       flex-direction: row;
       flex-wrap: wrap;
+      margin-bottom: 12px;
     }
-    .item, .empty {
-      border: 1px solid var(--border);
-      background: var(--panel-2);
-      border-radius: var(--radius);
-      padding: 12px;
+    .kc-card,
+    .run-item,
+    .empty {
+      width: 100%;
+      text-align: left;
+      background: var(--kc-surface-2);
+      border: 1px solid var(--kc-border);
+      border-radius: var(--kc-radius);
+      padding: 10px;
+      color: var(--kc-text);
     }
-    .item-title, .empty-title {
-      font-size: 14px;
-      font-weight: 800;
-      color: var(--text);
+    .run-item {
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
     }
-    .item-meta, .empty-meta {
-      margin-top: 6px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.7;
+    .run-item:hover,
+    .kc-card:hover {
+      border-color: var(--kc-border-2);
+      background: #22252c;
     }
-    .status-chip, .tag {
+    .run-item.active {
+      border-color: rgba(24, 191, 204, .45);
+      background: rgba(24, 191, 204, .08);
+    }
+    .kc-card--warning {
+      border-left: 2px solid var(--kc-amber);
+    }
+    .kc-card--danger {
+      border-left: 2px solid var(--kc-red);
+    }
+    .kc-card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .kc-card-id,
+    .run-item-title,
+    .empty-title {
+      font-family: "IBM Plex Mono", "Fira Code", monospace;
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--kc-text-muted);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .kc-card-title,
+    .item-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--kc-text);
+      line-height: 1.35;
+    }
+    .kc-card-sub,
+    .run-item-meta,
+    .item-meta,
+    .empty-meta {
+      margin-top: 4px;
+      font-size: 11px;
+      color: var(--kc-text-muted);
+      line-height: 1.55;
+    }
+    .kc-card-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .kc-method,
+    .status-chip,
+    .tag,
+    .meta-pill {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 10px;
+      padding: 3px 7px;
       border-radius: 999px;
-      font-size: 11px;
-      font-weight: 700;
-      border: 1px solid var(--border);
-      background: var(--panel-3);
-      color: var(--muted);
+      border: 1px solid var(--kc-border);
+      background: var(--kc-surface-3);
+      color: var(--kc-text-muted);
+      font-size: 10px;
+      font-weight: 600;
+      white-space: nowrap;
     }
-    .status-chip.success, .tag.success { color: var(--brand); border-color: rgba(39,212,157,.2); background: var(--brand-soft); }
-    .status-chip.warning, .tag.warning { color: var(--warning); border-color: rgba(255,176,32,.2); background: var(--warning-soft); }
-    .status-chip.danger, .tag.danger { color: var(--danger); border-color: rgba(255,107,107,.2); background: var(--danger-soft); }
-    .inline {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      align-items: center;
+    .status-chip.success,
+    .tag.success { color: var(--kc-green); border-color: rgba(31, 169, 116, .25); background: var(--kc-green-bg); }
+    .status-chip.warning,
+    .tag.warning { color: var(--kc-amber); border-color: rgba(232, 160, 48, .25); background: var(--kc-amber-bg); }
+    .status-chip.danger,
+    .tag.danger { color: var(--kc-red); border-color: rgba(226, 75, 74, .25); background: var(--kc-red-bg); }
+    .status-chip.info,
+    .tag.info { color: var(--kc-blue); border-color: rgba(74, 158, 255, .25); background: var(--kc-blue-bg); }
+    .meta-pill--document { color: var(--kc-teal); border-color: rgba(24, 191, 204, .25); background: var(--kc-teal-bg); }
+    .meta-pill--amount { color: var(--kc-purple); border-color: rgba(155, 127, 254, .25); background: var(--kc-purple-bg); }
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--kc-border);
+      border-radius: var(--kc-radius);
+      background: var(--kc-surface-2);
     }
-    .table-wrap { overflow-x: auto; }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -242,118 +385,255 @@
     }
     th, td {
       padding: 10px 12px;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--kc-border);
       text-align: left;
       vertical-align: top;
     }
     th {
-      color: var(--dim);
+      color: var(--kc-text-dim);
       text-transform: uppercase;
       letter-spacing: .08em;
       font-size: 10px;
+      background: rgba(255, 255, 255, .01);
     }
     tr:last-child td { border-bottom: 0; }
+    .table-cell-identity strong {
+      display: block;
+      font-size: 12px;
+      color: var(--kc-text);
+      font-weight: 600;
+    }
+    .table-cell-identity span {
+      display: block;
+      margin-top: 4px;
+      color: var(--kc-text-muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .kc-footer {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 24px 18px;
+      border-top: 1px solid var(--kc-border);
+      font-family: "IBM Plex Mono", "Fira Code", monospace;
+      font-size: 10px;
+      color: var(--kc-text-muted);
+      flex-wrap: wrap;
+    }
+    .kc-conn-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      flex-shrink: 0;
+      background: var(--kc-green);
+    }
+    .dot--red { background: var(--kc-red); }
+    .kc-footer-sep {
+      width: 1px;
+      height: 12px;
+      background: var(--kc-border-2);
+    }
+    .kc-footer-item { color: var(--kc-text-muted); }
+    .kc-footer-dim { color: var(--kc-text-dim); }
+    @media (max-width: 1380px) {
+      .kc-board {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
     @media (max-width: 1100px) {
-      .layout { grid-template-columns: 1fr; }
-      .metric-grid, .section-grid { grid-template-columns: 1fr; }
+      .kc-kpi-row,
+      .detail-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .kc-board {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+    @media (max-width: 760px) {
+      .kc-header {
+        padding: 12px 16px;
+        align-items: flex-start;
+      }
+      .kc-statusbar,
+      .kc-footer {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+      .analysis-shell,
+      .analysis-note {
+        margin-left: 16px;
+        margin-right: 16px;
+        width: auto;
+      }
+      .analysis-shell {
+        padding: 16px 0 0;
+      }
+      .kc-kpi-row,
+      .kc-board,
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+      .kc-kpi {
+        padding: 14px 16px;
+      }
+      .detail-panel--wide {
+        grid-column: auto;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="page">
-    <div class="topbar">
-      <div>
-        <h1 class="title">Analise do Orquestrador</h1>
-        <div class="subtitle">Auditoria dos ciclos de contas a receber: o que entrou do Finance, o que saiu para o Conta Azul, o que foi ignorado pelo bot de cobranca e por qual motivo.</div>
-      </div>
-      <div class="tools">
-        <a class="btn" href="/fpa">Voltar ao FP&A</a>
-        <button class="btn btn-primary" id="btn-refresh" type="button">Atualizar</button>
-      </div>
+  <header class="kc-header">
+    <div class="kc-header-title">
+      <span class="kc-brand">Orquestrador</span>
+      <span class="kc-header-sep">·</span>
+      <span class="kc-header-sub">Analise do fluxo de contas a receber</span>
     </div>
+    <nav class="kc-header-nav">
+      <a class="kc-nav-btn" href="/fpa">Voltar ao FP&amp;A</a>
+      <button class="kc-nav-btn kc-nav-btn--primary" id="btn-refresh" type="button">Atualizar</button>
+    </nav>
+  </header>
 
-    <div class="alert" id="analysis-alert">Carregando historico do orquestrador...</div>
+  <div class="kc-statusbar status--loading" id="analysis-statusbar">
+    <span class="kc-status-dot"></span>
+    <span class="kc-status-text" id="status-text">Carregando</span>
+    <span class="kc-status-sep">·</span>
+    <span class="kc-status-date" id="status-business-date">sem data</span>
+    <span class="kc-status-sep">·</span>
+    <span class="kc-status-time" id="status-last-update">aguardando historico</span>
+    <span class="kc-status-error" id="status-last-error"></span>
+  </div>
 
-    <div class="metric-grid">
-      <div class="metric"><div class="metric-label">Cards puxados</div><div class="metric-value" id="metric-cards">0</div></div>
-      <div class="metric"><div class="metric-label">Cobrancas criadas</div><div class="metric-value" id="metric-created">0</div></div>
-      <div class="metric"><div class="metric-label">Ignorados</div><div class="metric-value" id="metric-ignored">0</div></div>
-      <div class="metric"><div class="metric-label">Falhas</div><div class="metric-value" id="metric-errors">0</div></div>
-    </div>
+  <div class="kc-kpi-row">
+    <div class="kc-kpi"><span class="kc-kpi-label">Contratos</span><span class="kc-kpi-value" id="metric-contracts">0</span></div>
+    <div class="kc-kpi"><span class="kc-kpi-label">Cards puxados</span><span class="kc-kpi-value" id="metric-cards">0</span></div>
+    <div class="kc-kpi"><span class="kc-kpi-label">Cobrancas criadas</span><span class="kc-kpi-value" id="metric-created">0</span></div>
+    <div class="kc-kpi"><span class="kc-kpi-label">Ignorados</span><span class="kc-kpi-value" id="metric-ignored">0</span></div>
+    <div class="kc-kpi"><span class="kc-kpi-label">Falhas</span><span class="kc-kpi-value" id="metric-errors">0</span></div>
+  </div>
 
-    <div class="layout">
-      <div class="stack">
-        <section class="panel">
-          <div class="panel-head">
-            <div class="panel-title">Historico de ciclos</div>
-            <span class="status-chip" id="history-count">0 execucoes</span>
-          </div>
-          <div class="panel-body">
-            <div class="run-list" id="run-list"></div>
-          </div>
-        </section>
+  <div class="analysis-note" id="analysis-alert">Carregando historico do orquestrador...</div>
 
-        <section class="panel">
-          <div class="panel-head">
-            <div class="panel-title">Alertas do ciclo</div>
-          </div>
-          <div class="panel-body">
-            <div class="item-list" id="issue-list"></div>
-          </div>
-        </section>
-      </div>
-
-      <div class="stack">
-        <section class="panel">
-          <div class="panel-head">
-            <div class="panel-title">Resumo da execucao</div>
-            <span class="status-chip" id="run-status-chip">Sem execucao</span>
-          </div>
-          <div class="panel-body">
-            <div class="item-list" id="run-summary"></div>
-          </div>
-        </section>
-
-        <div class="section-grid">
-          <section class="panel">
-            <div class="panel-head"><div class="panel-title">Contratos lidos do Finance</div></div>
-            <div class="panel-body"><div class="item-list" id="contracts-finance-list"></div></div>
-          </section>
-
-          <section class="panel">
-            <div class="panel-head"><div class="panel-title">Exportacao para Conta Azul</div></div>
-            <div class="panel-body"><div class="table-wrap" id="contracts-export-table"></div></div>
-          </section>
-
-          <section class="panel">
-            <div class="panel-head"><div class="panel-title">Cards lidos do Finance</div></div>
-            <div class="panel-body"><div class="item-list" id="cards-finance-list"></div></div>
-          </section>
-
-          <section class="panel">
-            <div class="panel-head"><div class="panel-title">Integracao com o bot</div></div>
-            <div class="panel-body">
-              <div class="tag-list" id="bot-reason-tags" style="margin-bottom:12px"></div>
-              <div class="table-wrap" id="bot-results-table"></div>
-            </div>
-          </section>
-
-          <section class="panel">
-            <div class="panel-head"><div class="panel-title">Pendencias de link</div></div>
-            <div class="panel-body"><div class="item-list" id="missing-links-list"></div></div>
-          </section>
-
-          <section class="panel">
-            <div class="panel-head"><div class="panel-title">Pagamentos e fechamento</div></div>
-            <div class="panel-body">
-              <div class="item-list" id="payments-list" style="margin-bottom:12px"></div>
-              <div class="table-wrap" id="payments-table"></div>
-            </div>
-          </section>
+  <div class="analysis-shell">
+    <div class="kc-board">
+      <section class="kc-col">
+        <div class="kc-col-head kc-col-head--neutral">
+          <div class="kc-col-label">Historico de ciclos</div>
+          <div class="kc-col-count" id="history-count">0</div>
+          <div class="kc-col-api">ultimas execucoes persistidas</div>
         </div>
-      </div>
+        <div class="kc-col-body">
+          <div class="run-list" id="run-list"></div>
+        </div>
+      </section>
+
+      <section class="kc-col">
+        <div class="kc-col-head kc-col-head--amber">
+          <div class="kc-col-label">Alertas do ciclo</div>
+          <div class="kc-col-count" id="issues-count">0</div>
+          <div class="kc-col-api">warnings, esperas e falhas</div>
+        </div>
+        <div class="kc-col-body">
+          <div class="item-list" id="issue-list"></div>
+        </div>
+      </section>
+
+      <section class="kc-col">
+        <div class="kc-col-head kc-col-head--green">
+          <div class="kc-col-label">Contratos lidos do Finance</div>
+          <div class="kc-col-count" id="contracts-count">0</div>
+          <div class="kc-col-api" id="contracts-api-meta">list-new-contracts</div>
+        </div>
+        <div class="kc-col-body">
+          <div class="item-list" id="contracts-finance-list"></div>
+        </div>
+      </section>
+
+      <section class="kc-col">
+        <div class="kc-col-head kc-col-head--red">
+          <div class="kc-col-label">Cards lidos do Finance</div>
+          <div class="kc-col-count" id="cards-count">0</div>
+          <div class="kc-col-api" id="cards-api-meta">list-billing-cards</div>
+        </div>
+        <div class="kc-col-body">
+          <div class="item-list" id="cards-finance-list"></div>
+        </div>
+      </section>
+
+      <section class="kc-col">
+        <div class="kc-col-head kc-col-head--blue">
+          <div class="kc-col-label">Integracao com o bot</div>
+          <div class="kc-col-count" id="bot-count">0</div>
+          <div class="kc-col-api">criadas, ignoradas e erros</div>
+        </div>
+        <div class="kc-col-body">
+          <div class="tag-list" id="bot-reason-tags"></div>
+          <div class="item-list" id="bot-results-mini-list"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="detail-grid">
+      <section class="detail-panel">
+        <div class="detail-head detail-head--neutral">
+          <div class="detail-label">Resumo da execucao</div>
+        </div>
+        <div class="detail-body">
+          <div class="item-list" id="run-summary"></div>
+        </div>
+      </section>
+
+      <section class="detail-panel">
+        <div class="detail-head detail-head--green">
+          <div class="detail-label">Exportacao para Conta Azul</div>
+        </div>
+        <div class="detail-body">
+          <div class="table-wrap" id="contracts-export-table"></div>
+        </div>
+      </section>
+
+      <section class="detail-panel">
+        <div class="detail-head detail-head--amber">
+          <div class="detail-label">Pendencias de link</div>
+        </div>
+        <div class="detail-body">
+          <div class="item-list" id="missing-links-list"></div>
+        </div>
+      </section>
+
+      <section class="detail-panel">
+        <div class="detail-head detail-head--blue">
+          <div class="detail-label">Pagamentos e fechamento</div>
+        </div>
+        <div class="detail-body">
+          <div class="item-list" id="payments-list" style="margin-bottom:12px"></div>
+          <div class="table-wrap" id="payments-table"></div>
+        </div>
+      </section>
+
+      <section class="detail-panel detail-panel--wide">
+        <div class="detail-head detail-head--purple">
+          <div class="detail-label">Integracao com o bot</div>
+        </div>
+        <div class="detail-body">
+          <div class="table-wrap" id="bot-results-table"></div>
+        </div>
+      </section>
     </div>
   </div>
+
+  <footer class="kc-footer">
+    <span class="kc-conn-dot" id="footer-conn-dot"></span>
+    <span class="kc-footer-item" id="footer-status">Finance diagnostico aguardando</span>
+    <span class="kc-footer-sep"></span>
+    <span class="kc-footer-item" id="footer-business-date">businessDate —</span>
+    <span class="kc-footer-sep"></span>
+    <span class="kc-footer-item" id="footer-runs">0 execucoes</span>
+    <span class="kc-footer-sep"></span>
+    <span class="kc-footer-item kc-footer-dim" id="footer-note">cliente e documento priorizados na leitura do Finance</span>
+  </footer>
 
   <script>
     const state = {
@@ -373,6 +653,27 @@
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+    }
+
+    function readPathValue(source, path) {
+      return String(path || "")
+        .split(".")
+        .reduce((current, key) => (current && typeof current === "object" ? current[key] : undefined), source);
+    }
+
+    function firstValue(source, paths = []) {
+      for (const path of paths) {
+        const value = readPathValue(source, path);
+        if (value != null && value !== "") return value;
+      }
+      return undefined;
+    }
+
+    function firstText(source, paths = [], maxLength = 180) {
+      const value = firstValue(source, paths);
+      const normalized = String(value ?? "").trim();
+      if (!normalized) return "";
+      return normalized.slice(0, maxLength);
     }
 
     function api(path, options) {
@@ -395,11 +696,110 @@
       return new Intl.NumberFormat("pt-BR").format(Number(value) || 0);
     }
 
+    function formatCurrency(value) {
+      if (value == null || value === "") return "";
+      const normalized = typeof value === "number"
+        ? value
+        : String(value).includes(",")
+          ? Number(String(value).replace(/\./g, "").replace(",", "."))
+          : Number(String(value).trim());
+      const parsed = Number(normalized);
+      if (!Number.isFinite(parsed)) return "";
+      return parsed.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    }
+
     function formatShortDate(value) {
       if (!value) return "—";
       const date = new Date(`${value}T00:00:00`);
       if (Number.isNaN(date.getTime())) return value;
       return date.toLocaleDateString("pt-BR");
+    }
+
+    function formatDocument(value) {
+      const raw = String(value ?? "").trim();
+      if (!raw) return "";
+      const digits = raw.replace(/\D+/g, "");
+      if (digits.length === 14) {
+        return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+      }
+      if (digits.length === 11) {
+        return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
+      }
+      return raw;
+    }
+
+    function isTruthy(value) {
+      if (value === true) return true;
+      const raw = String(value ?? "").trim().toLowerCase();
+      return ["true", "1", "sim", "yes"].includes(raw);
+    }
+
+    function extractClientName(item) {
+      return firstText(item, [
+        "clientName",
+        "client_name",
+        "billing_clients.nome",
+        "billing_clients.name",
+        "billing_clients.razao_social",
+        "billing_client.nome",
+        "billing_client.name",
+        "billing_client.razao_social",
+        "client.nome",
+        "client.name",
+        "client.razao_social",
+        "company_name",
+        "companyName",
+        "counterpartyName",
+        "client",
+      ]);
+    }
+
+    function extractClientDocument(item) {
+      return formatDocument(firstValue(item, [
+        "clientDocument",
+        "cnpj",
+        "cpf_cnpj",
+        "documento",
+        "document",
+        "billing_clients.cnpj_cpf",
+        "billing_clients.cnpj",
+        "billing_clients.documento",
+        "billing_client.cnpj_cpf",
+        "billing_client.cnpj",
+        "billing_client.documento",
+        "client.cnpj_cpf",
+        "client.cnpj",
+        "client.documento",
+      ]));
+    }
+
+    function extractContractIdentifier(item) {
+      return firstText(item, ["contract_number", "contractNumber", "externalId", "id"], 120);
+    }
+
+    function extractCardIdentifier(item) {
+      return firstText(item, ["card_id", "cardId", "billing_card_id", "billingCardId", "externalId", "id"], 120);
+    }
+
+    function extractStatus(item) {
+      return firstText(item, ["status", "externalStatus"], 80);
+    }
+
+    function buildStatusClass(status, fallback = "") {
+      const normalized = String(status || "").toLowerCase();
+      if (["completed", "success", "idempotent", "billing_started", "paid", "pago", "active", "ativo", "new", "novo"].includes(normalized)) {
+        return "success";
+      }
+      if (["waiting_payment_links", "waiting_finance_connection", "completed_with_warnings", "warning", "pending", "pendente", "sent", "enviado"].includes(normalized)) {
+        return "warning";
+      }
+      if (["failed", "error", "overdue", "vencido", "inadimplente"].includes(normalized)) {
+        return "danger";
+      }
+      if (["processing", "running"].includes(normalized)) {
+        return "info";
+      }
+      return fallback;
     }
 
     function buildQueryString(params) {
@@ -426,31 +826,61 @@
 
     function mapContractItem(item) {
       if (!item || typeof item !== "object") return null;
-      if (item.primary) return item;
+      const identifier = extractContractIdentifier(item) || firstText(item, ["primary"], 120) || "Contrato";
+      const clientName = extractClientName(item) || firstText(item, ["primary"], 160) || identifier;
+      const clientDocument = extractClientDocument(item) || firstText(item, ["clientDocument"], 60);
+      const status = extractStatus(item) || firstText(item, ["secondary"], 80);
+      const product = firstText(item, ["product_description", "productDescription", "secondary"], 180);
+      const paymentMethod = firstText(item, ["payment_method", "paymentMethod"], 80);
+      const startDate = firstText(item, ["first_charge_date", "firstChargeDate", "firstDueDate", "contract_start_date"], 40) || firstText(item, ["tertiary"], 120);
+      const totalValue = formatCurrency(firstValue(item, ["total_value", "totalValue", "monthly_value", "monthlyValue"]));
       return {
-        primary: item.contract_number || item.contractNumber || item.id || "Contrato",
-        secondary: [item.client_name || item.clientName, item.status].filter(Boolean).join(" · "),
-        tertiary: [item.first_charge_date || item.firstDueDate || item.contract_start_date, item.payment_method].filter(Boolean).join(" · "),
+        eyebrow: identifier,
+        primary: clientName,
+        secondary: [clientDocument, status].filter(Boolean).join(" · "),
+        tertiary: [formatShortDate(startDate), paymentMethod, totalValue].filter(Boolean).join(" · "),
+        meta: product && product !== clientName ? product : "",
+        statusLabel: status,
+        statusClass: buildStatusClass(status),
       };
     }
 
     function mapCardItem(item) {
       if (!item || typeof item !== "object") return null;
-      if (item.primary) return item;
+      const identifier = extractCardIdentifier(item) || firstText(item, ["primary"], 120) || "Card";
+      const clientName = extractClientName(item) || firstText(item, ["primary"], 160) || identifier;
+      const clientDocument = extractClientDocument(item) || firstText(item, ["clientDocument"], 60);
+      const status = extractStatus(item) || firstText(item, ["secondary"], 80);
+      const dueDate = firstText(item, ["due_date", "dueDate", "date"], 40) || firstText(item, ["tertiary"], 120);
+      const paymentMethod = firstText(item, ["payment_method", "paymentMethod"], 80);
+      const amount = formatCurrency(firstValue(item, ["target_amount", "targetAmount", "amount", "value", "total_value"]));
+      const overdue = isTruthy(firstValue(item, ["overdue", "is_delinquent", "isDelinquent"])) || /vencid/i.test(status);
       return {
-        primary: item.card_id || item.cardId || item.id || "Card",
-        secondary: [item.client_name || item.clientName, item.status].filter(Boolean).join(" · "),
-        tertiary: [item.due_date || item.dueDate || item.date, item.payment_method].filter(Boolean).join(" · "),
+        eyebrow: identifier,
+        primary: clientName,
+        secondary: [clientDocument, status].filter(Boolean).join(" · "),
+        tertiary: [formatShortDate(dueDate), paymentMethod, amount].filter(Boolean).join(" · "),
+        statusLabel: overdue ? "vencido" : status,
+        statusClass: overdue ? "danger" : buildStatusClass(status, "warning"),
+        variantClass: overdue ? "kc-card--danger" : "",
       };
     }
 
     function mapPaymentItem(item) {
       if (!item || typeof item !== "object") return null;
-      if (item.primary) return item;
+      const primary = extractClientName(item) || firstText(item, ["wallet_item_id", "walletItemId", "reference", "id", "primary"], 160) || "Pagamento";
+      const document = extractClientDocument(item);
+      const paymentMethod = firstText(item, ["payment_method", "paymentMethod"], 80);
+      const paymentDate = firstText(item, ["payment_date", "paymentDate"], 40);
+      const amount = formatCurrency(firstValue(item, ["amount", "value", "paid_amount", "paidAmount"]));
       return {
-        primary: item.wallet_item_id || item.walletItemId || item.reference || item.id || "Pagamento",
-        secondary: [item.payment_method, item.payment_date || item.paymentDate].filter(Boolean).join(" · "),
-        tertiary: item.notes || "",
+        eyebrow: firstText(item, ["wallet_item_id", "walletItemId", "reference", "id"], 120) || "Pagamento",
+        primary,
+        secondary: [document, paymentMethod].filter(Boolean).join(" · "),
+        tertiary: [formatShortDate(paymentDate), amount].filter(Boolean).join(" · "),
+        meta: firstText(item, ["notes", "tertiary"], 200),
+        statusLabel: firstText(item, ["status"], 80),
+        statusClass: buildStatusClass(firstText(item, ["status"], 80), "info"),
       };
     }
 
@@ -459,20 +889,24 @@
       const safeItems = (items || []).filter(Boolean);
       node.innerHTML = safeItems.length
         ? safeItems.map((item) => `
-            <div class="item">
-              <div class="item-title">${escapeHtml(item.primary || "Registro")}</div>
-              ${item.secondary ? `<div class="item-meta">${escapeHtml(item.secondary)}</div>` : ""}
-              ${item.tertiary ? `<div class="item-meta">${escapeHtml(item.tertiary)}</div>` : ""}
+            <div class="kc-card ${escapeHtml(item.variantClass || "")}">
+              <div class="kc-card-head">
+                <div>
+                  ${item.eyebrow ? `<div class="kc-card-id">${escapeHtml(item.eyebrow)}</div>` : ""}
+                  <div class="kc-card-title">${escapeHtml(item.primary || "Registro")}</div>
+                </div>
+                ${item.statusLabel ? `<span class="status-chip ${escapeHtml(item.statusClass || "")}">${escapeHtml(item.statusLabel)}</span>` : ""}
+              </div>
+              ${item.secondary ? `<div class="kc-card-sub">${escapeHtml(item.secondary)}</div>` : ""}
+              ${item.meta ? `<div class="kc-card-sub">${escapeHtml(item.meta)}</div>` : ""}
+              ${item.tertiary ? `<div class="kc-card-row"><span class="kc-method">${escapeHtml(item.tertiary)}</span></div>` : ""}
             </div>
           `).join("")
         : `<div class="empty"><div class="empty-title">${escapeHtml(emptyTitle)}</div><div class="empty-meta">${escapeHtml(emptyMeta)}</div></div>`;
     }
 
     function statusChipClass(status) {
-      if (["completed", "success", "idempotent", "billing_started"].includes(status)) return "success";
-      if (["waiting_payment_links", "waiting_finance_connection", "completed_with_warnings", "warning"].includes(status)) return "warning";
-      if (["failed", "error"].includes(status)) return "danger";
-      return "";
+      return buildStatusClass(status);
     }
 
     function formatStatusLabel(status) {
@@ -520,6 +954,7 @@
     function renderRunList() {
       const run = selectedRun();
       el("history-count").textContent = `${formatInteger(state.runs.length)} execucoes`;
+      el("footer-runs").textContent = `${formatInteger(state.runs.length)} execucoes`;
       el("run-list").innerHTML = state.runs.length
         ? state.runs.map((entry) => `
             <button class="run-item${run?.id === entry.id ? " active" : ""}" data-run-id="${escapeHtml(entry.id)}" type="button">
@@ -539,45 +974,109 @@
       });
     }
 
+    function formatDiagnosticsMeta(resource, fallbackLabel) {
+      if (!resource) return fallbackLabel || "";
+      const parts = [];
+      if (resource.httpStatus) parts.push(`HTTP ${resource.httpStatus}`);
+      if (resource.itemCount != null) parts.push(`${formatInteger(resource.itemCount)} item(ns)`);
+      if (resource.durationMs != null) parts.push(`${formatInteger(resource.durationMs)}ms`);
+      return parts.join(" · ") || fallbackLabel || "";
+    }
+
+    function financeCardLookup(run) {
+      const lookup = new Map();
+      financeItemsForRun(run, "billingCards").forEach((item) => {
+        const identifier = extractCardIdentifier(item);
+        if (identifier && !lookup.has(identifier)) lookup.set(identifier, item);
+      });
+      return lookup;
+    }
+
+    function financeContractLookup(run) {
+      const lookup = new Map();
+      financeItemsForRun(run, "contracts").forEach((item) => {
+        const externalId = firstText(item, ["externalId", "id"], 120);
+        const contractNumber = extractContractIdentifier(item);
+        if (externalId && !lookup.has(externalId)) lookup.set(externalId, item);
+        if (contractNumber && !lookup.has(contractNumber)) lookup.set(contractNumber, item);
+      });
+      return lookup;
+    }
+
+    function buildIdentityCell(name, document, fallback = "—") {
+      return `
+        <div class="table-cell-identity">
+          <strong>${escapeHtml(name || fallback)}</strong>
+          ${document ? `<span>${escapeHtml(document)}</span>` : ""}
+        </div>
+      `;
+    }
+
     function renderSummary() {
       const run = selectedRun();
       const billingStep = findStep(run, "billing_cards_to_cobranca");
-      const results = Array.isArray(billingStep?.details?.results) ? billingStep.details.results : [];
       const errors = Array.isArray(billingStep?.details?.errors) ? billingStep.details.errors : [];
+      const statusBar = el("analysis-statusbar");
+      const runStatus = String(run?.status || "").toLowerCase();
+      const statusClass = !run
+        ? "status--loading"
+        : ["failed", "error"].includes(runStatus)
+          ? "status--error"
+          : ["running"].includes(runStatus)
+            ? "status--loading"
+            : "status--done";
 
+      statusBar.className = `kc-statusbar ${statusClass}`;
+      el("status-text").textContent = run ? formatStatusLabel(run.status) : "Sem execucao";
+      el("status-business-date").textContent = run?.businessDate || "sem data";
+      el("status-last-update").textContent = run ? `ultima atualizacao ${formatDateTime(run.updatedAt || run.createdAt)}` : "aguardando historico";
+      el("status-last-error").textContent = run?.lastError || "";
       el("metric-cards").textContent = formatInteger(run?.summary?.billingCardsPulled || 0);
+      el("metric-contracts").textContent = formatInteger(run?.summary?.contractsPulled || 0);
       el("metric-created").textContent = formatInteger(billingStep?.details?.created || run?.summary?.invoicesCreated || 0);
       el("metric-ignored").textContent = formatInteger(billingStep?.details?.ignored || 0);
       el("metric-errors").textContent = formatInteger(errors.length || billingStep?.details?.failed || run?.summary?.invoiceSyncFailures || 0);
-
-      const chip = el("run-status-chip");
-      const status = run?.status || "idle";
-      chip.className = `status-chip ${statusChipClass(status)}`.trim();
-      chip.textContent = run ? `${formatStatusLabel(status)} · ${run.businessDate}` : "Sem execucao";
 
       el("analysis-alert").textContent = run
         ? `${run.title || "Ciclo diario de contas a receber"} atualizado em ${formatDateTime(run.updatedAt || run.createdAt)}.${run.lastError ? ` ${run.lastError}` : ""}`
         : "Nenhuma execucao encontrada.";
 
-      el("run-summary").innerHTML = run
-        ? `
-            <div class="item">
-              <div class="item-title">Status geral</div>
-              <div class="item-meta">${escapeHtml(formatStatusLabel(run.status))} · ${escapeHtml(run.phase || "—")}</div>
-              <div class="item-meta">Inicio: ${escapeHtml(formatDateTime(run.startedAt))} · Fim: ${escapeHtml(formatDateTime(run.finishedAt))}</div>
-            </div>
-            <div class="item">
-              <div class="item-title">Volumes do ciclo</div>
-              <div class="item-meta">Contratos lidos: ${escapeHtml(formatInteger(run.summary?.contractsPulled || 0))} · Cards lidos: ${escapeHtml(formatInteger(run.summary?.billingCardsPulled || 0))}</div>
-              <div class="item-meta">Cobrancas criadas: ${escapeHtml(formatInteger(run.summary?.invoicesCreated || 0))} · Atualizadas: ${escapeHtml(formatInteger(run.summary?.invoicesUpdated || 0))} · Enfileiradas: ${escapeHtml(formatInteger(run.summary?.invoicesQueuedToSend || 0))}</div>
-            </div>
-            <div class="item">
-              <div class="item-title">Qualidade da execucao</div>
-              <div class="item-meta">Falhas em contratos: ${escapeHtml(formatInteger(run.summary?.contractSyncFailures || 0))} · Falhas no bot: ${escapeHtml(formatInteger(run.summary?.invoiceSyncFailures || 0))} · Sem link: ${escapeHtml(formatInteger(run.summary?.missingPaymentLinks || 0))}</div>
-              <div class="item-meta">Pagamentos sincronizados: ${escapeHtml(formatInteger(run.summary?.paymentsSynced || 0))}</div>
-            </div>
-          `
-        : `<div class="empty"><div class="empty-title">Sem resumo</div><div class="empty-meta">Selecione uma execucao para ver o detalhamento.</div></div>`;
+      renderItemList(
+        "run-summary",
+        run ? [
+          {
+            eyebrow: "Status geral",
+            primary: formatStatusLabel(run.status),
+            secondary: [run.phase || "—", run.businessDate || ""].filter(Boolean).join(" · "),
+            tertiary: `Inicio ${formatDateTime(run.startedAt)} · Fim ${formatDateTime(run.finishedAt)}`,
+            statusLabel: formatStatusLabel(run.status),
+            statusClass: statusChipClass(run.status),
+          },
+          {
+            eyebrow: "Volumes",
+            primary: `${formatInteger(run.summary?.contractsPulled || 0)} contratos · ${formatInteger(run.summary?.billingCardsPulled || 0)} cards`,
+            secondary: `${formatInteger(run.summary?.invoicesCreated || 0)} criadas · ${formatInteger(run.summary?.invoicesUpdated || 0)} atualizadas`,
+            tertiary: `${formatInteger(run.summary?.invoicesQueuedToSend || 0)} enfileiradas`,
+          },
+          {
+            eyebrow: "Qualidade",
+            primary: `${formatInteger(run.summary?.contractSyncFailures || 0)} falhas em contratos`,
+            secondary: `${formatInteger(run.summary?.invoiceSyncFailures || 0)} falhas no bot · ${formatInteger(run.summary?.missingPaymentLinks || 0)} sem link`,
+            tertiary: `${formatInteger(run.summary?.paymentsSynced || 0)} pagamentos sincronizados`,
+          },
+        ] : [],
+        "Sem resumo",
+        "Selecione uma execucao para ver o detalhamento."
+      );
+
+      const diagnosticsReady = Array.isArray(state.diagnostics?.resources) && state.diagnostics.resources.length > 0;
+      const diagnosticsOk = diagnosticsReady && state.diagnostics.resources.every((resource) => resource.ok);
+      el("footer-status").textContent = !diagnosticsReady ? "Finance diagnostico aguardando" : diagnosticsOk ? "Finance diagnostico ok" : "Finance com pendencias";
+      el("footer-business-date").textContent = `businessDate ${run?.businessDate || "—"}`;
+      el("footer-note").textContent = billingStep?.details?.batches?.length
+        ? `${formatInteger(billingStep.details.batches.length)} lote(s) enviados ao bot na sincronizacao`
+        : "cliente e documento priorizados na leitura do Finance";
+      el("footer-conn-dot").className = `kc-conn-dot${!diagnosticsReady || diagnosticsOk ? "" : " dot--red"}`;
     }
 
     function renderIssues() {
@@ -589,14 +1088,19 @@
           issues.push({ title: step.title || step.key, meta: step.summary || "Sem resumo" });
         }
       });
-      el("issue-list").innerHTML = issues.length
-        ? issues.map((issue) => `
-            <div class="item">
-              <div class="item-title">${escapeHtml(issue.title)}</div>
-              <div class="item-meta">${escapeHtml(issue.meta)}</div>
-            </div>
-          `).join("")
-        : `<div class="empty"><div class="empty-title">Sem alertas criticos</div><div class="empty-meta">Esta execucao nao registrou warnings ou erros relevantes nas etapas.</div></div>`;
+      el("issues-count").textContent = formatInteger(issues.length);
+      renderItemList(
+        "issue-list",
+        issues.map((issue) => ({
+          eyebrow: "Alerta",
+          primary: issue.title,
+          secondary: issue.meta,
+          statusLabel: "Atencao",
+          statusClass: "warning",
+        })),
+        "Sem alertas criticos",
+        "Esta execucao nao registrou warnings ou erros relevantes nas etapas."
+      );
     }
 
     function financeItemsForRun(run, key) {
@@ -608,7 +1112,11 @@
 
     function renderContracts() {
       const run = selectedRun();
-      const items = financeItemsForRun(run, "contracts").map(mapContractItem).filter(Boolean);
+      const resource = diagnosticsResource("contracts");
+      const financeContracts = financeItemsForRun(run, "contracts");
+      const items = financeContracts.map(mapContractItem).filter(Boolean);
+      el("contracts-count").textContent = formatInteger(items.length);
+      el("contracts-api-meta").textContent = formatDiagnosticsMeta(resource, "list-new-contracts");
       renderItemList(
         "contracts-finance-list",
         items,
@@ -619,9 +1127,15 @@
       const step = findStep(run, "contracts_to_conta_azul");
       const results = Array.isArray(step?.details?.results) ? step.details.results : [];
       const errors = Array.isArray(step?.details?.errors) ? step.details.errors : [];
+      const contractLookup = financeContractLookup(run);
       const rows = results.map((entry) => `
         <tr>
           <td><span class="status-chip ${statusChipClass(entry.status)}">${escapeHtml(formatStatusLabel(entry.status))}</span></td>
+          <td>${buildIdentityCell(
+            extractClientName(contractLookup.get(entry.externalId) || contractLookup.get(entry.contractNumber) || {}),
+            extractClientDocument(contractLookup.get(entry.externalId) || contractLookup.get(entry.contractNumber) || {}),
+            "Cliente nao identificado"
+          )}</td>
           <td>${escapeHtml(entry.externalId || "—")}</td>
           <td>${escapeHtml(entry.contractNumber || "—")}</td>
           <td>${escapeHtml(entry.contaAzulContractId || "—")}</td>
@@ -631,6 +1145,11 @@
       const errorRows = errors.map((entry) => `
         <tr>
           <td><span class="status-chip danger">Falha</span></td>
+          <td>${buildIdentityCell(
+            extractClientName(contractLookup.get(entry.externalId) || {}),
+            extractClientDocument(contractLookup.get(entry.externalId) || {}),
+            "Cliente nao identificado"
+          )}</td>
           <td>${escapeHtml(entry.externalId || "—")}</td>
           <td>—</td>
           <td>—</td>
@@ -640,7 +1159,7 @@
 
       el("contracts-export-table").innerHTML = rows || errorRows
         ? `<table>
-            <thead><tr><th>Status</th><th>External ID</th><th>Contrato</th><th>Conta Azul</th><th>Erro</th></tr></thead>
+            <thead><tr><th>Status</th><th>Cliente</th><th>External ID</th><th>Contrato</th><th>Conta Azul</th><th>Erro</th></tr></thead>
             <tbody>${rows}${errorRows}</tbody>
           </table>`
         : `<div class="empty"><div class="empty-title">Sem detalhamento salvo</div><div class="empty-meta">Esta execucao ainda nao gravou resultados por contrato. Rode o ciclo novamente com esta versao.</div></div>`;
@@ -648,7 +1167,12 @@
 
     function renderCardsAndBot() {
       const run = selectedRun();
-      const financeCards = financeItemsForRun(run, "billingCards").map(mapCardItem).filter(Boolean);
+      const resource = diagnosticsResource("billingCards");
+      const financeCardItems = financeItemsForRun(run, "billingCards");
+      const financeCards = financeCardItems.map(mapCardItem).filter(Boolean);
+      const financeLookup = financeCardLookup(run);
+      el("cards-count").textContent = formatInteger(financeCards.length);
+      el("cards-api-meta").textContent = formatDiagnosticsMeta(resource, "list-billing-cards");
       renderItemList(
         "cards-finance-list",
         financeCards,
@@ -661,12 +1185,32 @@
       const results = Array.isArray(details.results) ? details.results : [];
       const errors = Array.isArray(details.errors) ? details.errors : [];
       const reasonTags = groupedIgnoredReasons(results);
+      el("bot-count").textContent = formatInteger(results.length + errors.length);
 
       el("bot-reason-tags").innerHTML = reasonTags.length
         ? reasonTags.map((entry) => `<span class="tag warning">${escapeHtml(entry.label)} · ${escapeHtml(formatInteger(entry.count))}</span>`).join("")
         : `<span class="tag success">Sem motivos de ignorado registrados</span>`;
 
+      renderItemList(
+        "bot-results-mini-list",
+        results.slice(0, 18).map((entry) => {
+          const financeItem = financeLookup.get(String(entry.cardId || "").trim()) || {};
+          const actionLabel = entry.created ? "Criada" : entry.updated ? "Atualizada" : entry.ignored ? "Ignorada" : "Processada";
+          return {
+            eyebrow: entry.cardId || "Card",
+            primary: extractClientName(financeItem) || `Card ${entry.cardId || "sem id"}`,
+            secondary: [extractClientDocument(financeItem), actionLabel].filter(Boolean).join(" · "),
+            tertiary: entry.reason ? translateIgnoreReason(entry.reason) : (entry.invoiceId ? `Invoice ${entry.invoiceId}` : ""),
+            statusLabel: actionLabel,
+            statusClass: entry.created || entry.updated ? "success" : entry.ignored ? "warning" : "info",
+          };
+        }),
+        "Sem retorno do bot",
+        "Ainda nao houve resposta detalhada do endpoint interno de cobranca."
+      );
+
       const rows = results.map((entry) => {
+        const financeItem = financeLookup.get(String(entry.cardId || "").trim()) || {};
         const status = entry.created ? "success" : entry.updated ? "success" : entry.ignored ? "warning" : "success";
         const label = entry.created ? "Criada" : entry.updated ? "Atualizada" : entry.ignored ? "Ignorada" : "Processada";
         return `
@@ -674,7 +1218,7 @@
             <td><span class="status-chip ${status}">${label}</span></td>
             <td>${escapeHtml(entry.cardId || "—")}</td>
             <td>${escapeHtml(entry.invoiceId || "—")}</td>
-            <td>${escapeHtml(entry.clientId || "—")}</td>
+            <td>${buildIdentityCell(extractClientName(financeItem), extractClientDocument(financeItem), entry.clientId || "Cliente nao identificado")}</td>
             <td>${escapeHtml(entry.reason ? translateIgnoreReason(entry.reason) : "—")}</td>
           </tr>
         `;
@@ -700,9 +1244,12 @@
     function renderLinks() {
       const run = selectedRun();
       const items = (run?.missingPaymentLinks || []).map((entry) => ({
+        eyebrow: entry.cardId || entry.invoiceId || "Cobranca",
         primary: entry.clientName || entry.cardId || entry.invoiceId || "Cobranca",
-        secondary: [entry.cardId, formatShortDate(entry.dueDate), entry.status].filter(Boolean).join(" · "),
-        tertiary: entry.invoiceId ? `Invoice: ${entry.invoiceId}` : "",
+        secondary: [formatDocument(entry.clientDocument), entry.status].filter(Boolean).join(" · "),
+        tertiary: [formatShortDate(entry.dueDate), entry.invoiceId ? `Invoice ${entry.invoiceId}` : ""].filter(Boolean).join(" · "),
+        statusLabel: entry.status || "sem link",
+        statusClass: "warning",
       }));
       renderItemList("missing-links-list", items, "Nenhuma pendencia de link", "Todas as cobrancas elegiveis tinham link de pagamento nesta execucao.");
     }

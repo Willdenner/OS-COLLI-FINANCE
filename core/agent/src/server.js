@@ -1244,30 +1244,115 @@ function summarizeFinancePreviewItem(resource, item = {}) {
   if (!item || typeof item !== "object") return null;
 
   if (resource.key === "contracts") {
+    const contractNumber = readFirstText(item, ["contract_number", "contractNumber", "id"], 120);
+    const status = readFirstText(item, ["status"], 80);
+    const firstChargeDate = readFirstText(item, ["first_charge_date", "firstDueDate", "contract_start_date"], 40);
+    const paymentMethod = readFirstText(item, ["payment_method"], 60);
+    const clientName = readFirstText(item, [
+      "client_name",
+      "clientName",
+      "billing_clients.nome",
+      "billing_clients.name",
+      "billing_clients.razao_social",
+      "billing_client.nome",
+      "billing_client.name",
+      "billing_client.razao_social",
+      "client.nome",
+      "client.name",
+      "client.razao_social",
+      "company_name",
+      "companyName",
+      "seller_name",
+      "product_description",
+    ], 120);
+    const clientDocument = readFirstText(item, [
+      "cnpj",
+      "cpf_cnpj",
+      "documento",
+      "document",
+      "billing_clients.cnpj_cpf",
+      "billing_clients.cnpj",
+      "billing_clients.documento",
+      "billing_client.cnpj_cpf",
+      "billing_client.cnpj",
+      "billing_client.documento",
+      "client.cnpj_cpf",
+      "client.cnpj",
+      "client.documento",
+    ], 60);
     return {
-      primary: readFirstText(item, ["contract_number", "contractNumber", "id"], 120) || "Contrato sem identificador",
+      primary: contractNumber || "Contrato sem identificador",
       secondary: [
-        readFirstText(item, ["client_name", "clientName", "seller_name", "product_description"], 120),
-        readFirstText(item, ["status"], 80),
+        clientName,
+        status,
       ].filter(Boolean).join(" · "),
       tertiary: [
-        readFirstText(item, ["first_charge_date", "firstDueDate", "contract_start_date"], 40),
-        readFirstText(item, ["payment_method"], 60),
+        clientDocument,
+        firstChargeDate,
+        paymentMethod,
       ].filter(Boolean).join(" · "),
+      contractNumber,
+      status,
+      firstChargeDate,
+      paymentMethod,
+      clientName,
+      clientDocument,
     };
   }
 
   if (resource.key === "billingCards") {
+    const cardId = readFirstText(item, ["card_id", "cardId", "id", "contract_number"], 120);
+    const status = readFirstText(item, ["status"], 80);
+    const dueDate = readFirstText(item, ["due_date", "dueDate", "date"], 40);
+    const paymentMethod = readFirstText(item, ["payment_method"], 60);
+    const clientName = readFirstText(item, [
+      "client_name",
+      "clientName",
+      "billing_clients.nome",
+      "billing_clients.name",
+      "billing_clients.razao_social",
+      "billing_client.nome",
+      "billing_client.name",
+      "billing_client.razao_social",
+      "client.nome",
+      "client.name",
+      "client.razao_social",
+      "company_name",
+      "companyName",
+      "seller_name",
+    ], 120);
+    const clientDocument = readFirstText(item, [
+      "cnpj",
+      "cpf_cnpj",
+      "documento",
+      "document",
+      "billing_clients.cnpj_cpf",
+      "billing_clients.cnpj",
+      "billing_clients.documento",
+      "billing_client.cnpj_cpf",
+      "billing_client.cnpj",
+      "billing_client.documento",
+      "client.cnpj_cpf",
+      "client.cnpj",
+      "client.documento",
+    ], 60);
     return {
-      primary: readFirstText(item, ["card_id", "cardId", "id", "contract_number"], 120) || "Card sem identificador",
+      primary: cardId || "Card sem identificador",
       secondary: [
-        readFirstText(item, ["client_name", "clientName", "seller_name"], 120),
-        readFirstText(item, ["status"], 80),
+        clientName,
+        status,
       ].filter(Boolean).join(" · "),
       tertiary: [
-        readFirstText(item, ["due_date", "dueDate", "date"], 40),
-        readFirstText(item, ["payment_method"], 60),
+        clientDocument,
+        dueDate,
+        paymentMethod,
       ].filter(Boolean).join(" · "),
+      cardId,
+      status,
+      dueDate,
+      paymentMethod,
+      clientName,
+      clientDocument,
     };
   }
 
