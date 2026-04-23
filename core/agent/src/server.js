@@ -253,12 +253,16 @@ function buildContaAzulResponsePreview(rawText) {
   return safeText.length <= 1200 ? safeText : `${safeText.slice(0, 1197)}...`;
 }
 
-function readFirstEnvValue(keys) {
+function readFirstEnvEntry(keys) {
   for (const key of keys) {
     const value = String(process.env[key] || "").trim();
-    if (value) return value;
+    if (value) return { key, value };
   }
-  return "";
+  return { key: keys?.[0] || "", value: "" };
+}
+
+function readFirstEnvValue(keys) {
+  return readFirstEnvEntry(keys).value;
 }
 
 function resolveModuleUrl(envKeys) {
@@ -1150,6 +1154,36 @@ function readFinanceBearerToken() {
   return readFirstEnvValue(["COLLI_FINANCE_API_TOKEN", "FINANCE_API_TOKEN", "LOVABLE_API_TOKEN"]);
 }
 
+const FINANCE_RESOURCES = {
+  contracts: {
+    key: "contracts",
+    title: "Contratos",
+    resourceLabel: "contratos novos",
+    envKeys: ["COLLI_FINANCE_CONTRACTS_URL", "FINANCE_CONTRACTS_URL"],
+    bodyKeys: ["contracts", "newContracts", "data.contracts"],
+    responseKeys: ["contracts", "newContracts", "data.contracts", "data", "items", "records"],
+    queryForDate: (businessDate) => ({ businessDate, date: businessDate, status: "new" }),
+  },
+  billingCards: {
+    key: "billingCards",
+    title: "Cards de cobrança",
+    resourceLabel: "cards de cobrança vencidos ou do dia",
+    envKeys: ["COLLI_FINANCE_BILLING_CARDS_URL", "FINANCE_BILLING_CARDS_URL", "FINANCE_WALLET_ITEMS_URL"],
+    bodyKeys: ["billingCards", "cards", "walletItems", "data.cards"],
+    responseKeys: ["billingCards", "cards", "walletItems", "data.billingCards", "data.cards", "data", "items", "records"],
+    queryForDate: (businessDate) => ({ businessDate, dueTo: businessDate, overdue: "true", status: "pending" }),
+  },
+  payments: {
+    key: "payments",
+    title: "Pagamentos",
+    resourceLabel: "pagamentos confirmados",
+    envKeys: ["COLLI_FINANCE_PAYMENTS_URL", "FINANCE_PAYMENTS_URL", "FINANCE_RECEIPTS_URL"],
+    bodyKeys: ["payments", "receipts", "paidCards", "data.payments"],
+    responseKeys: ["payments", "receipts", "paidCards", "data.payments", "data.receipts", "data", "items", "records"],
+    queryForDate: (businessDate) => ({ businessDate, paymentDate: businessDate, status: "paid" }),
+  },
+};
+
 function buildFinanceUrl(rawUrl, params = {}) {
   const url = new URL(rawUrl);
   Object.entries(params).forEach(([key, value]) => {
@@ -1157,6 +1191,37 @@ function buildFinanceUrl(rawUrl, params = {}) {
     url.searchParams.set(key, String(value));
   });
   return url;
+}
+
+function sanitizeFinanceUrl(rawUrl) {
+  try {
+    const url = new URL(rawUrl);
+    url.username = "";
+    url.password = "";
+    url.search = "";
+    url.hash = "";
+    return `${url.origin}${url.pathname}`;
+  } catch {
+    return "";
+  }
+}
+
+function describeFinanceJsonShape(json, responseKeys = []) {
+  const items = extractFinanceResponseItems(json, responseKeys);
+  const matchedKey = responseKeys.find((key) => Array.isArray(readNestedValue(json, key))) || (Array.isArray(json) ? "root" : null);
+  const firstItem = items.find((item) => item && typeof item === "object" && !Array.isArray(item)) || null;
+  return {
+    rootType: Array.isArray(json) ? "array" : typeof json,
+    rootKeys: json && typeof json === "object" && !Array.isArray(json) ? Object.keys(json).slice(0, 16) : [],
+    matchedKey,
+    itemCount: items.length,
+    firstItemKeys: firstItem ? Object.keys(firstItem).slice(0, 24) : [],
+  };
+}
+
+function readFinanceErrorMessage(json) {
+  if (!json || typeof json !== "object") return "";
+  return String(json.error || json.message || json.detail || json.details || "").trim().slice(0, 300);
 }
 
 async function fetchFinanceCollection({ body, bodyKeys, envKeys, responseKeys, query = {}, resourceLabel }) {
@@ -1170,17 +1235,19 @@ async function fetchFinanceCollection({ body, bodyKeys, envKeys, responseKeys, q
     };
   }
 
-  const rawUrl = readFirstEnvValue(envKeys);
-  if (!rawUrl) {
+  const envEntry = readFirstEnvEntry(envKeys);
+  if (!envEntry.value) {
     return {
       configured: false,
+      configuredEnvKey: null,
+      expectedEnvKey: envKeys[0],
       source: "not_configured",
       items: [],
       message: `Configure ${envKeys[0]} para o FP&A puxar ${resourceLabel} automaticamente do Colli Finance.`,
     };
   }
 
-  const url = buildFinanceUrl(rawUrl, query);
+  const url = buildFinanceUrl(envEntry.value, query);
   const headers = { accept: "application/json" };
   const token = readFinanceBearerToken();
   if (token) headers.authorization = `Bearer ${token}`;
@@ -1194,9 +1261,117 @@ async function fetchFinanceCollection({ body, bodyKeys, envKeys, responseKeys, q
   const items = extractFinanceResponseItems(json, responseKeys);
   return {
     configured: true,
-    source: rawUrl,
+    configuredEnvKey: envEntry.key,
+    expectedEnvKey: envKeys[0],
+    source: sanitizeFinanceUrl(envEntry.value) || envEntry.key,
     items,
     message: `${items.length} registro(s) puxado(s) do Colli Finance para ${resourceLabel}.`,
+  };
+}
+
+async function diagnoseFinanceResource(resource, businessDate) {
+  const envEntry = readFirstEnvEntry(resource.envKeys);
+  const expectedEnvKey = resource.envKeys[0];
+  const query = resource.queryForDate(businessDate);
+  const base = {
+    key: resource.key,
+    title: resource.title,
+    resourceLabel: resource.resourceLabel,
+    expectedEnvKey,
+    configuredEnvKey: envEntry.value ? envEntry.key : null,
+    configured: Boolean(envEntry.value),
+    sanitizedUrl: envEntry.value ? sanitizeFinanceUrl(envEntry.value) : "",
+    query,
+  };
+
+  if (!envEntry.value) {
+    return {
+      ...base,
+      ok: false,
+      status: "missing_config",
+      message: `Configure ${expectedEnvKey} no serviço principal do Render para ler ${resource.resourceLabel}.`,
+    };
+  }
+
+  let url;
+  try {
+    url = buildFinanceUrl(envEntry.value, query);
+  } catch (error) {
+    return {
+      ...base,
+      ok: false,
+      status: "invalid_url",
+      message: `A variável ${envEntry.key} não contém uma URL válida: ${error.message}`,
+    };
+  }
+
+  const headers = { accept: "application/json" };
+  const token = readFinanceBearerToken();
+  if (token) headers.authorization = `Bearer ${token}`;
+
+  const startedAt = Date.now();
+  try {
+    const response = await fetch(url, { headers });
+    const text = await response.text();
+    let json = null;
+    try {
+      json = text ? JSON.parse(text) : {};
+    } catch {
+      json = null;
+    }
+
+    const durationMs = Date.now() - startedAt;
+    if (!response.ok) {
+      return {
+        ...base,
+        ok: false,
+        status: "http_error",
+        httpStatus: response.status,
+        durationMs,
+        message: `O Colli Finance respondeu HTTP ${response.status}${readFinanceErrorMessage(json) ? `: ${readFinanceErrorMessage(json)}` : "."}`,
+      };
+    }
+
+    if (!json || typeof json !== "object") {
+      return {
+        ...base,
+        ok: false,
+        status: "invalid_json",
+        httpStatus: response.status,
+        durationMs,
+        message: "O endpoint respondeu, mas não retornou JSON válido.",
+      };
+    }
+
+    const shape = describeFinanceJsonShape(json, resource.responseKeys);
+    return {
+      ...base,
+      ok: true,
+      status: "success",
+      httpStatus: response.status,
+      durationMs,
+      itemCount: shape.itemCount,
+      detectedKey: shape.matchedKey,
+      shape,
+      message: `${shape.itemCount} registro(s) encontrado(s) em ${resource.resourceLabel}.`,
+    };
+  } catch (error) {
+    return {
+      ...base,
+      ok: false,
+      status: "request_error",
+      message: `Não foi possível chamar o endpoint do Finance: ${error.message}`,
+    };
+  }
+}
+
+async function buildFinanceDiagnostics(businessDate = getBusinessDate()) {
+  const resources = await Promise.all(Object.values(FINANCE_RESOURCES).map((resource) => diagnoseFinanceResource(resource, businessDate)));
+  return {
+    businessDate,
+    hasFinanceToken: Boolean(readFinanceBearerToken()),
+    checkedAt: nowIso(),
+    resources,
   };
 }
 
@@ -1483,39 +1658,85 @@ async function runReceivablesOrchestrator({ businessDate, body = {}, startSendin
       summary: `Ciclo iniciado para ${run.businessDate}.`,
     });
 
+    const missingFinanceResources = [];
+    const contractsResource = FINANCE_RESOURCES.contracts;
     const contractsPull = await fetchFinanceCollection({
       body,
-      bodyKeys: ["contracts", "newContracts", "data.contracts"],
-      envKeys: ["COLLI_FINANCE_CONTRACTS_URL", "FINANCE_CONTRACTS_URL"],
-      responseKeys: ["contracts", "newContracts", "data.contracts", "data", "items", "records"],
-      query: { businessDate: run.businessDate, date: run.businessDate, status: "new" },
-      resourceLabel: "contratos novos",
+      bodyKeys: contractsResource.bodyKeys,
+      envKeys: contractsResource.envKeys,
+      responseKeys: contractsResource.responseKeys,
+      query: contractsResource.queryForDate(run.businessDate),
+      resourceLabel: contractsResource.resourceLabel,
     });
     run = await appendReceivablesStep(run, {
       key: "pull_contracts",
       title: "Buscar contratos no Finance",
       status: contractsPull.configured ? "success" : "warning",
       summary: contractsPull.message,
-      details: { source: contractsPull.source, count: contractsPull.items.length },
+      details: { source: contractsPull.source, count: contractsPull.items.length, envKey: contractsPull.configuredEnvKey || contractsPull.expectedEnvKey },
     });
-    run = await syncContractsForReceivablesRun(run, contractsPull.items);
+    if (contractsPull.configured) {
+      run = await syncContractsForReceivablesRun(run, contractsPull.items);
+    } else {
+      missingFinanceResources.push({
+        key: contractsResource.key,
+        title: contractsResource.title,
+        expectedEnvKey: contractsPull.expectedEnvKey,
+        message: contractsPull.message,
+      });
+    }
 
+    const cardsResource = FINANCE_RESOURCES.billingCards;
     const cardsPull = await fetchFinanceCollection({
       body,
-      bodyKeys: ["billingCards", "cards", "walletItems", "data.cards"],
-      envKeys: ["COLLI_FINANCE_BILLING_CARDS_URL", "FINANCE_BILLING_CARDS_URL", "FINANCE_WALLET_ITEMS_URL"],
-      responseKeys: ["billingCards", "cards", "walletItems", "data.billingCards", "data.cards", "data", "items", "records"],
-      query: { businessDate: run.businessDate, dueTo: run.businessDate, overdue: "true", status: "pending" },
-      resourceLabel: "cards de cobrança vencidos ou do dia",
+      bodyKeys: cardsResource.bodyKeys,
+      envKeys: cardsResource.envKeys,
+      responseKeys: cardsResource.responseKeys,
+      query: cardsResource.queryForDate(run.businessDate),
+      resourceLabel: cardsResource.resourceLabel,
     });
     run = await appendReceivablesStep(run, {
       key: "pull_billing_cards",
       title: "Buscar cards de cobrança",
       status: cardsPull.configured ? "success" : "warning",
       summary: cardsPull.message,
-      details: { source: cardsPull.source, count: cardsPull.items.length },
+      details: { source: cardsPull.source, count: cardsPull.items.length, envKey: cardsPull.configuredEnvKey || cardsPull.expectedEnvKey },
     });
-    run = await syncBillingCardsWithCobranca(run, cardsPull.items);
+    if (cardsPull.configured) {
+      run = await syncBillingCardsWithCobranca(run, cardsPull.items);
+    } else {
+      missingFinanceResources.push({
+        key: cardsResource.key,
+        title: cardsResource.title,
+        expectedEnvKey: cardsPull.expectedEnvKey,
+        message: cardsPull.message,
+      });
+    }
+
+    if (missingFinanceResources.length) {
+      const missingNames = missingFinanceResources.map((item) => item.expectedEnvKey).join(", ");
+      run = await appendReceivablesStep(run, {
+        key: "finance_connection",
+        title: "Conexão com Finance",
+        status: "warning",
+        summary: `Configure ${missingNames} no Render antes de concluir o ciclo diário.`,
+        details: { missingResources: missingFinanceResources },
+      });
+      return saveReceivablesRun(run, {
+        status: "waiting_finance_connection",
+        phase: "waiting_finance_connection",
+        lastError: `Conexão com Colli Finance pendente: ${missingNames}.`,
+        financePayload: {
+          ...(run.financePayload || {}),
+          missingResources: missingFinanceResources,
+        },
+        summary: {
+          ...(run.summary || {}),
+          missingFinanceConnections: missingFinanceResources.length,
+        },
+        finishedAt: null,
+      });
+    }
 
     const cardIds = cardsPull.items.map(extractFinanceExternalId).filter(Boolean);
     run = await auditAndMaybeSendReceivables(run, { cardIds, startSending });
@@ -1551,24 +1772,48 @@ async function closeReceivablesDay({ businessDate, body = {} } = {}) {
     businessDate: getBusinessDate(businessDate || run.businessDate),
     status: "running",
     phase: "closing_day",
+    finishedAt: null,
   });
 
   try {
+    const paymentsResource = FINANCE_RESOURCES.payments;
     const paymentsPull = await fetchFinanceCollection({
       body,
-      bodyKeys: ["payments", "receipts", "paidCards", "data.payments"],
-      envKeys: ["COLLI_FINANCE_PAYMENTS_URL", "FINANCE_PAYMENTS_URL", "FINANCE_RECEIPTS_URL"],
-      responseKeys: ["payments", "receipts", "paidCards", "data.payments", "data.receipts", "data", "items", "records"],
-      query: { businessDate: run.businessDate, paymentDate: run.businessDate, status: "paid" },
-      resourceLabel: "pagamentos confirmados",
+      bodyKeys: paymentsResource.bodyKeys,
+      envKeys: paymentsResource.envKeys,
+      responseKeys: paymentsResource.responseKeys,
+      query: paymentsResource.queryForDate(run.businessDate),
+      resourceLabel: paymentsResource.resourceLabel,
     });
     run = await appendReceivablesStep(run, {
       key: "pull_payments",
       title: "Atualizar pagamentos",
       status: paymentsPull.configured ? "success" : "warning",
       summary: paymentsPull.message,
-      details: { source: paymentsPull.source, count: paymentsPull.items.length },
+      details: { source: paymentsPull.source, count: paymentsPull.items.length, envKey: paymentsPull.configuredEnvKey || paymentsPull.expectedEnvKey },
     });
+
+    if (!paymentsPull.configured) {
+      return saveReceivablesRun(run, {
+        status: "waiting_finance_connection",
+        phase: "waiting_finance_connection",
+        lastError: `Conexão com Colli Finance pendente: ${paymentsPull.expectedEnvKey}.`,
+        financePayload: {
+          ...(run.financePayload || {}),
+          missingResources: [{
+            key: paymentsResource.key,
+            title: paymentsResource.title,
+            expectedEnvKey: paymentsPull.expectedEnvKey,
+            message: paymentsPull.message,
+          }],
+        },
+        summary: {
+          ...(run.summary || {}),
+          missingFinanceConnections: 1,
+        },
+        finishedAt: null,
+      });
+    }
 
     const externalIds = paymentsPull.items.map(extractPaymentExternalId).filter(Boolean);
     const invoicesResult = externalIds.length
@@ -1704,13 +1949,28 @@ app.get(
       runs,
       config: {
         businessDate: getBusinessDate(),
-        hasContractsPullUrl: Boolean(readFirstEnvValue(["COLLI_FINANCE_CONTRACTS_URL", "FINANCE_CONTRACTS_URL"])),
-        hasBillingCardsPullUrl: Boolean(readFirstEnvValue(["COLLI_FINANCE_BILLING_CARDS_URL", "FINANCE_BILLING_CARDS_URL", "FINANCE_WALLET_ITEMS_URL"])),
-        hasPaymentsPullUrl: Boolean(readFirstEnvValue(["COLLI_FINANCE_PAYMENTS_URL", "FINANCE_PAYMENTS_URL", "FINANCE_RECEIPTS_URL"])),
+        hasContractsPullUrl: Boolean(readFirstEnvValue(FINANCE_RESOURCES.contracts.envKeys)),
+        hasBillingCardsPullUrl: Boolean(readFirstEnvValue(FINANCE_RESOURCES.billingCards.envKeys)),
+        hasPaymentsPullUrl: Boolean(readFirstEnvValue(FINANCE_RESOURCES.payments.envKeys)),
         hasFinanceToken: Boolean(readFinanceBearerToken()),
         cobrancaUrl: getCobrancaServiceBaseUrl(),
+        requiredFinanceEnvVars: Object.values(FINANCE_RESOURCES).map((resource) => ({
+          key: resource.key,
+          title: resource.title,
+          envKey: resource.envKeys[0],
+          configured: Boolean(readFirstEnvValue(resource.envKeys)),
+        })),
       },
     });
+  })
+);
+
+app.get(
+  "/api/fpa/receivables-orchestrator/finance-diagnostics",
+  asyncHandler(async (req, res) => {
+    const businessDate = getBusinessDate(req.query?.businessDate);
+    const diagnostics = await buildFinanceDiagnostics(businessDate);
+    res.json({ ok: diagnostics.resources.every((resource) => resource.ok), diagnostics });
   })
 );
 

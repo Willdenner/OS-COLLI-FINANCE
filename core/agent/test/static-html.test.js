@@ -22,11 +22,15 @@ test("painel FP&A expõe o orquestrador diário de contas a receber", async () =
 
   assert.match(html, /id="receivables-orchestrator"/);
   assert.match(html, /btn-run-receivables-orchestrator/);
+  assert.match(html, /btn-test-finance-connection/);
   assert.match(html, /btn-resume-receivables-orchestrator/);
   assert.match(html, /btn-close-receivables-day/);
   assert.match(html, /\/api\/fpa\/receivables-orchestrator\/run/);
+  assert.match(html, /\/api\/fpa\/receivables-orchestrator\/finance-diagnostics/);
   assert.match(html, /\/api\/fpa\/receivables-orchestrator\/close-day/);
   assert.match(server, /runReceivablesOrchestrator/);
+  assert.match(server, /buildFinanceDiagnostics/);
+  assert.match(server, /waiting_finance_connection/);
   assert.match(server, /syncLovableContractToContaAzul/);
   assert.match(server, /syncLovableReceiptToContaAzul/);
   assert.match(server, /\/api\/fpa\/receivables-orchestrator\/resume/);

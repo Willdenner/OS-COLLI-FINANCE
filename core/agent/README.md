@@ -73,6 +73,25 @@ LOVABLE_WEBHOOK_SECRET=um-segredo-forte
 
 O Lovable deve enviar esse valor no header `x-lovable-webhook-secret` ou como `Authorization: Bearer <segredo>`.
 
+## Conexão diária com Colli Finance
+
+Para o orquestrador de Contas a Receber puxar cadastros novos do Finance sem depender de envio manual, configure no serviço principal `os-colli-finance`:
+
+```bash
+COLLI_FINANCE_CONTRACTS_URL=https://seu-finance/api/contracts
+COLLI_FINANCE_BILLING_CARDS_URL=https://seu-finance/api/billing-cards
+COLLI_FINANCE_PAYMENTS_URL=https://seu-finance/api/payments
+COLLI_FINANCE_API_TOKEN=token-opcional
+```
+
+O FP&A chama essas URLs com filtros de data no query string:
+
+- contratos: `businessDate`, `date`, `status=new`
+- cards de cobrança: `businessDate`, `dueTo`, `overdue=true`, `status=pending`
+- pagamentos: `businessDate`, `paymentDate`, `status=paid`
+
+Cada endpoint pode responder um array direto ou um objeto com a lista em `contracts`, `newContracts`, `billingCards`, `cards`, `walletItems`, `payments`, `receipts`, `items`, `records` ou `data`. Use o botão **Testar Finance** no painel do orquestrador para validar HTTP, quantidade de itens e chaves detectadas do JSON.
+
 ### Novo contrato
 
 Endpoint:

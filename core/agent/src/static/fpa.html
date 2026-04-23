@@ -625,6 +625,7 @@
             <div class="card-title"><span class="card-icon">↻</span> Orquestrador · Contas a Receber</div>
             <div class="inline-tools">
               <button class="btn" id="btn-refresh-receivables-orchestrator" type="button">Atualizar</button>
+              <button class="btn" id="btn-test-finance-connection" type="button">Testar Finance</button>
               <button class="btn" id="btn-resume-receivables-orchestrator" type="button">Links incluídos</button>
               <button class="btn" id="btn-close-receivables-day" type="button">Fechar dia</button>
               <button class="btn btn-primary" id="btn-run-receivables-orchestrator" type="button">Executar ciclo</button>
@@ -639,6 +640,10 @@
               <div class="metric-box"><div class="metric-label">Cobranças</div><div class="metric-value" id="receivables-invoices-count">0</div></div>
               <div class="metric-box"><div class="metric-label">Sem link</div><div class="metric-value" id="receivables-missing-links-count">0</div></div>
               <div class="metric-box"><div class="metric-label">Pagamentos</div><div class="metric-value" id="receivables-payments-count">0</div></div>
+            </div>
+            <div style="margin-bottom:18px">
+              <div class="field-label">Conexão com Finance</div>
+              <div class="imports-list" id="receivables-finance-diagnostics"></div>
             </div>
             <div class="g2">
               <div>
@@ -1363,6 +1368,7 @@
           receivablesOrchestrator: null,
           receivablesOrchestratorRuns: [],
           receivablesOrchestratorConfig: null,
+          receivablesFinanceDiagnostics: null,
           storage: null,
           workflowStep: "import",
           contaAzulLookups: {
@@ -1832,6 +1838,55 @@
           .join("");
       }
 
+      function formatDiagnosticQuery(query) {
+        const entries = Object.entries(query || {}).filter(([, value]) => value != null && value !== "");
+        return entries.length ? entries.map(([key, value]) => `${key}=${value}`).join(", ") : "sem filtros";
+      }
+
+      function renderFinanceDiagnostics() {
+        const node = el("receivables-finance-diagnostics");
+        const diagnostics = state.fpa.receivablesFinanceDiagnostics || null;
+        const config = state.fpa.receivablesOrchestratorConfig || {};
+        const resources = Array.isArray(diagnostics?.resources) ? diagnostics.resources : [];
+
+        if (resources.length) {
+          node.innerHTML = resources.map((resource) => {
+            const isWarning = resource.status === "missing_config" || (resource.ok && !resource.itemCount);
+            const color = resource.ok && resource.itemCount ? "var(--brand)" : isWarning ? "var(--warning)" : "var(--danger)";
+            const shape = resource.shape || {};
+            const meta = [
+              resource.configuredEnvKey ? `env ${resource.configuredEnvKey}` : `env ${resource.expectedEnvKey}`,
+              resource.sanitizedUrl || "URL não configurada",
+              resource.httpStatus ? `HTTP ${resource.httpStatus}` : "",
+              Number.isFinite(Number(resource.durationMs)) ? `${resource.durationMs}ms` : "",
+              Number.isFinite(Number(resource.itemCount)) ? `${formatInteger(resource.itemCount)} item(ns)` : "",
+              resource.detectedKey ? `lista em ${resource.detectedKey}` : "",
+            ].filter(Boolean).join(" · ");
+            const shapeInfo = [
+              shape.rootKeys?.length ? `JSON: ${shape.rootKeys.join(", ")}` : "",
+              shape.firstItemKeys?.length ? `Campos do 1º item: ${shape.firstItemKeys.join(", ")}` : "",
+              `Filtros: ${formatDiagnosticQuery(resource.query)}`,
+            ].filter(Boolean).map(escapeHtml).join("<br>");
+            return `
+              <div class="import-card">
+                <div class="import-title" style="display:flex;align-items:center;gap:8px">
+                  <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block"></span>
+                  ${escapeHtml(resource.title || resource.key || "Finance")}
+                </div>
+                <div class="import-meta">${escapeHtml(resource.message || "")}${meta ? `<br>${escapeHtml(meta)}` : ""}${shapeInfo ? `<br>${shapeInfo}` : ""}</div>
+              </div>
+            `;
+          }).join("");
+          return;
+        }
+
+        const required = Array.isArray(config.requiredFinanceEnvVars) ? config.requiredFinanceEnvVars : [];
+        const missing = required.filter((item) => !item.configured);
+        node.innerHTML = missing.length
+          ? `<div class="import-card"><div class="import-title">Variáveis do Finance pendentes</div><div class="import-meta">${escapeHtml(missing.map((item) => item.envKey).join(", "))}<br>Configure no serviço os-colli-finance do Render e sincronize o Blueprint novamente.</div></div>`
+          : `<div class="import-card"><div class="import-title">Finance configurado, ainda não testado</div><div class="import-meta">Clique em Testar Finance para validar HTTP, quantidade de registros e formato do JSON.</div></div>`;
+      }
+
       function renderReceivablesOrchestrator() {
         const run = state.fpa.receivablesOrchestrator || null;
         const config = state.fpa.receivablesOrchestratorConfig || {};
@@ -1842,6 +1897,7 @@
         const steps = Array.isArray(run?.steps) ? run.steps : [];
         const statusLabels = {
           running: "Executando",
+          waiting_finance_connection: "Conexão Finance pendente",
           waiting_payment_links: "Aguardando links",
           billing_started: "Cobranças em andamento",
           completed: "Concluído",
@@ -1849,10 +1905,11 @@
           failed: "Falha",
         };
         const status = run?.status || "idle";
+        const warningStatuses = ["waiting_payment_links", "waiting_finance_connection", "completed_with_warnings"];
 
-        alertEl.style.background = status === "failed" ? "var(--danger-soft)" : status === "waiting_payment_links" ? "var(--warning-soft)" : "var(--brand-soft)";
-        alertEl.style.borderColor = status === "failed" ? "rgba(255,93,93,.28)" : status === "waiting_payment_links" ? "rgba(255,176,32,.28)" : "var(--brand-border)";
-        alertEl.style.color = status === "failed" ? "var(--danger)" : status === "waiting_payment_links" ? "var(--warning)" : "var(--brand)";
+        alertEl.style.background = status === "failed" ? "var(--danger-soft)" : warningStatuses.includes(status) ? "var(--warning-soft)" : "var(--brand-soft)";
+        alertEl.style.borderColor = status === "failed" ? "rgba(255,93,93,.28)" : warningStatuses.includes(status) ? "rgba(255,176,32,.28)" : "var(--brand-border)";
+        alertEl.style.color = status === "failed" ? "var(--danger)" : warningStatuses.includes(status) ? "var(--warning)" : "var(--brand)";
         statusEl.textContent = run
           ? `${statusLabels[status] || status} · ${run.businessDate || config.businessDate || "hoje"}${run.lastError ? ` · ${run.lastError}` : ""}`
           : `Pronto para ${config.businessDate || todayIsoDate()}.`;
@@ -1864,6 +1921,7 @@
 
         el("btn-resume-receivables-orchestrator").disabled = status !== "waiting_payment_links";
         el("btn-close-receivables-day").disabled = !run;
+        renderFinanceDiagnostics();
 
         el("receivables-orchestrator-steps").innerHTML = steps.length
           ? steps.slice().reverse().map((step) => {
@@ -3313,6 +3371,22 @@
         renderReceivablesOrchestrator();
       }
 
+      async function testFinanceConnection() {
+        const button = el("btn-test-finance-connection");
+        const originalLabel = button.textContent;
+        button.disabled = true;
+        button.textContent = "Testando...";
+        try {
+          const result = await api(`/api/fpa/receivables-orchestrator/finance-diagnostics${buildQueryString({ businessDate: todayIsoDate() })}`);
+          state.fpa.receivablesFinanceDiagnostics = result.diagnostics || null;
+          renderReceivablesOrchestrator();
+          toast(result.ok ? "Conexão com Finance validada." : "Finance respondeu com pendências. Veja o diagnóstico.");
+        } finally {
+          button.disabled = false;
+          button.textContent = originalLabel;
+        }
+      }
+
       async function runReceivablesOrchestrator() {
         const button = el("btn-run-receivables-orchestrator");
         const originalLabel = button.textContent;
@@ -3328,7 +3402,9 @@
           renderReceivablesOrchestrator();
           toast(!result.ok
             ? result.run?.lastError || "Ciclo de contas a receber finalizado com falha."
-            : result.run?.status === "waiting_payment_links"
+            : result.run?.status === "waiting_finance_connection"
+              ? "Ciclo pausado aguardando conexão com o Finance."
+              : result.run?.status === "waiting_payment_links"
               ? "Ciclo pausado aguardando links de pagamento."
               : "Ciclo de contas a receber executado.");
         } finally {
@@ -3499,6 +3575,7 @@
       el("btn-save-lovable-settings").addEventListener("click", () => saveLovableSettings().catch((error) => toast(error.message)));
       el("btn-refresh-lovable-syncs").addEventListener("click", () => loadLovableSyncs().catch((error) => toast(error.message)));
       el("btn-run-receivables-orchestrator").addEventListener("click", () => runReceivablesOrchestrator().catch((error) => toast(error.message)));
+      el("btn-test-finance-connection").addEventListener("click", () => testFinanceConnection().catch((error) => toast(error.message)));
       el("btn-resume-receivables-orchestrator").addEventListener("click", () => resumeReceivablesOrchestrator().catch((error) => toast(error.message)));
       el("btn-refresh-receivables-orchestrator").addEventListener("click", () => loadReceivablesOrchestrator().catch((error) => toast(error.message)));
       el("btn-close-receivables-day").addEventListener("click", () => closeReceivablesDay().catch((error) => toast(error.message)));
