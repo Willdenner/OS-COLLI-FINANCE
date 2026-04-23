@@ -421,7 +421,8 @@ function buildContaAzulFinancialEventsSearchPath({
   return `${eventType === "payable" ? CONTA_AZUL_PAYABLE_SEARCH_PATH : CONTA_AZUL_RECEIVABLE_SEARCH_PATH}?${params.toString()}`;
 }
 
-function buildContaAzulContractSearchPath({ search, customerId, from, to, page = 1, pageSize = 10 } = {}) {
+function buildContaAzulContractSearchPath({ search, customerId, from, to, page = 1, pageSize = 10, listPath } = {}) {
+  const pathBase = normalizeEndpointPath(listPath, CONTA_AZUL_CONTRACTS_PATH);
   const params = new URLSearchParams();
   const safeSearch = normalizeOptionalText(search, 160);
   const safeCustomerId = normalizeOptionalText(customerId, 160);
@@ -433,7 +434,7 @@ function buildContaAzulContractSearchPath({ search, customerId, from, to, page =
   if (safeCustomerId) params.set("cliente_id", safeCustomerId);
   if (safeFrom) params.set("data_inicio", safeFrom);
   if (safeTo) params.set("data_fim", safeTo);
-  return `${CONTA_AZUL_CONTRACTS_PATH}?${params.toString()}`;
+  return `${pathBase}?${params.toString()}`;
 }
 
 function buildContaAzulAcquittancePath(installmentId) {
@@ -442,24 +443,32 @@ function buildContaAzulAcquittancePath(installmentId) {
 }
 
 function createDefaultContaAzulSettings() {
+  const defaultBase = normalizeContaAzulApiBaseUrl(readContaAzulEnvFirst("CONTA_AZUL_BASE_URL", "CONTA_AZUL_API_BASE_URL")) || CONTA_AZUL_API_BASE_URL;
+  const defaultAuth = normalizeBaseUrl(readContaAzulEnvFirst("CONTA_AZUL_AUTH_URL")) || CONTA_AZUL_AUTH_URL;
+  const defaultToken = normalizeBaseUrl(readContaAzulEnvFirst("CONTA_AZUL_TOKEN_URL")) || CONTA_AZUL_TOKEN_URL;
+  const defaultScope = normalizeContaAzulScope(readContaAzulEnvFirst("CONTA_AZUL_SCOPE", "CONTA_AZUL_OAUTH_SCOPE") || CONTA_AZUL_DEFAULT_SCOPE);
+  const defaultHealth = normalizeEndpointPath(
+    readContaAzulEnvFirst("CONTA_AZUL_HEALTH_PATH", "CONTA_AZUL_HEALTH_ENDPOINT"),
+    CONTA_AZUL_CONNECTED_ACCOUNT_PATH
+  );
   return {
     enabled: false,
     accountLabel: "",
-    baseUrl: CONTA_AZUL_API_BASE_URL,
-    authorizationUrl: CONTA_AZUL_AUTH_URL,
-    tokenUrl: CONTA_AZUL_TOKEN_URL,
+    baseUrl: defaultBase,
+    authorizationUrl: defaultAuth,
+    tokenUrl: defaultToken,
     redirectUri: normalizeContaAzulRedirectUri(process.env.CONTA_AZUL_REDIRECT_URI),
     clientId: normalizeOptionalText(process.env.CONTA_AZUL_CLIENT_ID, 200) || "",
     clientSecret: normalizeOptionalText(process.env.CONTA_AZUL_CLIENT_SECRET, 600) || "",
-    scope: CONTA_AZUL_DEFAULT_SCOPE,
-    authMode: "bearer",
-    accessToken: "",
-    refreshToken: "",
-    tokenType: "Bearer",
+    scope: defaultScope,
+    authMode: normalizeContaAzulAuthModeFromEnv(),
+    accessToken: normalizeOptionalText(process.env.CONTA_AZUL_ACCESS_TOKEN, 4096) || "",
+    refreshToken: normalizeOptionalText(process.env.CONTA_AZUL_REFRESH_TOKEN, 4096) || "",
+    tokenType: normalizeOptionalText(readContaAzulEnvFirst("CONTA_AZUL_TOKEN_TYPE", "CONTA_AZUL_ACCESS_TOKEN_TYPE") || "Bearer", 40) || "Bearer",
     accessTokenExpiresAt: null,
-    customHeaderName: "x-conta-azul-token",
-    customHeaderValue: "",
-    healthEndpoint: CONTA_AZUL_CONNECTED_ACCOUNT_PATH,
+    customHeaderName: normalizeHeaderName(process.env.CONTA_AZUL_CUSTOM_HEADER_NAME),
+    customHeaderValue: normalizeOptionalText(process.env.CONTA_AZUL_CUSTOM_HEADER_VALUE, 600) || "",
+    healthEndpoint: defaultHealth,
     allowOutbound: true,
     connectedAccount: {
       id: null,
@@ -481,6 +490,7 @@ function createDefaultContaAzulSettings() {
       markAsExported: true,
       maxRecordsPerRun: 50,
     },
+    lovableContracts: createLovableContractPathsFromEnv(),
     status: {
       lastConnectionCheckAt: null,
       lastConnectionOk: false,
@@ -521,6 +531,51 @@ function normalizeContaAzulHistoryEntry(entry) {
     startedAt: safeEntry.startedAt || null,
     finishedAt: safeEntry.finishedAt || null,
   };
+}
+
+function readContaAzulEnvFirst(...keys) {
+  for (const key of keys) {
+    const value = String((key && process.env[key]) || "").trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+function getStaticLovableContractPathDefaults() {
+  return {
+    contractsCreatePath: CONTA_AZUL_CONTRACTS_PATH,
+    nextContractNumberPath: CONTA_AZUL_NEXT_CONTRACT_NUMBER_PATH,
+  };
+}
+
+function createLovableContractPathsFromEnv() {
+  return normalizeContaAzulLovableContractSettings(
+    {
+      contractsCreatePath: readContaAzulEnvFirst("CONTA_AZUL_CONTRACTS_PATH"),
+      nextContractNumberPath: readContaAzulEnvFirst("CONTA_AZUL_NEXT_CONTRACT_NUMBER_PATH"),
+    },
+    getStaticLovableContractPathDefaults()
+  );
+}
+
+function normalizeContaAzulLovableContractSettings(rawSettings, fallback = getStaticLovableContractPathDefaults()) {
+  const safe = rawSettings && typeof rawSettings === "object" ? rawSettings : {};
+  const base = fallback && typeof fallback === "object" ? fallback : getStaticLovableContractPathDefaults();
+  return {
+    contractsCreatePath: normalizeEndpointPath(safe.contractsCreatePath, base.contractsCreatePath),
+    nextContractNumberPath: normalizeEndpointPath(safe.nextContractNumberPath, base.nextContractNumberPath),
+  };
+}
+
+function getContaAzulLovableContractPaths(settings) {
+  const s = normalizeContaAzulSettings(settings);
+  return s.lovableContracts;
+}
+
+function normalizeContaAzulAuthModeFromEnv() {
+  const raw = readContaAzulEnvFirst("CONTA_AZUL_AUTH_MODE").toLowerCase();
+  if (raw === "custom_header" || raw === "none") return raw;
+  return "bearer";
 }
 
 function normalizeContaAzulFpaExportSettings(rawSettings, defaults = createDefaultContaAzulSettings().fpaExport) {
@@ -566,6 +621,10 @@ function normalizeContaAzulSettings(rawSettings) {
     allowOutbound: safeSettings.allowOutbound !== false,
     connectedAccount: normalizeContaAzulConnectedAccount(safeSettings.connectedAccount),
     fpaExport: normalizeContaAzulFpaExportSettings(safeSettings.fpaExport, defaults.fpaExport),
+    lovableContracts: normalizeContaAzulLovableContractSettings(
+      safeSettings.lovableContracts,
+      defaults.lovableContracts
+    ),
     status: {
       lastConnectionCheckAt: safeStatus.lastConnectionCheckAt || null,
       lastConnectionOk: safeStatus.lastConnectionOk === true,
@@ -682,6 +741,7 @@ function mergeContaAzulSettings(currentSettings, patchSettings) {
   const patch = patchSettings && typeof patchSettings === "object" ? patchSettings : {};
   const safeStatus = patch.status && typeof patch.status === "object" ? patch.status : {};
   const safeFpaExport = patch.fpaExport && typeof patch.fpaExport === "object" ? patch.fpaExport : null;
+  const safeLovableContracts = patch.lovableContracts && typeof patch.lovableContracts === "object" ? patch.lovableContracts : null;
 
   const merged = {
     ...current,
@@ -706,6 +766,12 @@ function mergeContaAzulSettings(currentSettings, patchSettings) {
           ...safeFpaExport,
         })
       : current.fpaExport,
+    lovableContracts: safeLovableContracts
+      ? normalizeContaAzulLovableContractSettings(
+          { ...current.lovableContracts, ...safeLovableContracts },
+          current.lovableContracts
+        )
+      : current.lovableContracts,
     status: {
       ...current.status,
       ...safeStatus,
@@ -1143,7 +1209,7 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber } =
     resource: CONTA_AZUL_LOVABLE_CONTRACTS_RESOURCE,
     action: "create_contract",
     externalId: externalId || null,
-    endpointPath: CONTA_AZUL_CONTRACTS_PATH,
+    endpointPath: safeSettings.lovableContracts.contractsCreatePath,
     amountCents,
     amountFormatted: amountCents ? formatMoneyBRL(amountCents) : "",
     missingRequiredFields: Array.from(new Set(missingRequiredFields)),
@@ -1442,6 +1508,7 @@ module.exports = {
   buildContaAzulTokenHeaders,
   createDefaultContaAzulSettings,
   getContaAzulFpaExportCandidates,
+  getContaAzulLovableContractPaths,
   isContaAzulAccessTokenExpired,
   mergeContaAzulSettings,
   normalizeContaAzulAuthorizationCode,

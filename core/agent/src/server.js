@@ -53,7 +53,7 @@ const {
   CONTA_AZUL_CONNECTED_ACCOUNT_PATH,
   CONTA_AZUL_LOVABLE_CONTRACTS_RESOURCE,
   CONTA_AZUL_LOVABLE_RECEIPTS_RESOURCE,
-  CONTA_AZUL_NEXT_CONTRACT_NUMBER_PATH,
+  getContaAzulLovableContractPaths,
   applyContaAzulTokenPayload,
   buildContaAzulAcquittanceRecord,
   buildContaAzulAuthorizationUrl,
@@ -546,7 +546,8 @@ async function postContaAzulJson(contaAzulSettings, endpointPath, payload) {
 }
 
 async function fetchContaAzulNextContractNumber(contaAzulSettings) {
-  const result = await fetchContaAzulJson(contaAzulSettings, CONTA_AZUL_NEXT_CONTRACT_NUMBER_PATH);
+  const { nextContractNumberPath } = getContaAzulLovableContractPaths(contaAzulSettings);
+  const result = await fetchContaAzulJson(contaAzulSettings, nextContractNumberPath);
   const parsedNumber = Number(result.parsed.json);
   return Number.isFinite(parsedNumber) && parsedNumber > 0 ? Math.trunc(parsedNumber) : null;
 }

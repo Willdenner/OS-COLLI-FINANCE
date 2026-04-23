@@ -36,6 +36,17 @@ Mapa das variáveis que o projeto usa no Render, separadas entre:
 | `CONTA_AZUL_CLIENT_ID` | Sim para Conta Azul | Integração OAuth com Conta Azul |
 | `CONTA_AZUL_CLIENT_SECRET` | Sim para Conta Azul | Integração OAuth com Conta Azul |
 | `CONTA_AZUL_REDIRECT_URI` | Sim para Conta Azul | Redirect URI cadastrado no app do Conta Azul |
+| `CONTA_AZUL_BASE_URL` ou `CONTA_AZUL_API_BASE_URL` | Opcional | URL base da API (padrão: `https://api-v2.contaazul.com`) |
+| `CONTA_AZUL_AUTH_URL` | Opcional | Página de login OAuth (padrão: `https://auth.contaazul.com/login`) |
+| `CONTA_AZUL_TOKEN_URL` | Opcional | Endpoint de token OAuth (padrão: `https://auth.contaazul.com/oauth2/token`) |
+| `CONTA_AZUL_SCOPE` ou `CONTA_AZUL_OAUTH_SCOPE` | Opcional | Escopos OAuth (padrão do app Conta Azul) |
+| `CONTA_AZUL_HEALTH_PATH` ou `CONTA_AZUL_HEALTH_ENDPOINT` | Opcional | GET de “saúde” da conta (padrão: `/v1/pessoas/conta-conectada`, usado em testes de conexão) |
+| `CONTA_AZUL_CONTRACTS_PATH` | Opcional | `POST` de criação de contrato (padrão: `/v1/contratos`); alinhe com a versão da API do app |
+| `CONTA_AZUL_NEXT_CONTRACT_NUMBER_PATH` | Opcional | Próximo número de contrato (padrão: `/v1/contratos/proximo-numero`) |
+| `CONTA_AZUL_AUTH_MODE` | Opcional | `bearer` (padrão), `custom_header` ou `none` — define como a API recebe a autorização |
+| `CONTA_AZUL_ACCESS_TOKEN` / `CONTA_AZUL_REFRESH_TOKEN` | Opcional | Pré-preenchimento de tokens (útil com persistência; OAuth pelo painel continua válido) |
+| `CONTA_AZUL_TOKEN_TYPE` / `CONTA_AZUL_ACCESS_TOKEN_TYPE` | Opcional | Tipo do token (padrão: `Bearer`) |
+| `CONTA_AZUL_CUSTOM_HEADER_NAME` / `CONTA_AZUL_CUSTOM_HEADER_VALUE` | Opcional | Se `CONTA_AZUL_AUTH_MODE=custom_header` |
 | `LOVABLE_WEBHOOK_SECRET` | Opcional | Se o serviço principal receber webhooks assinados |
 
 ### Observação crítica
@@ -132,6 +143,7 @@ Pelo fluxo que você descreveu hoje, o mínimo manual no Render é:
 - `CONTA_AZUL_CLIENT_ID`
 - `CONTA_AZUL_CLIENT_SECRET`
 - `CONTA_AZUL_REDIRECT_URI`
+- (opcionais) `CONTA_AZUL_BASE_URL`, `CONTA_AZUL_AUTH_URL`, `CONTA_AZUL_TOKEN_URL`, `CONTA_AZUL_SCOPE`, `CONTA_AZUL_CONTRACTS_PATH`, `CONTA_AZUL_NEXT_CONTRACT_NUMBER_PATH`, `CONTA_AZUL_HEALTH_PATH`, `CONTA_AZUL_AUTH_MODE`, tokens e header customizados — ver tabela acima
 
 ### `bot-extrator`
 

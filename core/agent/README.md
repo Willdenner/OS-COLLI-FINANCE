@@ -61,6 +61,25 @@ CONTA_AZUL_CLIENT_SECRET=
 CONTA_AZUL_REDIRECT_URI=https://www.contaazul.com
 ```
 
+**Endpoints e OAuth (opcionais):** o agente assume a API pública v2. Para fixar tudo no ambiente (Deploy / Docker / Render), use por exemplo:
+
+```bash
+# Base da API e fluxo OAuth (padrões oficiais se omitidos)
+CONTA_AZUL_BASE_URL=https://api-v2.contaazul.com
+CONTA_AZUL_AUTH_URL=https://auth.contaazul.com/login
+CONTA_AZUL_TOKEN_URL=https://auth.contaazul.com/oauth2/token
+CONTA_AZUL_SCOPE=openid profile aws.cognito.signin.user.admin
+
+# Cadastro de contrato após o contrato vindo do Finance (POST e próximo número)
+CONTA_AZUL_CONTRACTS_PATH=/v1/contratos
+CONTA_AZUL_NEXT_CONTRACT_NUMBER_PATH=/v1/contratos/proximo-numero
+
+# Teste de conexão (GET conta conectada)
+CONTA_AZUL_HEALTH_PATH=/v1/pessoas/conta-conectada
+```
+
+**Autorização da chamada à API:** após o OAuth no painel, o `access_token` fica no estado do app. Em ambiente você pode ainda definir `CONTA_AZUL_ACCESS_TOKEN` / `CONTA_AZUL_REFRESH_TOKEN` (bootstrap), `CONTA_AZUL_AUTH_MODE=bearer` (padrão) ou `custom_header` com `CONTA_AZUL_CUSTOM_HEADER_NAME` e `CONTA_AZUL_CUSTOM_HEADER_VALUE` se a sua integração exigir outro mecanismo.
+
 ## Integração Lovable
 
 O Analista FP&A pode atuar como ponte entre o sistema de contratos/cobrança criado no Lovable e o Conta Azul.
@@ -166,6 +185,10 @@ Alternativas seguras:
 - `CONTA_AZUL_CLIENT_ID`: Client ID opcional para pré-configurar a integração.
 - `CONTA_AZUL_CLIENT_SECRET`: Client Secret opcional para pré-configurar a integração.
 - `CONTA_AZUL_REDIRECT_URI`: Redirect URI opcional para pré-configurar a integração.
+- `CONTA_AZUL_BASE_URL` / `CONTA_AZUL_API_BASE_URL`, `CONTA_AZUL_AUTH_URL`, `CONTA_AZUL_TOKEN_URL`, `CONTA_AZUL_SCOPE` / `CONTA_AZUL_OAUTH_SCOPE`: URLs e escopo OAuth (opcionais; há padrões oficiais).
+- `CONTA_AZUL_CONTRACTS_PATH`, `CONTA_AZUL_NEXT_CONTRACT_NUMBER_PATH`: criação de contrato e próximo número (padrão `/v1/contratos` e `/v1/contratos/proximo-numero`).
+- `CONTA_AZUL_HEALTH_PATH` / `CONTA_AZUL_HEALTH_ENDPOINT`: GET de teste de conexão.
+- `CONTA_AZUL_AUTH_MODE`, `CONTA_AZUL_ACCESS_TOKEN`, `CONTA_AZUL_REFRESH_TOKEN`, `CONTA_AZUL_TOKEN_TYPE`, `CONTA_AZUL_CUSTOM_HEADER_*`: modo de auth e credenciais opcionais.
 - `LOVABLE_WEBHOOK_SECRET`: segredo opcional para aceitar webhooks do Lovable via ambiente. Também pode ser configurado pelo painel do Analista FP&A.
 
 ## Docker

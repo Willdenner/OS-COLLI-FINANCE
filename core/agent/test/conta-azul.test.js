@@ -16,6 +16,7 @@ const {
   buildContaAzulFpaExportPayload,
   buildContaAzulPeoplePath,
   buildContaAzulTestFinancialEventRecord,
+  getContaAzulLovableContractPaths,
   mergeContaAzulSettings,
   normalizeContaAzulAcquittanceResponse,
   normalizeContaAzulAuthorizationCode,
@@ -388,6 +389,38 @@ test("monta payload de contrato recorrente do Lovable para o Conta Azul", () => 
   assert.equal(response.id, "contrato_123");
   assert.equal(response.legacyId, 42);
   assert.equal(response.saleId, "venda_123");
+});
+
+test("permite customizar rotas de contrato via integracao lovableContracts", () => {
+  const settings = mergeContaAzulSettings(
+    {},
+    {
+      lovableContracts: {
+        contractsCreatePath: "/v1/contratos",
+        nextContractNumberPath: "/v1/contratos/proximo-numero",
+      },
+    }
+  );
+  const paths = getContaAzulLovableContractPaths(settings);
+  assert.equal(paths.contractsCreatePath, "/v1/contratos");
+  assert.equal(paths.nextContractNumberPath, "/v1/contratos/proximo-numero");
+
+  const record = buildContaAzulContractRecord({
+    settings: mergeContaAzulSettings(
+      { fpaExport: { defaultFinancialAccountId: "conta_x", defaultReceivableCategoryId: "cat_x" } },
+      { lovableContracts: { contractsCreatePath: "/custom/v1/contratos" } }
+    ),
+    nextContractNumber: 1,
+    source: {
+      contractId: "x",
+      customerId: "c",
+      productId: "p",
+      amountCents: 10000,
+      startDate: "2026-01-01",
+      firstDueDate: "2026-01-10",
+    },
+  });
+  assert.equal(record.endpointPath, "/custom/v1/contratos");
 });
 
 test("monta payload de baixa de recebimento do Lovable para o Conta Azul", () => {

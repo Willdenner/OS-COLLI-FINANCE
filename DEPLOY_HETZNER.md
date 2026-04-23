@@ -147,7 +147,7 @@ Preencha TODAS as variáveis. As críticas:
 - `ANTHROPIC_API_KEY`
 - `REDIS_PASSWORD` (invente uma senha forte)
 - `POSTGRES_PASSWORD` (invente uma senha forte)
-- `CONTA_AZUL_CLIENT_ID` e `CONTA_AZUL_CLIENT_SECRET`
+- `CONTA_AZUL_CLIENT_ID` e `CONTA_AZUL_CLIENT_SECRET` (e, se necessário, `CONTA_AZUL_BASE_URL`, `CONTA_AZUL_CONTRACTS_PATH` / `CONTA_AZUL_NEXT_CONTRACT_NUMBER_PATH` — ver `RENDER_ENVIRONMENTS.md` / `core/agent/README.md`)
 - `EVOLUTION_API_KEY`
 
 ### 3.3 — Subir o sistema

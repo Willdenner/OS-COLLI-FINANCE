@@ -26,6 +26,22 @@ services:
         sync: false
       - key: CONTA_AZUL_REDIRECT_URI
         sync: false
+      - key: CONTA_AZUL_BASE_URL
+        sync: false
+      - key: CONTA_AZUL_AUTH_URL
+        sync: false
+      - key: CONTA_AZUL_TOKEN_URL
+        sync: false
+      - key: CONTA_AZUL_SCOPE
+        sync: false
+      - key: CONTA_AZUL_CONTRACTS_PATH
+        sync: false
+      - key: CONTA_AZUL_NEXT_CONTRACT_NUMBER_PATH
+        sync: false
+      - key: CONTA_AZUL_HEALTH_PATH
+        sync: false
+      - key: CONTA_AZUL_AUTH_MODE
+        sync: false
       - key: LOVABLE_WEBHOOK_SECRET
         sync: false
       - key: COLLI_FINANCE_API_TOKEN
