@@ -1854,19 +1854,29 @@
             const isWarning = resource.status === "missing_config" || (resource.ok && !resource.itemCount);
             const color = resource.ok && resource.itemCount ? "var(--brand)" : isWarning ? "var(--warning)" : "var(--danger)";
             const shape = resource.shape || {};
+            const previewItems = Array.isArray(resource.previewItems) ? resource.previewItems : [];
             const meta = [
               resource.configuredEnvKey ? `env ${resource.configuredEnvKey}` : `env ${resource.expectedEnvKey}`,
               resource.sanitizedUrl || "URL não configurada",
               resource.httpStatus ? `HTTP ${resource.httpStatus}` : "",
               Number.isFinite(Number(resource.durationMs)) ? `${resource.durationMs}ms` : "",
               Number.isFinite(Number(resource.itemCount)) ? `${formatInteger(resource.itemCount)} item(ns)` : "",
-              resource.detectedKey ? `lista em ${resource.detectedKey}` : "",
+              Array.isArray(shape.matchedKeys) && shape.matchedKeys.length ? `lista em ${shape.matchedKeys.join(" + ")}` : resource.detectedKey ? `lista em ${resource.detectedKey}` : "",
             ].filter(Boolean).join(" · ");
             const shapeInfo = [
               shape.rootKeys?.length ? `JSON: ${shape.rootKeys.join(", ")}` : "",
               shape.firstItemKeys?.length ? `Campos do 1º item: ${shape.firstItemKeys.join(", ")}` : "",
               `Filtros: ${formatDiagnosticQuery(resource.query)}`,
             ].filter(Boolean).map(escapeHtml).join("<br>");
+            const previewHtml = previewItems.length
+              ? `<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">${previewItems.map((item) => `
+                  <div style="padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);background:rgba(0,0,0,.14)">
+                    <div class="import-title">${escapeHtml(item.primary || "Registro")}</div>
+                    ${item.secondary ? `<div class="import-meta" style="margin-top:4px">${escapeHtml(item.secondary)}</div>` : ""}
+                    ${item.tertiary ? `<div class="import-meta" style="margin-top:4px">${escapeHtml(item.tertiary)}</div>` : ""}
+                  </div>
+                `).join("")}</div>`
+              : "";
             return `
               <div class="import-card">
                 <div class="import-title" style="display:flex;align-items:center;gap:8px">
@@ -1874,6 +1884,7 @@
                   ${escapeHtml(resource.title || resource.key || "Finance")}
                 </div>
                 <div class="import-meta">${escapeHtml(resource.message || "")}${meta ? `<br>${escapeHtml(meta)}` : ""}${shapeInfo ? `<br>${shapeInfo}` : ""}</div>
+                ${previewHtml}
               </div>
             `;
           }).join("");

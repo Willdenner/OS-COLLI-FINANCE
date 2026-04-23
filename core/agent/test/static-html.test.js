@@ -31,6 +31,8 @@ test("painel FP&A expõe o orquestrador diário de contas a receber", async () =
   assert.match(server, /runReceivablesOrchestrator/);
   assert.match(server, /buildFinanceDiagnostics/);
   assert.match(server, /waiting_finance_connection/);
+  assert.match(server, /due_today/);
+  assert.match(server, /previewItems/);
   assert.match(server, /syncLovableContractToContaAzul/);
   assert.match(server, /syncLovableReceiptToContaAzul/);
   assert.match(server, /\/api\/fpa\/receivables-orchestrator\/resume/);

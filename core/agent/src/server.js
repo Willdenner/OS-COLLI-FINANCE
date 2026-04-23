@@ -1138,11 +1138,12 @@ function getBusinessDate(value = null) {
 function readCollectionPayload(source, keys) {
   if (Array.isArray(source)) return source;
   const safeSource = source && typeof source === "object" ? source : {};
+  const collections = [];
   for (const key of keys) {
     const value = readNestedValue(safeSource, key);
-    if (Array.isArray(value)) return value;
+    if (Array.isArray(value)) collections.push(...value);
   }
-  return null;
+  return collections.length ? collections : null;
 }
 
 function extractFinanceResponseItems(body, keys) {
@@ -1169,8 +1170,21 @@ const FINANCE_RESOURCES = {
     title: "Cards de cobrança",
     resourceLabel: "cards de cobrança vencidos ou do dia",
     envKeys: ["COLLI_FINANCE_BILLING_CARDS_URL", "FINANCE_BILLING_CARDS_URL", "FINANCE_WALLET_ITEMS_URL"],
-    bodyKeys: ["billingCards", "cards", "walletItems", "data.cards"],
-    responseKeys: ["billingCards", "cards", "walletItems", "data.billingCards", "data.cards", "data", "items", "records"],
+    bodyKeys: ["billingCards", "cards", "walletItems", "due_today", "overdue", "data.cards", "data.due_today", "data.overdue"],
+    responseKeys: [
+      "billingCards",
+      "cards",
+      "walletItems",
+      "due_today",
+      "overdue",
+      "data.billingCards",
+      "data.cards",
+      "data.due_today",
+      "data.overdue",
+      "data",
+      "items",
+      "records",
+    ],
     queryForDate: (businessDate) => ({ businessDate, dueTo: businessDate, overdue: "true", status: "pending" }),
   },
   payments: {
@@ -1208,12 +1222,13 @@ function sanitizeFinanceUrl(rawUrl) {
 
 function describeFinanceJsonShape(json, responseKeys = []) {
   const items = extractFinanceResponseItems(json, responseKeys);
-  const matchedKey = responseKeys.find((key) => Array.isArray(readNestedValue(json, key))) || (Array.isArray(json) ? "root" : null);
+  const matchedKeys = responseKeys.filter((key) => Array.isArray(readNestedValue(json, key)));
   const firstItem = items.find((item) => item && typeof item === "object" && !Array.isArray(item)) || null;
   return {
     rootType: Array.isArray(json) ? "array" : typeof json,
     rootKeys: json && typeof json === "object" && !Array.isArray(json) ? Object.keys(json).slice(0, 16) : [],
-    matchedKey,
+    matchedKey: matchedKeys[0] || (Array.isArray(json) ? "root" : null),
+    matchedKeys,
     itemCount: items.length,
     firstItemKeys: firstItem ? Object.keys(firstItem).slice(0, 24) : [],
   };
@@ -1222,6 +1237,62 @@ function describeFinanceJsonShape(json, responseKeys = []) {
 function readFinanceErrorMessage(json) {
   if (!json || typeof json !== "object") return "";
   return String(json.error || json.message || json.detail || json.details || "").trim().slice(0, 300);
+}
+
+function summarizeFinancePreviewItem(resource, item = {}) {
+  if (!item || typeof item !== "object") return null;
+
+  if (resource.key === "contracts") {
+    return {
+      primary: readFirstText(item, ["contract_number", "contractNumber", "id"], 120) || "Contrato sem identificador",
+      secondary: [
+        readFirstText(item, ["client_name", "clientName", "seller_name", "product_description"], 120),
+        readFirstText(item, ["status"], 80),
+      ].filter(Boolean).join(" · "),
+      tertiary: [
+        readFirstText(item, ["first_charge_date", "firstDueDate", "contract_start_date"], 40),
+        readFirstText(item, ["payment_method"], 60),
+      ].filter(Boolean).join(" · "),
+    };
+  }
+
+  if (resource.key === "billingCards") {
+    return {
+      primary: readFirstText(item, ["card_id", "cardId", "id", "contract_number"], 120) || "Card sem identificador",
+      secondary: [
+        readFirstText(item, ["client_name", "clientName", "seller_name"], 120),
+        readFirstText(item, ["status"], 80),
+      ].filter(Boolean).join(" · "),
+      tertiary: [
+        readFirstText(item, ["due_date", "dueDate", "date"], 40),
+        readFirstText(item, ["payment_method"], 60),
+      ].filter(Boolean).join(" · "),
+    };
+  }
+
+  if (resource.key === "payments") {
+    return {
+      primary: readFirstText(item, ["wallet_item_id", "walletItemId", "id", "reference"], 120) || "Pagamento sem identificador",
+      secondary: [
+        readFirstText(item, ["payment_method"], 60),
+        readFirstText(item, ["payment_date", "paymentDate", "created_at"], 40),
+      ].filter(Boolean).join(" · "),
+      tertiary: readFirstText(item, ["notes", "reference"], 160) || "",
+    };
+  }
+
+  return {
+    primary: readFirstText(item, ["id", "name"], 120) || "Registro",
+    secondary: "",
+    tertiary: "",
+  };
+}
+
+function buildFinancePreviewItems(resource, items = [], limit = 5) {
+  return items
+    .slice(0, limit)
+    .map((item) => summarizeFinancePreviewItem(resource, item))
+    .filter(Boolean);
 }
 
 async function fetchFinanceCollection({ body, bodyKeys, envKeys, responseKeys, query = {}, resourceLabel }) {
@@ -1343,6 +1414,7 @@ async function diagnoseFinanceResource(resource, businessDate) {
       };
     }
 
+    const items = extractFinanceResponseItems(json, resource.responseKeys);
     const shape = describeFinanceJsonShape(json, resource.responseKeys);
     return {
       ...base,
@@ -1350,10 +1422,11 @@ async function diagnoseFinanceResource(resource, businessDate) {
       status: "success",
       httpStatus: response.status,
       durationMs,
-      itemCount: shape.itemCount,
+      itemCount: items.length,
       detectedKey: shape.matchedKey,
       shape,
-      message: `${shape.itemCount} registro(s) encontrado(s) em ${resource.resourceLabel}.`,
+      previewItems: buildFinancePreviewItems(resource, items),
+      message: `${items.length} registro(s) encontrado(s) em ${resource.resourceLabel}.`,
     };
   } catch (error) {
     return {
