@@ -1479,16 +1479,28 @@ function buildCobrancaUrl(pathname, params = {}) {
 }
 
 async function requestCobrancaJson(pathname, { method = "GET", params = {}, body = null } = {}) {
-  const response = await fetch(buildCobrancaUrl(pathname, params), {
-    method,
-    headers: buildServiceJsonHeaders(),
-    body: body == null ? undefined : JSON.stringify(body),
-  });
-  const json = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw createHttpError(response.status, json.error || json.message || `Bot de cobrança respondeu HTTP ${response.status}.`);
+  const maxAttempts = method === "GET" ? 2 : 3;
+  const retryableStatuses = new Set([502, 503, 504]);
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const response = await fetch(buildCobrancaUrl(pathname, params), {
+      method,
+      headers: buildServiceJsonHeaders(),
+      body: body == null ? undefined : JSON.stringify(body),
+    });
+    const json = await response.json().catch(() => ({}));
+    if (response.ok) return json;
+
+    lastError = createHttpError(response.status, json.error || json.message || `Bot de cobrança respondeu HTTP ${response.status}.`);
+    if (!retryableStatuses.has(response.status) || attempt === maxAttempts) {
+      throw lastError;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, attempt * 600));
   }
-  return json;
+
+  throw lastError || createHttpError(502, "Bot de cobrança indisponível.");
 }
 
 function extractFinanceExternalId(item = {}) {
@@ -1663,25 +1675,84 @@ async function syncBillingCardsWithCobranca(run, billingCards) {
     });
   }
 
-  const result = await requestCobrancaJson("/api/orchestrator/wallet-items", {
-    method: "POST",
-    body: { items: billingCards },
-  });
+  const batchSize = Math.max(1, Math.trunc(Number(process.env.RECEIVABLES_BILLING_BATCH_SIZE) || 20));
+  const batches = [];
+  for (let index = 0; index < billingCards.length; index += batchSize) {
+    batches.push(billingCards.slice(index, index + batchSize));
+  }
+
+  const aggregate = {
+    total: billingCards.length,
+    processed: 0,
+    created: 0,
+    updated: 0,
+    ignored: 0,
+    failed: 0,
+    results: [],
+    errors: [],
+    batches: [],
+  };
+
+  for (let index = 0; index < batches.length; index += 1) {
+    const batch = batches[index];
+    try {
+      const result = await requestCobrancaJson("/api/orchestrator/wallet-items", {
+        method: "POST",
+        body: { items: batch },
+      });
+      aggregate.processed += result.processed || 0;
+      aggregate.created += result.created || 0;
+      aggregate.updated += result.updated || 0;
+      aggregate.ignored += result.ignored || 0;
+      aggregate.failed += result.failed || 0;
+      aggregate.results.push(...(Array.isArray(result.results) ? result.results : []));
+      aggregate.errors.push(...(Array.isArray(result.errors) ? result.errors : []));
+      aggregate.batches.push({
+        index: index + 1,
+        total: batches.length,
+        size: batch.length,
+        created: result.created || 0,
+        updated: result.updated || 0,
+        ignored: result.ignored || 0,
+        failed: result.failed || 0,
+        ok: result.failed === 0,
+      });
+    } catch (error) {
+      aggregate.failed += batch.length;
+      aggregate.errors.push({
+        batch: index + 1,
+        batchSize: batch.length,
+        cardIds: batch.map((item) => extractFinanceExternalId(item)).filter(Boolean),
+        error: error?.message || "Falha ao sincronizar lote de cobranças com o bot.",
+      });
+      aggregate.batches.push({
+        index: index + 1,
+        total: batches.length,
+        size: batch.length,
+        created: 0,
+        updated: 0,
+        ignored: 0,
+        failed: batch.length,
+        ok: false,
+        error: error?.message || "Falha ao sincronizar lote de cobranças com o bot.",
+      });
+    }
+  }
 
   return saveReceivablesRun(run, {
     summary: {
       ...(run.summary || {}),
       billingCardsPulled: billingCards.length,
-      invoicesCreated: result.created || 0,
-      invoicesUpdated: result.updated || 0,
-      invoiceSyncFailures: result.failed || 0,
+      invoicesCreated: aggregate.created || 0,
+      invoicesUpdated: aggregate.updated || 0,
+      invoiceSyncFailures: aggregate.failed || 0,
     },
   }).then((saved) => appendReceivablesStep(saved, {
     key: "billing_cards_to_cobranca",
     title: "Cobranças no bot",
-    status: result.failed ? "warning" : "success",
-    summary: `${result.created || 0} criada(s), ${result.updated || 0} atualizada(s), ${result.ignored || 0} ignorada(s).`,
-    details: result,
+    status: aggregate.failed ? "warning" : "success",
+    summary: `${aggregate.created || 0} criada(s), ${aggregate.updated || 0} atualizada(s), ${aggregate.ignored || 0} ignorada(s).`,
+    details: aggregate,
   }));
 }
 

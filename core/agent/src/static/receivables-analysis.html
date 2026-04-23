@@ -682,10 +682,10 @@
       const errorRows = errors.map((entry) => `
         <tr>
           <td><span class="status-chip danger">Erro</span></td>
-          <td>${escapeHtml(entry.cardId || "—")}</td>
+          <td>${escapeHtml(entry.cardId || (entry.batch ? `Lote ${entry.batch}` : "—"))}</td>
           <td>—</td>
           <td>—</td>
-          <td>${escapeHtml(entry.error || "Falha sem detalhe")}</td>
+          <td>${escapeHtml(entry.error || "Falha sem detalhe")}${entry.batchSize ? `<br><span style="color:var(--dim)">Tamanho do lote: ${escapeHtml(formatInteger(entry.batchSize))}</span>` : ""}${Array.isArray(entry.cardIds) && entry.cardIds.length ? `<br><span style="color:var(--dim)">Cards: ${escapeHtml(entry.cardIds.slice(0, 6).join(", "))}${entry.cardIds.length > 6 ? "..." : ""}</span>` : ""}</td>
         </tr>
       `).join("");
 
