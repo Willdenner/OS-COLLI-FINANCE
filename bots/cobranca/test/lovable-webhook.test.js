@@ -47,6 +47,24 @@ test("normaliza o payload de card criado do Lovable", () => {
   assert.equal(buildRecurrenceLabel(payload), "Parcelado 3x");
 });
 
+test("resolve nome a partir de estrutura Finance (billing_clients) e aprova criação", () => {
+  const payload = extractLovableCardPayload({
+    data: {
+      id: "card_999",
+      billing_clients: [
+        { nome: "Loja Boa Vida", telefone: "11987654321", cnpj_cpf: "123" },
+      ],
+      target_amount: 1000,
+      due_date: "2026-04-20",
+      status: "pendente",
+      client_phone: "11999998888",
+    },
+  });
+  assert.equal(payload.clientName, "Loja Boa Vida");
+  assert.equal(payload.cardId, "card_999");
+  assert.deepEqual(shouldCreateLovableInvoice(payload), { ok: true, reason: "ready" });
+});
+
 test("ignora cards que não podem gerar cobrança no bot", () => {
   assert.deepEqual(
     shouldCreateLovableInvoice({
