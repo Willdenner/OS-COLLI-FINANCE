@@ -79,6 +79,8 @@ services:
         sync: false
       - key: LOGIN_PASSWORD
         sync: false
+      - key: BASE_URL
+        sync: false
       - key: GOOGLE_SERVICE_ACCOUNT_JSON
         sync: false
       - key: GOOGLE_CREDENTIALS_PATH
@@ -121,6 +123,18 @@ services:
           name: colli-postgres
           property: connectionString
       - key: LOVABLE_WEBHOOK_SECRET
+        sync: false
+      - key: GMAIL_USER
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false
+      - key: GMAIL_FROM_NAME
+        sync: false
+      - key: DEFAULT_COUNTRY_CODE
+        value: "55"
+      - key: MASS_SEND_DELAY_MS
+        value: "15000"
+      - key: WHATSAPP_CHROMIUM_ARGS
         sync: false
 
   - type: keyvalue
