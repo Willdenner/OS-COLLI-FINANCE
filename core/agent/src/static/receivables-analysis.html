@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analise do Orquestrador</title>
+  <style>
+    :root {
+      --bg: #0b0f12;
+      --panel: #161b20;
+      --panel-2: #1b2228;
+      --panel-3: #202930;
+      --border: rgba(255,255,255,.08);
+      --text: #f4f7fb;
+      --muted: #95a2b3;
+      --dim: #718093;
+      --brand: #27d49d;
+      --brand-soft: rgba(39,212,157,.12);
+      --warning: #ffb020;
+      --warning-soft: rgba(255,176,32,.12);
+      --danger: #ff6b6b;
+      --danger-soft: rgba(255,107,107,.12);
+      --accent: #7c8cff;
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .page {
+      width: min(1480px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 24px 0 40px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .title {
+      font-size: 30px;
+      font-weight: 800;
+      line-height: 1.1;
+      margin: 0;
+    }
+    .subtitle {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .tools {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      text-decoration: none;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .btn:hover { background: var(--panel-3); }
+    .btn-primary {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: #07130f;
+    }
+    .alert {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+      margin-bottom: 18px;
+    }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+    .metric-label {
+      color: var(--dim);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .metric-value {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 320px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .panel-head {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .panel-title {
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    .panel-body {
+      padding: 16px;
+    }
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .run-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .run-item {
+      width: 100%;
+      text-align: left;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: var(--radius);
+      padding: 12px;
+      cursor: pointer;
+    }
+    .run-item.active {
+      border-color: rgba(39,212,157,.34);
+      background: rgba(39,212,157,.08);
+    }
+    .run-item-title {
+      font-size: 14px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .run-item-meta {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .section-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+    .item-list, .tag-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .tag-list {
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+    .item, .empty {
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      border-radius: var(--radius);
+      padding: 12px;
+    }
+    .item-title, .empty-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .item-meta, .empty-meta {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+    .status-chip, .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      background: var(--panel-3);
+      color: var(--muted);
+    }
+    .status-chip.success, .tag.success { color: var(--brand); border-color: rgba(39,212,157,.2); background: var(--brand-soft); }
+    .status-chip.warning, .tag.warning { color: var(--warning); border-color: rgba(255,176,32,.2); background: var(--warning-soft); }
+    .status-chip.danger, .tag.danger { color: var(--danger); border-color: rgba(255,107,107,.2); background: var(--danger-soft); }
+    .inline {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: var(--dim);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-size: 10px;
+    }
+    tr:last-child td { border-bottom: 0; }
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: 1fr; }
+      .metric-grid, .section-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <div>
+        <h1 class="title">Analise do Orquestrador</h1>
+        <div class="subtitle">Auditoria dos ciclos de contas a receber: o que entrou do Finance, o que saiu para o Conta Azul, o que foi ignorado pelo bot de cobranca e por qual motivo.</div>
+      </div>
+      <div class="tools">
+        <a class="btn" href="/fpa">Voltar ao FP&A</a>
+        <button class="btn btn-primary" id="btn-refresh" type="button">Atualizar</button>
+      </div>
+    </div>
+
+    <div class="alert" id="analysis-alert">Carregando historico do orquestrador...</div>
+
+    <div class="metric-grid">
+      <div class="metric"><div class="metric-label">Cards puxados</div><div class="metric-value" id="metric-cards">0</div></div>
+      <div class="metric"><div class="metric-label">Cobrancas criadas</div><div class="metric-value" id="metric-created">0</div></div>
+      <div class="metric"><div class="metric-label">Ignorados</div><div class="metric-value" id="metric-ignored">0</div></div>
+      <div class="metric"><div class="metric-label">Falhas</div><div class="metric-value" id="metric-errors">0</div></div>
+    </div>
+
+    <div class="layout">
+      <div class="stack">
+        <section class="panel">
+          <div class="panel-head">
+            <div class="panel-title">Historico de ciclos</div>
+            <span class="status-chip" id="history-count">0 execucoes</span>
+          </div>
+          <div class="panel-body">
+            <div class="run-list" id="run-list"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div class="panel-title">Alertas do ciclo</div>
+          </div>
+          <div class="panel-body">
+            <div class="item-list" id="issue-list"></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="stack">
+        <section class="panel">
+          <div class="panel-head">
+            <div class="panel-title">Resumo da execucao</div>
+            <span class="status-chip" id="run-status-chip">Sem execucao</span>
+          </div>
+          <div class="panel-body">
+            <div class="item-list" id="run-summary"></div>
+          </div>
+        </section>
+
+        <div class="section-grid">
+          <section class="panel">
+            <div class="panel-head"><div class="panel-title">Contratos lidos do Finance</div></div>
+            <div class="panel-body"><div class="item-list" id="contracts-finance-list"></div></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><div class="panel-title">Exportacao para Conta Azul</div></div>
+            <div class="panel-body"><div class="table-wrap" id="contracts-export-table"></div></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><div class="panel-title">Cards lidos do Finance</div></div>
+            <div class="panel-body"><div class="item-list" id="cards-finance-list"></div></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><div class="panel-title">Integracao com o bot</div></div>
+            <div class="panel-body">
+              <div class="tag-list" id="bot-reason-tags" style="margin-bottom:12px"></div>
+              <div class="table-wrap" id="bot-results-table"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><div class="panel-title">Pendencias de link</div></div>
+            <div class="panel-body"><div class="item-list" id="missing-links-list"></div></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><div class="panel-title">Pagamentos e fechamento</div></div>
+            <div class="panel-body">
+              <div class="item-list" id="payments-list" style="margin-bottom:12px"></div>
+              <div class="table-wrap" id="payments-table"></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      runs: [],
+      selectedRunId: null,
+      diagnostics: null,
+    };
+
+    function el(id) {
+      return document.getElementById(id);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function api(path, options) {
+      return fetch(path, { credentials: "same-origin", ...options })
+        .then(async (response) => {
+          const json = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(json.error || "Falha na API");
+          return json;
+        });
+    }
+
+    function formatDateTime(value) {
+      if (!value) return "—";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+    }
+
+    function formatInteger(value) {
+      return new Intl.NumberFormat("pt-BR").format(Number(value) || 0);
+    }
+
+    function formatShortDate(value) {
+      if (!value) return "—";
+      const date = new Date(`${value}T00:00:00`);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleDateString("pt-BR");
+    }
+
+    function buildQueryString(params) {
+      const search = new URLSearchParams();
+      Object.entries(params || {}).forEach(([key, value]) => {
+        if (value == null || value === "") return;
+        search.set(key, value);
+      });
+      const query = search.toString();
+      return query ? `?${query}` : "";
+    }
+
+    function selectedRun() {
+      return state.runs.find((run) => run.id === state.selectedRunId) || state.runs[0] || null;
+    }
+
+    function findStep(run, key) {
+      return (run?.steps || []).find((step) => step.key === key) || null;
+    }
+
+    function diagnosticsResource(key) {
+      return (state.diagnostics?.resources || []).find((resource) => resource.key === key) || null;
+    }
+
+    function mapContractItem(item) {
+      if (!item || typeof item !== "object") return null;
+      if (item.primary) return item;
+      return {
+        primary: item.contract_number || item.contractNumber || item.id || "Contrato",
+        secondary: [item.client_name || item.clientName, item.status].filter(Boolean).join(" · "),
+        tertiary: [item.first_charge_date || item.firstDueDate || item.contract_start_date, item.payment_method].filter(Boolean).join(" · "),
+      };
+    }
+
+    function mapCardItem(item) {
+      if (!item || typeof item !== "object") return null;
+      if (item.primary) return item;
+      return {
+        primary: item.card_id || item.cardId || item.id || "Card",
+        secondary: [item.client_name || item.clientName, item.status].filter(Boolean).join(" · "),
+        tertiary: [item.due_date || item.dueDate || item.date, item.payment_method].filter(Boolean).join(" · "),
+      };
+    }
+
+    function mapPaymentItem(item) {
+      if (!item || typeof item !== "object") return null;
+      if (item.primary) return item;
+      return {
+        primary: item.wallet_item_id || item.walletItemId || item.reference || item.id || "Pagamento",
+        secondary: [item.payment_method, item.payment_date || item.paymentDate].filter(Boolean).join(" · "),
+        tertiary: item.notes || "",
+      };
+    }
+
+    function renderItemList(nodeId, items, emptyTitle, emptyMeta) {
+      const node = el(nodeId);
+      const safeItems = (items || []).filter(Boolean);
+      node.innerHTML = safeItems.length
+        ? safeItems.map((item) => `
+            <div class="item">
+              <div class="item-title">${escapeHtml(item.primary || "Registro")}</div>
+              ${item.secondary ? `<div class="item-meta">${escapeHtml(item.secondary)}</div>` : ""}
+              ${item.tertiary ? `<div class="item-meta">${escapeHtml(item.tertiary)}</div>` : ""}
+            </div>
+          `).join("")
+        : `<div class="empty"><div class="empty-title">${escapeHtml(emptyTitle)}</div><div class="empty-meta">${escapeHtml(emptyMeta)}</div></div>`;
+    }
+
+    function statusChipClass(status) {
+      if (["completed", "success", "idempotent", "billing_started"].includes(status)) return "success";
+      if (["waiting_payment_links", "waiting_finance_connection", "completed_with_warnings", "warning"].includes(status)) return "warning";
+      if (["failed", "error"].includes(status)) return "danger";
+      return "";
+    }
+
+    function formatStatusLabel(status) {
+      const labels = {
+        completed: "Concluido",
+        success: "Sucesso",
+        idempotent: "Ja existia",
+        failed: "Falha",
+        error: "Erro",
+        waiting_payment_links: "Aguardando links",
+        waiting_finance_connection: "Finance pendente",
+        billing_started: "Em cobranca",
+      };
+      return labels[status] || status || "—";
+    }
+
+    function translateIgnoreReason(reason) {
+      const raw = String(reason || "").trim();
+      if (!raw) return "Ignorado sem motivo informado";
+      const staticLabels = {
+        card_id_ausente: "Card sem identificador",
+        client_name_ausente: "Cliente sem nome",
+        telefone_ausente: "Cliente sem telefone",
+        valor_ausente: "Card sem valor",
+        vencimento_ausente: "Card sem vencimento",
+        card_travado: "Card travado na origem",
+        cobranca_ja_enviada_no_origem: "Cobranca ja enviada na origem",
+      };
+      if (staticLabels[raw]) return staticLabels[raw];
+      if (raw.startsWith("status_")) return `Status nao elegivel: ${raw.slice(7)}`;
+      return raw;
+    }
+
+    function groupedIgnoredReasons(results) {
+      const grouped = new Map();
+      (results || [])
+        .filter((entry) => entry.ignored)
+        .forEach((entry) => {
+          const reason = String(entry.reason || "ignorado").trim();
+          grouped.set(reason, (grouped.get(reason) || 0) + 1);
+        });
+      return Array.from(grouped.entries()).map(([reason, count]) => ({ reason, label: translateIgnoreReason(reason), count }));
+    }
+
+    function renderRunList() {
+      const run = selectedRun();
+      el("history-count").textContent = `${formatInteger(state.runs.length)} execucoes`;
+      el("run-list").innerHTML = state.runs.length
+        ? state.runs.map((entry) => `
+            <button class="run-item${run?.id === entry.id ? " active" : ""}" data-run-id="${escapeHtml(entry.id)}" type="button">
+              <div class="run-item-title">${escapeHtml(entry.businessDate || "sem data")}</div>
+              <div class="run-item-meta">${escapeHtml(formatStatusLabel(entry.status))} · ${escapeHtml(formatDateTime(entry.updatedAt || entry.createdAt))}</div>
+              <div class="run-item-meta">${escapeHtml(entry.lastError || entry.title || "Ciclo diario de contas a receber")}</div>
+            </button>
+          `).join("")
+        : `<div class="empty"><div class="empty-title">Sem historico</div><div class="empty-meta">Execute ao menos um ciclo para iniciar a auditoria.</div></div>`;
+
+      document.querySelectorAll("[data-run-id]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          state.selectedRunId = button.dataset.runId;
+          await loadDiagnosticsForSelectedRun();
+          renderAnalysis();
+        });
+      });
+    }
+
+    function renderSummary() {
+      const run = selectedRun();
+      const billingStep = findStep(run, "billing_cards_to_cobranca");
+      const results = Array.isArray(billingStep?.details?.results) ? billingStep.details.results : [];
+      const errors = Array.isArray(billingStep?.details?.errors) ? billingStep.details.errors : [];
+
+      el("metric-cards").textContent = formatInteger(run?.summary?.billingCardsPulled || 0);
+      el("metric-created").textContent = formatInteger(billingStep?.details?.created || run?.summary?.invoicesCreated || 0);
+      el("metric-ignored").textContent = formatInteger(billingStep?.details?.ignored || 0);
+      el("metric-errors").textContent = formatInteger(errors.length || billingStep?.details?.failed || run?.summary?.invoiceSyncFailures || 0);
+
+      const chip = el("run-status-chip");
+      const status = run?.status || "idle";
+      chip.className = `status-chip ${statusChipClass(status)}`.trim();
+      chip.textContent = run ? `${formatStatusLabel(status)} · ${run.businessDate}` : "Sem execucao";
+
+      el("analysis-alert").textContent = run
+        ? `${run.title || "Ciclo diario de contas a receber"} atualizado em ${formatDateTime(run.updatedAt || run.createdAt)}.${run.lastError ? ` ${run.lastError}` : ""}`
+        : "Nenhuma execucao encontrada.";
+
+      el("run-summary").innerHTML = run
+        ? `
+            <div class="item">
+              <div class="item-title">Status geral</div>
+              <div class="item-meta">${escapeHtml(formatStatusLabel(run.status))} · ${escapeHtml(run.phase || "—")}</div>
+              <div class="item-meta">Inicio: ${escapeHtml(formatDateTime(run.startedAt))} · Fim: ${escapeHtml(formatDateTime(run.finishedAt))}</div>
+            </div>
+            <div class="item">
+              <div class="item-title">Volumes do ciclo</div>
+              <div class="item-meta">Contratos lidos: ${escapeHtml(formatInteger(run.summary?.contractsPulled || 0))} · Cards lidos: ${escapeHtml(formatInteger(run.summary?.billingCardsPulled || 0))}</div>
+              <div class="item-meta">Cobrancas criadas: ${escapeHtml(formatInteger(run.summary?.invoicesCreated || 0))} · Atualizadas: ${escapeHtml(formatInteger(run.summary?.invoicesUpdated || 0))} · Enfileiradas: ${escapeHtml(formatInteger(run.summary?.invoicesQueuedToSend || 0))}</div>
+            </div>
+            <div class="item">
+              <div class="item-title">Qualidade da execucao</div>
+              <div class="item-meta">Falhas em contratos: ${escapeHtml(formatInteger(run.summary?.contractSyncFailures || 0))} · Falhas no bot: ${escapeHtml(formatInteger(run.summary?.invoiceSyncFailures || 0))} · Sem link: ${escapeHtml(formatInteger(run.summary?.missingPaymentLinks || 0))}</div>
+              <div class="item-meta">Pagamentos sincronizados: ${escapeHtml(formatInteger(run.summary?.paymentsSynced || 0))}</div>
+            </div>
+          `
+        : `<div class="empty"><div class="empty-title">Sem resumo</div><div class="empty-meta">Selecione uma execucao para ver o detalhamento.</div></div>`;
+    }
+
+    function renderIssues() {
+      const run = selectedRun();
+      const issues = [];
+      if (run?.lastError) issues.push({ title: "Erro final do ciclo", meta: run.lastError });
+      (run?.steps || []).forEach((step) => {
+        if (["warning", "failed", "waiting"].includes(step.status)) {
+          issues.push({ title: step.title || step.key, meta: step.summary || "Sem resumo" });
+        }
+      });
+      el("issue-list").innerHTML = issues.length
+        ? issues.map((issue) => `
+            <div class="item">
+              <div class="item-title">${escapeHtml(issue.title)}</div>
+              <div class="item-meta">${escapeHtml(issue.meta)}</div>
+            </div>
+          `).join("")
+        : `<div class="empty"><div class="empty-title">Sem alertas criticos</div><div class="empty-meta">Esta execucao nao registrou warnings ou erros relevantes nas etapas.</div></div>`;
+    }
+
+    function financeItemsForRun(run, key) {
+      const payloadItems = Array.isArray(run?.financePayload?.[key]) ? run.financePayload[key] : [];
+      if (payloadItems.length) return payloadItems;
+      const resource = diagnosticsResource(key === "contracts" ? "contracts" : key === "billingCards" ? "billingCards" : "payments");
+      return Array.isArray(resource?.previewItems) ? resource.previewItems : [];
+    }
+
+    function renderContracts() {
+      const run = selectedRun();
+      const items = financeItemsForRun(run, "contracts").map(mapContractItem).filter(Boolean);
+      renderItemList(
+        "contracts-finance-list",
+        items,
+        "Nenhum contrato visivel",
+        "Execute um novo ciclo para persistir os contratos deste dia ou use o diagnostico do Finance."
+      );
+
+      const step = findStep(run, "contracts_to_conta_azul");
+      const results = Array.isArray(step?.details?.results) ? step.details.results : [];
+      const errors = Array.isArray(step?.details?.errors) ? step.details.errors : [];
+      const rows = results.map((entry) => `
+        <tr>
+          <td><span class="status-chip ${statusChipClass(entry.status)}">${escapeHtml(formatStatusLabel(entry.status))}</span></td>
+          <td>${escapeHtml(entry.externalId || "—")}</td>
+          <td>${escapeHtml(entry.contractNumber || "—")}</td>
+          <td>${escapeHtml(entry.contaAzulContractId || "—")}</td>
+          <td>${escapeHtml(entry.error || "—")}</td>
+        </tr>
+      `).join("");
+      const errorRows = errors.map((entry) => `
+        <tr>
+          <td><span class="status-chip danger">Falha</span></td>
+          <td>${escapeHtml(entry.externalId || "—")}</td>
+          <td>—</td>
+          <td>—</td>
+          <td>${escapeHtml(entry.error || "Falha sem detalhe")}</td>
+        </tr>
+      `).join("");
+
+      el("contracts-export-table").innerHTML = rows || errorRows
+        ? `<table>
+            <thead><tr><th>Status</th><th>External ID</th><th>Contrato</th><th>Conta Azul</th><th>Erro</th></tr></thead>
+            <tbody>${rows}${errorRows}</tbody>
+          </table>`
+        : `<div class="empty"><div class="empty-title">Sem detalhamento salvo</div><div class="empty-meta">Esta execucao ainda nao gravou resultados por contrato. Rode o ciclo novamente com esta versao.</div></div>`;
+    }
+
+    function renderCardsAndBot() {
+      const run = selectedRun();
+      const financeCards = financeItemsForRun(run, "billingCards").map(mapCardItem).filter(Boolean);
+      renderItemList(
+        "cards-finance-list",
+        financeCards,
+        "Nenhum card visivel",
+        "Se o Finance encontrou cards mas esta lista estiver vazia, rode o ciclo novamente para persistir o payload completo."
+      );
+
+      const step = findStep(run, "billing_cards_to_cobranca");
+      const details = step?.details || {};
+      const results = Array.isArray(details.results) ? details.results : [];
+      const errors = Array.isArray(details.errors) ? details.errors : [];
+      const reasonTags = groupedIgnoredReasons(results);
+
+      el("bot-reason-tags").innerHTML = reasonTags.length
+        ? reasonTags.map((entry) => `<span class="tag warning">${escapeHtml(entry.label)} · ${escapeHtml(formatInteger(entry.count))}</span>`).join("")
+        : `<span class="tag success">Sem motivos de ignorado registrados</span>`;
+
+      const rows = results.map((entry) => {
+        const status = entry.created ? "success" : entry.updated ? "success" : entry.ignored ? "warning" : "success";
+        const label = entry.created ? "Criada" : entry.updated ? "Atualizada" : entry.ignored ? "Ignorada" : "Processada";
+        return `
+          <tr>
+            <td><span class="status-chip ${status}">${label}</span></td>
+            <td>${escapeHtml(entry.cardId || "—")}</td>
+            <td>${escapeHtml(entry.invoiceId || "—")}</td>
+            <td>${escapeHtml(entry.clientId || "—")}</td>
+            <td>${escapeHtml(entry.reason ? translateIgnoreReason(entry.reason) : "—")}</td>
+          </tr>
+        `;
+      }).join("");
+      const errorRows = errors.map((entry) => `
+        <tr>
+          <td><span class="status-chip danger">Erro</span></td>
+          <td>${escapeHtml(entry.cardId || "—")}</td>
+          <td>—</td>
+          <td>—</td>
+          <td>${escapeHtml(entry.error || "Falha sem detalhe")}</td>
+        </tr>
+      `).join("");
+
+      el("bot-results-table").innerHTML = rows || errorRows
+        ? `<table>
+            <thead><tr><th>Resultado</th><th>Card</th><th>Cobranca</th><th>Cliente</th><th>Motivo / erro</th></tr></thead>
+            <tbody>${rows}${errorRows}</tbody>
+          </table>`
+        : `<div class="empty"><div class="empty-title">Sem retorno do bot</div><div class="empty-meta">Ainda nao houve resposta detalhada do endpoint interno de cobranca.</div></div>`;
+    }
+
+    function renderLinks() {
+      const run = selectedRun();
+      const items = (run?.missingPaymentLinks || []).map((entry) => ({
+        primary: entry.clientName || entry.cardId || entry.invoiceId || "Cobranca",
+        secondary: [entry.cardId, formatShortDate(entry.dueDate), entry.status].filter(Boolean).join(" · "),
+        tertiary: entry.invoiceId ? `Invoice: ${entry.invoiceId}` : "",
+      }));
+      renderItemList("missing-links-list", items, "Nenhuma pendencia de link", "Todas as cobrancas elegiveis tinham link de pagamento nesta execucao.");
+    }
+
+    function renderPayments() {
+      const run = selectedRun();
+      const items = financeItemsForRun(run, "payments").map(mapPaymentItem).filter(Boolean);
+      renderItemList("payments-list", items, "Nenhum pagamento listado", "O fechamento do dia ainda nao puxou ou nao persistiu pagamentos para esta execucao.");
+
+      const step = findStep(run, "payments_to_conta_azul");
+      const details = step?.details || {};
+      const errors = Array.isArray(details.errors) ? details.errors : [];
+      el("payments-table").innerHTML = details.total || errors.length
+        ? `<table>
+            <thead><tr><th>Resumo</th><th>Valor</th></tr></thead>
+            <tbody>
+              <tr><td>Cobrancas marcadas como pagas</td><td>${escapeHtml(formatInteger(details.markedPaid || 0))}</td></tr>
+              <tr><td>Baixas enviadas ao Conta Azul</td><td>${escapeHtml(formatInteger(details.contaAzulSynced || 0))}</td></tr>
+              <tr><td>Falhas</td><td>${escapeHtml(formatInteger(details.failed || 0))}</td></tr>
+              ${errors.map((entry) => `<tr><td>${escapeHtml(entry.externalId || "Pagamento")}</td><td>${escapeHtml(entry.error || "Falha sem detalhe")}</td></tr>`).join("")}
+            </tbody>
+          </table>`
+        : `<div class="empty"><div class="empty-title">Sem fechamento detalhado</div><div class="empty-meta">Esta execucao ainda nao passou pela etapa de fechamento de pagamentos.</div></div>`;
+    }
+
+    async function loadDiagnosticsForSelectedRun() {
+      const run = selectedRun();
+      state.diagnostics = null;
+      if (!run?.businessDate) return;
+      state.diagnostics = (await api(`/api/fpa/receivables-orchestrator/finance-diagnostics${buildQueryString({ businessDate: run.businessDate })}`)).diagnostics || null;
+    }
+
+    function renderAnalysis() {
+      renderRunList();
+      renderSummary();
+      renderIssues();
+      renderContracts();
+      renderCardsAndBot();
+      renderLinks();
+      renderPayments();
+    }
+
+    async function loadAnalysis() {
+      const result = await api("/api/fpa/receivables-orchestrator?limit=30");
+      state.runs = Array.isArray(result.runs) ? result.runs : [];
+      if (!state.selectedRunId || !state.runs.some((run) => run.id === state.selectedRunId)) {
+        state.selectedRunId = state.runs[0]?.id || null;
+      }
+      await loadDiagnosticsForSelectedRun();
+      renderAnalysis();
+    }
+
+    el("btn-refresh").addEventListener("click", () => {
+      loadAnalysis().catch((error) => {
+        el("analysis-alert").textContent = error.message;
+      });
+    });
+
+    loadAnalysis().catch((error) => {
+      el("analysis-alert").textContent = error.message;
+    });
+  </script>
+</body>
+</html>

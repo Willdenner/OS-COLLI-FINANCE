@@ -624,6 +624,7 @@
           <div class="card-head">
             <div class="card-title"><span class="card-icon">↻</span> Orquestrador · Contas a Receber</div>
             <div class="inline-tools">
+              <button class="btn" id="btn-open-receivables-analysis" type="button">Analisar fluxo</button>
               <button class="btn" id="btn-refresh-receivables-orchestrator" type="button">Atualizar</button>
               <button class="btn" id="btn-test-finance-connection" type="button">Testar Finance</button>
               <button class="btn" id="btn-resume-receivables-orchestrator" type="button">Links incluídos</button>
@@ -3585,6 +3586,9 @@
       el("btn-copy-redirect-uri").addEventListener("click", () => copyContaAzulRedirectUri());
       el("btn-save-lovable-settings").addEventListener("click", () => saveLovableSettings().catch((error) => toast(error.message)));
       el("btn-refresh-lovable-syncs").addEventListener("click", () => loadLovableSyncs().catch((error) => toast(error.message)));
+      el("btn-open-receivables-analysis").addEventListener("click", () => {
+        window.location.href = buildAbsoluteAppUrl("/fpa/receivables-analysis");
+      });
       el("btn-run-receivables-orchestrator").addEventListener("click", () => runReceivablesOrchestrator().catch((error) => toast(error.message)));
       el("btn-test-finance-connection").addEventListener("click", () => testFinanceConnection().catch((error) => toast(error.message)));
       el("btn-resume-receivables-orchestrator").addEventListener("click", () => resumeReceivablesOrchestrator().catch((error) => toast(error.message)));

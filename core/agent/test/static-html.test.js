@@ -23,11 +23,13 @@ test("painel FP&A expõe o orquestrador diário de contas a receber", async () =
   assert.match(html, /id="receivables-orchestrator"/);
   assert.match(html, /btn-run-receivables-orchestrator/);
   assert.match(html, /btn-test-finance-connection/);
+  assert.match(html, /btn-open-receivables-analysis/);
   assert.match(html, /btn-resume-receivables-orchestrator/);
   assert.match(html, /btn-close-receivables-day/);
   assert.match(html, /\/api\/fpa\/receivables-orchestrator\/run/);
   assert.match(html, /\/api\/fpa\/receivables-orchestrator\/finance-diagnostics/);
   assert.match(html, /\/api\/fpa\/receivables-orchestrator\/close-day/);
+  assert.match(html, /buildAbsoluteAppUrl\("\/fpa\/receivables-analysis"\)/);
   assert.match(server, /runReceivablesOrchestrator/);
   assert.match(server, /buildFinanceDiagnostics/);
   assert.match(server, /waiting_finance_connection/);
@@ -35,10 +37,31 @@ test("painel FP&A expõe o orquestrador diário de contas a receber", async () =
   assert.match(server, /previewItems/);
   assert.match(server, /syncLovableContractToContaAzul/);
   assert.match(server, /syncLovableReceiptToContaAzul/);
+  assert.match(server, /trimReceivablesPayloadItems/);
   assert.match(server, /\/api\/fpa\/receivables-orchestrator\/resume/);
   assert.match(renderYaml, /key: COLLI_FINANCE_CONTRACTS_URL/);
   assert.match(renderYaml, /key: COLLI_FINANCE_BILLING_CARDS_URL/);
   assert.match(renderYaml, /key: COLLI_FINANCE_PAYMENTS_URL/);
+});
+
+test("pagina de analise do orquestrador detalha payloads, exportacoes e motivos de ignorado", async () => {
+  const html = await fs.readFile(path.join(__dirname, "..", "src", "static", "receivables-analysis.html"), "utf8");
+  const server = await fs.readFile(path.join(__dirname, "..", "src", "server.js"), "utf8");
+
+  assert.match(html, /Historico de ciclos/);
+  assert.match(html, /Contratos lidos do Finance/);
+  assert.match(html, /Cards lidos do Finance/);
+  assert.match(html, /Integracao com o bot/);
+  assert.match(html, /Pagamentos e fechamento/);
+  assert.match(html, /\/api\/fpa\/receivables-orchestrator\?limit=30/);
+  assert.match(html, /\/api\/fpa\/receivables-orchestrator\/finance-diagnostics/);
+  assert.match(html, /translateIgnoreReason/);
+  assert.match(html, /cobranca_ja_enviada_no_origem/);
+  assert.match(html, /billing_cards_to_cobranca/);
+  assert.match(html, /contracts_to_conta_azul/);
+  assert.match(server, /RECEIVABLES_ANALYSIS_INDEX/);
+  assert.match(server, /sendReceivablesAnalysisPage/);
+  assert.match(server, /app\.get\("\/fpa\/receivables-analysis", sendReceivablesAnalysisPage\)/);
 });
 
 test("servidor nao entrega a home estatica antes do Basic Auth", async () => {

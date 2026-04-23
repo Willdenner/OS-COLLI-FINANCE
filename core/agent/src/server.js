@@ -87,6 +87,7 @@ const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 const STATIC_DIR = path.join(__dirname, "static");
 const HOME_INDEX = path.join(STATIC_DIR, "index.html");
 const FPA_INDEX = path.join(STATIC_DIR, "fpa.html");
+const RECEIVABLES_ANALYSIS_INDEX = path.join(STATIC_DIR, "receivables-analysis.html");
 const DEFAULT_COBRANCAS_URL = "https://bot-cobranca-25qf.onrender.com";
 const DEFAULT_EXTRATOR_URL = "https://bot-extrator.onrender.com";
 let receivablesOrchestratorPromise = null;
@@ -1536,6 +1537,10 @@ function pickSendableInvoices(invoices, businessDate) {
     .filter(Boolean);
 }
 
+function trimReceivablesPayloadItems(items, limit = 500) {
+  return Array.isArray(items) ? items.slice(0, limit) : [];
+}
+
 async function saveReceivablesRun(run, patch = {}) {
   return upsertReceivablesOrchestratorRun({
     ...run,
@@ -1587,17 +1592,47 @@ async function createReceivablesRun({ businessDate, title = "Ciclo diário de co
 }
 
 async function syncContractsForReceivablesRun(run, contracts) {
-  const summary = { total: contracts.length, success: 0, idempotent: 0, failed: 0, errors: [] };
+  const summary = { total: contracts.length, success: 0, idempotent: 0, failed: 0, errors: [], results: [] };
   for (const contract of contracts) {
+    const externalId = readFirstText(contract, ["externalId", "contractId", "id"]);
+    const contractNumber = readFirstText(contract, ["contractNumber", "contract_number", "number", "numero"]);
     try {
       const result = await syncLovableContractToContaAzul(contract, { force: false });
-      if (result.body?.idempotent) summary.idempotent += 1;
-      else if (result.body?.ok) summary.success += 1;
-      else summary.failed += 1;
+      if (result.body?.idempotent) {
+        summary.idempotent += 1;
+        summary.results.push({
+          externalId,
+          contractNumber: result.body?.contract?.contractNumber || contractNumber || null,
+          status: "idempotent",
+          contaAzulContractId: result.body?.contract?.contaAzulContractId || result.body?.contract?.id || null,
+        });
+      } else if (result.body?.ok) {
+        summary.success += 1;
+        summary.results.push({
+          externalId,
+          contractNumber: result.body?.contract?.contractNumber || contractNumber || null,
+          status: "success",
+          contaAzulContractId: result.body?.contract?.contaAzulContractId || result.body?.contract?.id || null,
+        });
+      } else {
+        summary.failed += 1;
+        summary.results.push({
+          externalId,
+          contractNumber,
+          status: "failed",
+          error: result.body?.error || "Falha ao cadastrar contrato no Conta Azul.",
+        });
+      }
     } catch (error) {
       summary.failed += 1;
       summary.errors.push({
-        externalId: readFirstText(contract, ["externalId", "contractId", "id"]),
+        externalId,
+        error: error?.message || "Falha ao cadastrar contrato no Conta Azul.",
+      });
+      summary.results.push({
+        externalId,
+        contractNumber,
+        status: "failed",
         error: error?.message || "Falha ao cadastrar contrato no Conta Azul.",
       });
     }
@@ -1741,6 +1776,12 @@ async function runReceivablesOrchestrator({ businessDate, body = {}, startSendin
       query: contractsResource.queryForDate(run.businessDate),
       resourceLabel: contractsResource.resourceLabel,
     });
+    run = await saveReceivablesRun(run, {
+      financePayload: {
+        ...(run.financePayload || {}),
+        contracts: trimReceivablesPayloadItems(contractsPull.items),
+      },
+    });
     run = await appendReceivablesStep(run, {
       key: "pull_contracts",
       title: "Buscar contratos no Finance",
@@ -1767,6 +1808,12 @@ async function runReceivablesOrchestrator({ businessDate, body = {}, startSendin
       responseKeys: cardsResource.responseKeys,
       query: cardsResource.queryForDate(run.businessDate),
       resourceLabel: cardsResource.resourceLabel,
+    });
+    run = await saveReceivablesRun(run, {
+      financePayload: {
+        ...(run.financePayload || {}),
+        billingCards: trimReceivablesPayloadItems(cardsPull.items),
+      },
     });
     run = await appendReceivablesStep(run, {
       key: "pull_billing_cards",
@@ -1857,6 +1904,12 @@ async function closeReceivablesDay({ businessDate, body = {} } = {}) {
       responseKeys: paymentsResource.responseKeys,
       query: paymentsResource.queryForDate(run.businessDate),
       resourceLabel: paymentsResource.resourceLabel,
+    });
+    run = await saveReceivablesRun(run, {
+      financePayload: {
+        ...(run.financePayload || {}),
+        payments: trimReceivablesPayloadItems(paymentsPull.items),
+      },
     });
     run = await appendReceivablesStep(run, {
       key: "pull_payments",
@@ -1985,8 +2038,14 @@ function sendAppPage(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.sendFile(FPA_INDEX);
 }
+
+function sendReceivablesAnalysisPage(req, res) {
+  res.setHeader("Cache-Control", "no-store");
+  res.sendFile(RECEIVABLES_ANALYSIS_INDEX);
+}
 app.get("/", sendHomePage);
 app.get("/fpa", sendAppPage);
+app.get("/fpa/receivables-analysis", sendReceivablesAnalysisPage);
 app.use("/cobrancas", asyncHandler(proxyCobrancasModule));
 app.use("/extrator", asyncHandler(proxyExtratorModule));
 
