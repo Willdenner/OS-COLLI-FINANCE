@@ -391,6 +391,34 @@ test("monta payload de contrato recorrente do Lovable para o Conta Azul", () => 
   assert.equal(response.saleId, "venda_123");
 });
 
+test("mapeia contrato vindo do Finance com billing_clients em lista e campos em snake_case", () => {
+  const settings = {
+    fpaExport: {
+      defaultReceivableCategoryId: "categoria_receita",
+    },
+  };
+  const record = buildContaAzulContractRecord({
+    settings,
+    nextContractNumber: 200,
+    source: {
+      contractId: "fin_ct_1",
+      contract_start_date: "2026-07-01T12:00:00.000Z",
+      first_charge_date: "2026-07-10",
+      monthly_value: 1500.5,
+      billing_clients: [{ id: "pessoa-uuid-caz", conta_azul_id: "pessoa-uuid-caz" }],
+      id_conta_financeira: "conta-financeira-uuid",
+      servico_id: "servico-uuid-1",
+    },
+  });
+  assert.equal(record.payload.id_cliente, "pessoa-uuid-caz");
+  assert.equal(record.payload.termos.data_inicio, "2026-07-01");
+  assert.equal(record.payload.condicao_pagamento.id_conta_financeira, "conta-financeira-uuid");
+  assert.equal(record.payload.condicao_pagamento.primeira_data_vencimento, "2026-07-10");
+  assert.equal(record.payload.itens[0].id, "servico-uuid-1");
+  assert.equal(record.payload.itens[0].valor, 1500.5);
+  assert.deepEqual(record.missingRequiredFields, []);
+});
+
 test("permite customizar rotas de contrato via integracao lovableContracts", () => {
   const settings = mergeContaAzulSettings(
     {},

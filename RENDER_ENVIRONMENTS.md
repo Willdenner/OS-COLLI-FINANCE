@@ -44,6 +44,9 @@ Mapa das variáveis que o projeto usa no Render, separadas entre:
 | `CONTA_AZUL_CONTRACTS_PATH` | Opcional | `POST` de criação de contrato (padrão: `/v1/contratos`); alinhe com a versão da API do app |
 | `CONTA_AZUL_NEXT_CONTRACT_NUMBER_PATH` | Opcional | Próximo número de contrato (padrão: `/v1/contratos/proximo-numero`) |
 | `CONTA_AZUL_AUTH_MODE` | Opcional | `bearer` (padrão), `custom_header` ou `none` — define como a API recebe a autorização |
+| `CONTA_AZUL_DEFAULT_CONTRACT_ITEM_ID` | Opcional | UUID do serviço/produto no Conta Azul se o contrato do Finance não trouxer `servico_id` / `productId` |
+| `CONTA_AZUL_DEFAULT_CONTRACT_CUSTOMER_ID` | Opcional | UUID do contato, depois do default do painel |
+| `CONTA_AZUL_DEFAULT_CONTRACT_FINANCIAL_ACCOUNT_ID` | Opcional | UUID da conta financeira, depois do default do painel |
 | `CONTA_AZUL_ACCESS_TOKEN` / `CONTA_AZUL_REFRESH_TOKEN` | Opcional | Pré-preenchimento de tokens (útil com persistência; OAuth pelo painel continua válido) |
 | `CONTA_AZUL_TOKEN_TYPE` / `CONTA_AZUL_ACCESS_TOKEN_TYPE` | Opcional | Tipo do token (padrão: `Bearer`) |
 | `CONTA_AZUL_CUSTOM_HEADER_NAME` / `CONTA_AZUL_CUSTOM_HEADER_VALUE` | Opcional | Se `CONTA_AZUL_AUTH_MODE=custom_header` |

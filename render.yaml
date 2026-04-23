@@ -42,6 +42,12 @@ services:
         sync: false
       - key: CONTA_AZUL_AUTH_MODE
         sync: false
+      - key: CONTA_AZUL_DEFAULT_CONTRACT_ITEM_ID
+        sync: false
+      - key: CONTA_AZUL_DEFAULT_CONTRACT_CUSTOMER_ID
+        sync: false
+      - key: CONTA_AZUL_DEFAULT_CONTRACT_FINANCIAL_ACCOUNT_ID
+        sync: false
       - key: LOVABLE_WEBHOOK_SECRET
         sync: false
       - key: COLLI_FINANCE_API_TOKEN

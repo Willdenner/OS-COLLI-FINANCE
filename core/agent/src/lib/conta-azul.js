@@ -74,9 +74,22 @@ function pickFirstText(...values) {
 }
 
 function readNestedValue(source, path) {
-  return String(path || "")
+  const parts = String(path || "")
     .split(".")
-    .reduce((current, key) => (current && typeof current === "object" ? current[key] : undefined), source);
+    .filter(Boolean);
+  let current = source;
+  for (const part of parts) {
+    while (Array.isArray(current) && current.length) {
+      current = current[0];
+    }
+    if (current == null || typeof current !== "object") return undefined;
+    if (!(part in current)) return undefined;
+    current = current[part];
+  }
+  while (Array.isArray(current) && current.length) {
+    current = current[0];
+  }
+  return current;
 }
 
 function pickFirstNested(source, paths = []) {
@@ -835,6 +848,24 @@ function normalizeIsoDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : "";
 }
 
+/** Aceita ISO completo, data curta e timestamps vindos do Finance. */
+function normalizeIsoDateFromFinance(value) {
+  if (value == null || value === "") return "";
+  if (typeof value === "string") {
+    const m = value.trim().match(/^(\d{4}-\d{2}-\d{2})/);
+    if (m) return m[1];
+  }
+  const t = new Date(value).getTime();
+  if (!Number.isNaN(t)) {
+    const d = new Date(t);
+    const y = d.getUTCFullYear();
+    const mo = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(d.getUTCDate()).padStart(2, "0");
+    return `${y}-${mo}-${day}`;
+  }
+  return normalizeIsoDate(value);
+}
+
 function getContaAzulFpaExportCandidates({ settings, transactions }) {
   const safeSettings = normalizeContaAzulSettings(settings);
   const exportSettings = safeSettings.fpaExport;
@@ -1086,19 +1117,106 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber } =
     (contract.contaAzulContractPayload && typeof contract.contaAzulContractPayload === "object" && contract.contaAzulContractPayload) ||
     null;
   const externalId = pickFirstText(contract.externalId, contract.contractId, contract.id, contract.uuid, contract.codigo, contract.code);
-  const firstDueDate = normalizeIsoDate(
-    pickFirstNested(contract, ["firstDueDate", "primeiraDataVencimento", "dueDate", "billing.firstDueDate", "billing.dueDate"])
+  const firstDueDate = normalizeIsoDateFromFinance(
+    pickFirstNested(contract, [
+      "firstDueDate",
+      "first_charge_date",
+      "firstChargeDate",
+      "primeiraDataVencimento",
+      "primeiro_vencimento",
+      "data_primeiro_vencimento",
+      "primeira_data_vencimento",
+      "dueDate",
+      "due_date",
+      "vencimento",
+      "data_vencimento",
+      "billing.firstDueDate",
+      "billing.dueDate",
+      "billing.due_date",
+      "billing.data_vencimento",
+      "billing.primeira_data_vencimento",
+      "condicao_pagamento.primeira_data_vencimento",
+    ])
   );
-  const startDate = normalizeIsoDate(pickFirstNested(contract, ["startDate", "dataInicio", "data_inicio", "termos.data_inicio"])) || firstDueDate;
-  const endDate = normalizeIsoDate(pickFirstNested(contract, ["endDate", "dataFim", "data_fim", "termos.data_fim"]));
+  const startDate =
+    normalizeIsoDateFromFinance(
+      pickFirstNested(contract, [
+        "startDate",
+        "dataInicio",
+        "data_inicio",
+        "contract_start_date",
+        "contractStartDate",
+        "inicio",
+        "termos.data_inicio",
+        "billing.startDate",
+        "billing.data_inicio",
+      ])
+    ) || firstDueDate;
+  const endDate = normalizeIsoDateFromFinance(
+    pickFirstNested(contract, [
+      "endDate",
+      "dataFim",
+      "data_fim",
+      "contract_end_date",
+      "termos.data_fim",
+      "billing.endDate",
+    ])
+  );
   const amountCents = resolveMoneyCents(
     contract,
-    ["amountCents", "valueCents", "monthlyAmountCents", "valorCentavos"],
-    ["amount", "value", "monthlyAmount", "valor", "valorMensal"]
+    [
+      "amountCents",
+      "valueCents",
+      "monthlyAmountCents",
+      "valorCentavos",
+      "valor_centavos",
+      "item.valorCentavos",
+    ],
+    [
+      "amount",
+      "value",
+      "monthlyAmount",
+      "valor",
+      "valorMensal",
+      "valor_mensal",
+      "target_amount",
+      "targetAmount",
+      "monthly_value",
+      "monthlyValue",
+      "preco",
+      "preco_mensal",
+      "item.valor",
+      "item.amount",
+      "servico.valor",
+      "billing.amount",
+      "billing.valor",
+    ]
   );
   const amount = moneyCentsToDecimal(amountCents);
   const itemId = pickFirstText(
-    pickFirstNested(contract, ["itemId", "productId", "serviceId", "produtoId", "servicoId", "item.id", "items.0.id", "itens.0.id"])
+    pickFirstNested(contract, [
+      "itemId",
+      "productId",
+      "serviceId",
+      "produtoId",
+      "servicoId",
+      "id_servico",
+      "id_produto",
+      "servico_id",
+      "produto_id",
+      "plano_id",
+      "planoId",
+      "item.id",
+      "items.0.id",
+      "itens.0.id",
+      "servico.id",
+      "produto.id",
+      "billing.productId",
+      "billing.serviceId",
+      "billing.itemId",
+      "item.itemId",
+    ]),
+    readContaAzulEnvFirst("CONTA_AZUL_DEFAULT_CONTRACT_ITEM_ID")
   );
   const itemDescription = pickFirstText(
     pickFirstNested(contract, ["itemDescription", "description", "descricao", "name", "nome", "item.description", "item.descricao"])
@@ -1112,11 +1230,32 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber } =
       "clientId",
       "contaAzulCustomerId",
       "contaAzulClientId",
+      "conta_azul_client_id",
+      "conta_azul_customer_id",
       "id_cliente",
+      "cliente_id",
+      "pessoa_id",
+      "pessoaId",
+      "contato_id",
+      "contatoId",
       "customer.contaAzulId",
       "client.contaAzulId",
       "cliente.id",
+      "cliente.id_cliente",
+      "cliente.conta_azul_id",
+      "cliente.contaAzulId",
+      "client.id",
+      "billing_clients.conta_azul_id",
+      "billing_clients.contaAzulId",
+      "billing_clients.id_cliente",
+      "billing_clients.id",
+      "billing_client.conta_azul_id",
+      "billing_client.id",
+      "billing_client.id_cliente",
+      "customer.id",
+      "billing.customerId",
     ]),
+    readContaAzulEnvFirst("CONTA_AZUL_DEFAULT_CONTRACT_CUSTOMER_ID"),
     safeSettings.fpaExport.defaultContactId
   );
   const financialAccountId = pickFirstText(
@@ -1124,8 +1263,16 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber } =
       "financialAccountId",
       "contaAzulFinancialAccountId",
       "id_conta_financeira",
+      "conta_financeira_id",
+      "idContaFinanceira",
+      "financial_account_id",
+      "default_financial_account_id",
       "billing.financialAccountId",
+      "billing.id_conta_financeira",
+      "billing.conta_financeira_id",
+      "condicao_pagamento.id_conta_financeira",
     ]),
+    readContaAzulEnvFirst("CONTA_AZUL_DEFAULT_CONTRACT_FINANCIAL_ACCOUNT_ID"),
     safeSettings.fpaExport.defaultFinancialAccountId
   );
   const categoryId = pickFirstText(
@@ -1134,7 +1281,18 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber } =
   );
   const paymentMethod = normalizeContaAzulPaymentMethod(pickFirstNested(contract, ["paymentMethod", "tipoPagamento", "billing.paymentMethod"]));
   const dueDay = normalizeContaAzulDueDay(pickFirstNested(contract, ["dueDay", "diaVencimento", "billing.dueDay"]), firstDueDate || startDate);
-  const issueDate = normalizeIsoDate(pickFirstNested(contract, ["issueDate", "dataEmissao", "data_emissao"])) || new Date().toISOString().slice(0, 10);
+  const issueDate =
+    normalizeIsoDateFromFinance(
+      pickFirstNested(contract, [
+        "issueDate",
+        "dataEmissao",
+        "data_emissao",
+        "created_at",
+        "createdAt",
+        "billing.issueDate",
+        "billing.data_emissao",
+      ])
+    ) || new Date().toISOString().slice(0, 10);
   const frequency = normalizeContaAzulContractFrequency(pickFirstNested(contract, ["frequency", "recurrence", "periodicity", "termos.tipo_frequencia"]));
   const expiration = normalizeContaAzulContractExpiration(pickFirstNested(contract, ["expirationType", "termos.tipo_expiracao"]), endDate);
 

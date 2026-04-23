@@ -138,6 +138,8 @@ Campos mínimos quando não enviar um payload pronto do Conta Azul:
 
 Também é possível enviar `contaAzulPayload` ou `contaAzulContractPayload` já no formato oficial do `POST /v1/contratos`.
 
+O pull do **Finance** (orquestrador) mapeia automaticamente, entre outros, `contract_start_date` / `first_charge_date` / `monthly_value`, `billing_clients` (lista com `id` ou `conta_azul_id`), `id_conta_financeira` e `servico_id` / `productId` — nomes alinhados ao JSON típico do app. Se algum ID não vier no contrato, use os defaults do painel (contato e conta financeira FP&A) ou, em último caso, `CONTA_AZUL_DEFAULT_CONTRACT_ITEM_ID`, `CONTA_AZUL_DEFAULT_CONTRACT_CUSTOMER_ID` e `CONTA_AZUL_DEFAULT_CONTRACT_FINANCIAL_ACCOUNT_ID` no ambiente.
+
 ### Recebimento confirmado
 
 Endpoint:
