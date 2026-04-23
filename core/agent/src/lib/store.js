@@ -219,6 +219,7 @@ function createEmptyFpaState() {
     categoryRules: [],
     lovableContracts: [],
     lovableReceipts: [],
+    receivablesOrchestratorRuns: [],
   };
 }
 
@@ -461,6 +462,32 @@ function normalizeLovableReceiptSyncRecord(record) {
   };
 }
 
+function normalizeReceivablesOrchestratorRunRecord(record) {
+  if (!record || typeof record !== "object") return null;
+  const id = normalizeOptionalText(record.id, 120) || nextId("receivables");
+  const businessDate = normalizeOptionalText(record.businessDate, 10) || nowIso().slice(0, 10);
+  const status = normalizeOptionalText(record.status, 60) || "idle";
+
+  return {
+    id,
+    businessDate,
+    status,
+    phase: normalizeOptionalText(record.phase, 80) || status,
+    title: normalizeOptionalText(record.title, 160) || "Ciclo diário de contas a receber",
+    summary: record.summary && typeof record.summary === "object" ? record.summary : {},
+    steps: Array.isArray(record.steps) ? record.steps.slice(-80) : [],
+    missingPaymentLinks: Array.isArray(record.missingPaymentLinks) ? record.missingPaymentLinks.slice(0, 500) : [],
+    invoicesToSend: Array.isArray(record.invoicesToSend) ? record.invoicesToSend.slice(0, 1000) : [],
+    financePayload: record.financePayload && typeof record.financePayload === "object" ? record.financePayload : {},
+    batchSend: record.batchSend && typeof record.batchSend === "object" ? record.batchSend : null,
+    lastError: normalizeOptionalText(record.lastError, 1200),
+    createdAt: record.createdAt || nowIso(),
+    updatedAt: record.updatedAt || record.createdAt || nowIso(),
+    startedAt: record.startedAt || null,
+    finishedAt: record.finishedAt || null,
+  };
+}
+
 function normalizeFpaState(rawFpaState) {
   const safeState = !rawFpaState || typeof rawFpaState !== "object" ? createEmptyFpaState() : rawFpaState;
 
@@ -485,6 +512,13 @@ function normalizeFpaState(rawFpaState) {
       : [],
     lovableReceipts: Array.isArray(safeState.lovableReceipts)
       ? sortIntegrationSyncRecords(safeState.lovableReceipts.map(normalizeLovableReceiptSyncRecord).filter(Boolean))
+      : [],
+    receivablesOrchestratorRuns: Array.isArray(safeState.receivablesOrchestratorRuns)
+      ? safeState.receivablesOrchestratorRuns
+          .map(normalizeReceivablesOrchestratorRunRecord)
+          .filter(Boolean)
+          .sort((a, b) => String(b.updatedAt || b.createdAt || "").localeCompare(String(a.updatedAt || a.createdAt || "")))
+          .slice(0, 100)
       : [],
   };
 }
@@ -1094,6 +1128,47 @@ async function upsertLovableReceiptSync(record = {}) {
   return db.fpa.lovableReceipts.find((entry) => entry.externalId === normalized.externalId);
 }
 
+async function listReceivablesOrchestratorRuns({ limit = 20 } = {}) {
+  const db = await loadDb();
+  const runs = (db.fpa.receivablesOrchestratorRuns || [])
+    .slice()
+    .sort((a, b) => String(b.updatedAt || b.createdAt || "").localeCompare(String(a.updatedAt || a.createdAt || "")));
+  if (Number.isFinite(limit) && limit > 0) return runs.slice(0, Math.trunc(limit));
+  return runs;
+}
+
+async function getLatestReceivablesOrchestratorRun() {
+  const runs = await listReceivablesOrchestratorRuns({ limit: 1 });
+  return runs[0] || null;
+}
+
+async function upsertReceivablesOrchestratorRun(run = {}) {
+  const db = await loadDb();
+  const normalized = normalizeReceivablesOrchestratorRunRecord({ ...run, updatedAt: nowIso() });
+  if (!normalized) throw new Error("Execução de contas a receber inválida.");
+
+  const existing = db.fpa.receivablesOrchestratorRuns.find((entry) => entry.id === normalized.id);
+  if (existing) {
+    Object.assign(existing, {
+      ...existing,
+      ...normalized,
+      id: existing.id,
+      createdAt: existing.createdAt,
+      updatedAt: nowIso(),
+    });
+  } else {
+    db.fpa.receivablesOrchestratorRuns.unshift(normalized);
+  }
+
+  db.fpa.receivablesOrchestratorRuns = db.fpa.receivablesOrchestratorRuns
+    .map(normalizeReceivablesOrchestratorRunRecord)
+    .filter(Boolean)
+    .sort((a, b) => String(b.updatedAt || b.createdAt || "").localeCompare(String(a.updatedAt || a.createdAt || "")))
+    .slice(0, 100);
+  await persistDb();
+  return db.fpa.receivablesOrchestratorRuns.find((entry) => entry.id === normalized.id);
+}
+
 module.exports = {
   createFpaImport,
   createFpaDreAccount,
@@ -1104,15 +1179,18 @@ module.exports = {
   getStorageStatus,
   findLovableContractSync,
   findLovableReceiptSync,
+  getLatestReceivablesOrchestratorRun,
   listFpaCategoryRules,
   listFpaDreAccounts,
   listFpaImports,
   listFpaTransactions,
   listLovableContractSyncs,
   listLovableReceiptSyncs,
+  listReceivablesOrchestratorRuns,
   recordContaAzulSync,
   sanitizeLovableSettings,
   seedFpaDreAccounts,
+  upsertReceivablesOrchestratorRun,
   upsertLovableContractSync,
   upsertLovableReceiptSync,
   updateFpaDreAccount,

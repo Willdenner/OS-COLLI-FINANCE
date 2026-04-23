@@ -15,6 +15,26 @@ test("pagina inicial Colli Finance OS aponta para os modulos principais", async 
   assert.doesNotMatch(html, /href="#fpsa"/);
 });
 
+test("painel FP&A expõe o orquestrador diário de contas a receber", async () => {
+  const html = await fs.readFile(path.join(__dirname, "..", "src", "static", "fpa.html"), "utf8");
+  const server = await fs.readFile(path.join(__dirname, "..", "src", "server.js"), "utf8");
+  const renderYaml = await fs.readFile(path.join(__dirname, "..", "..", "..", "render.yaml"), "utf8");
+
+  assert.match(html, /id="receivables-orchestrator"/);
+  assert.match(html, /btn-run-receivables-orchestrator/);
+  assert.match(html, /btn-resume-receivables-orchestrator/);
+  assert.match(html, /btn-close-receivables-day/);
+  assert.match(html, /\/api\/fpa\/receivables-orchestrator\/run/);
+  assert.match(html, /\/api\/fpa\/receivables-orchestrator\/close-day/);
+  assert.match(server, /runReceivablesOrchestrator/);
+  assert.match(server, /syncLovableContractToContaAzul/);
+  assert.match(server, /syncLovableReceiptToContaAzul/);
+  assert.match(server, /\/api\/fpa\/receivables-orchestrator\/resume/);
+  assert.match(renderYaml, /key: COLLI_FINANCE_CONTRACTS_URL/);
+  assert.match(renderYaml, /key: COLLI_FINANCE_BILLING_CARDS_URL/);
+  assert.match(renderYaml, /key: COLLI_FINANCE_PAYMENTS_URL/);
+});
+
 test("servidor nao entrega a home estatica antes do Basic Auth", async () => {
   const server = await fs.readFile(path.join(__dirname, "..", "src", "server.js"), "utf8");
 

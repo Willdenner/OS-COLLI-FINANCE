@@ -14,6 +14,7 @@ const {
   deleteFpaTransaction,
   findLovableContractSync,
   findLovableReceiptSync,
+  getLatestReceivablesOrchestratorRun,
   getSettings,
   getStorageStatus,
   listFpaCategoryRules,
@@ -22,9 +23,11 @@ const {
   listFpaTransactions,
   listLovableContractSyncs,
   listLovableReceiptSyncs,
+  listReceivablesOrchestratorRuns,
   recordContaAzulSync,
   sanitizeLovableSettings,
   seedFpaDreAccounts,
+  upsertReceivablesOrchestratorRun,
   upsertLovableContractSync,
   upsertLovableReceiptSync,
   updateFpaDreAccount,
@@ -86,6 +89,7 @@ const HOME_INDEX = path.join(STATIC_DIR, "index.html");
 const FPA_INDEX = path.join(STATIC_DIR, "fpa.html");
 const DEFAULT_COBRANCAS_URL = "https://bot-cobranca-25qf.onrender.com";
 const DEFAULT_EXTRATOR_URL = "https://bot-extrator.onrender.com";
+let receivablesOrchestratorPromise = null;
 
 function nowIso() {
   return new Date().toISOString();
@@ -918,106 +922,722 @@ app.get(
   })
 );
 
+async function syncLovableContractToContaAzul(source = {}, { dryRun = false, force = false } = {}) {
+  const currentSettings = await getSettings();
+  const contaAzulSettings = await ensureContaAzulAccessToken(currentSettings, { allowRefresh: true });
+  if (!contaAzulSettings.enabled || !contaAzulSettings.allowOutbound) {
+    throw createHttpError(400, "Ative a integração Conta Azul antes de receber contratos do Lovable.");
+  }
+
+  const nextContractNumber =
+    readFirstValue(source || {}, ["contractNumber", "number", "numero", "contract.contractNumber", "contract.termos.numero"]) ||
+    await fetchContaAzulNextContractNumber(contaAzulSettings);
+  const record = buildContaAzulContractRecord({
+    settings: contaAzulSettings,
+    source: source || {},
+    nextContractNumber,
+  });
+  if (!record.externalId) throw createHttpError(400, "Informe externalId, contractId ou id do contrato Lovable.");
+
+  const existing = await findLovableContractSync(record.externalId);
+  if (existing?.status === "success" && !force) {
+    return { statusCode: 200, body: { ok: true, idempotent: true, contract: existing } };
+  }
+
+  if (record.missingRequiredFields.length) {
+    await upsertLovableContractSync({
+      externalId: record.externalId,
+      amountCents: record.amountCents,
+      status: "error",
+      errorMessage: `Campos obrigatórios ausentes: ${record.missingRequiredFields.join(", ")}`,
+      requestPayload: record.payload,
+    });
+    throw createHttpError(400, `Campos obrigatórios ausentes para criar contrato no Conta Azul: ${record.missingRequiredFields.join(", ")}.`);
+  }
+
+  if (dryRun) {
+    return { statusCode: 200, body: { ok: true, dryRun: true, record } };
+  }
+
+  const startedAt = nowIso();
+  const result = await postContaAzulJson(contaAzulSettings, record.endpointPath, record.payload);
+  const contractResponse = normalizeContaAzulContractResponse(result.parsed.json);
+  const errorMessage = result.response.ok ? null : result.parsed.preview || `HTTP ${result.response.status}`;
+  const savedContract = await upsertLovableContractSync({
+    externalId: record.externalId,
+    amountCents: record.amountCents,
+    contractNumber: record.payload?.termos?.numero,
+    status: result.response.ok ? "success" : "error",
+    contaAzulContractId: contractResponse.id,
+    contaAzulSaleId: contractResponse.saleId,
+    contaAzulLegacyId: contractResponse.legacyId,
+    endpoint: result.endpoint,
+    responseCode: result.response.status,
+    responsePreview: result.parsed.preview,
+    errorMessage,
+    requestPayload: record.payload,
+    responsePayload: result.parsed.json,
+    syncedAt: result.response.ok ? nowIso() : null,
+  });
+
+  await recordContaAzulSync(
+    {
+      kind: "push",
+      direction: "outbound",
+      resource: CONTA_AZUL_LOVABLE_CONTRACTS_RESOURCE,
+      status: result.response.ok ? "success" : "error",
+      endpoint: result.endpoint,
+      recordCount: result.response.ok ? 1 : 0,
+      responseCode: result.response.status,
+      summary: result.response.ok
+        ? `Contrato Lovable ${record.externalId} criado no Conta Azul.`
+        : `Falha ao criar contrato Lovable ${record.externalId} no Conta Azul.`,
+      errorMessage,
+      startedAt,
+      finishedAt: nowIso(),
+    },
+    {
+      lastPushAt: nowIso(),
+      lastPushResource: CONTA_AZUL_LOVABLE_CONTRACTS_RESOURCE,
+      lastPushStatus: result.response.ok ? "success" : "error",
+      lastError: errorMessage,
+    }
+  );
+
+  if (!result.response.ok) {
+    return {
+      statusCode: result.response.status === 401 ? 401 : 400,
+      body: {
+        ok: false,
+        error: `Conta Azul recusou o contrato Lovable. ${errorMessage}`,
+        contract: savedContract,
+        responsePreview: result.parsed.preview,
+      },
+    };
+  }
+
+  return { statusCode: 201, body: { ok: true, contract: savedContract, contaAzul: contractResponse } };
+}
+
+async function syncLovableReceiptToContaAzul(source = {}, { dryRun = false, force = false } = {}) {
+  const externalId = readFirstText(source || {}, ["externalId", "paymentId", "receiptId", "id", "payment.id", "receipt.id"]);
+  if (!externalId) throw createHttpError(400, "Informe externalId, paymentId, receiptId ou id do recebimento Lovable.");
+
+  const existing = await findLovableReceiptSync(externalId);
+  if (existing?.status === "success" && !force) {
+    return { statusCode: 200, body: { ok: true, idempotent: true, receipt: existing } };
+  }
+
+  const currentSettings = await getSettings();
+  const contaAzulSettings = await ensureContaAzulAccessToken(currentSettings, { allowRefresh: true });
+  if (!contaAzulSettings.enabled || !contaAzulSettings.allowOutbound) {
+    throw createHttpError(400, "Ative a integração Conta Azul antes de receber baixas do Lovable.");
+  }
+
+  const resolvedInstallment = await resolveContaAzulInstallmentForLovableReceipt(contaAzulSettings, source || {});
+  const record = buildContaAzulAcquittanceRecord({
+    settings: contaAzulSettings,
+    source: source || {},
+    installmentId: resolvedInstallment?.id,
+  });
+
+  if (record.missingRequiredFields.length) {
+    await upsertLovableReceiptSync({
+      externalId: record.externalId || externalId,
+      externalContractId: readFirstText(source || {}, ["contractId", "externalContractId", "contract.id"]),
+      amountCents: record.amountCents,
+      paymentDate: record.paymentDate,
+      status: "error",
+      contaAzulInstallmentId: record.installmentId,
+      errorMessage: `Campos obrigatórios ausentes: ${record.missingRequiredFields.join(", ")}`,
+      requestPayload: record.payload,
+    });
+    throw createHttpError(400, `Campos obrigatórios ausentes para dar baixa no Conta Azul: ${record.missingRequiredFields.join(", ")}.`);
+  }
+
+  if (dryRun) {
+    return { statusCode: 200, body: { ok: true, dryRun: true, resolvedInstallment, record } };
+  }
+
+  const startedAt = nowIso();
+  const result = await postContaAzulJson(contaAzulSettings, record.endpointPath, record.payload);
+  const acquittanceResponse = normalizeContaAzulAcquittanceResponse(result.parsed.json);
+  const errorMessage = result.response.ok ? null : result.parsed.preview || `HTTP ${result.response.status}`;
+  const savedReceipt = await upsertLovableReceiptSync({
+    externalId: record.externalId || externalId,
+    externalContractId: readFirstText(source || {}, ["contractId", "externalContractId", "contract.id"]),
+    amountCents: record.amountCents,
+    paymentDate: record.paymentDate,
+    status: result.response.ok ? "success" : "error",
+    contaAzulInstallmentId: record.installmentId,
+    contaAzulAcquittanceId: acquittanceResponse.id,
+    endpoint: result.endpoint,
+    responseCode: result.response.status,
+    responsePreview: result.parsed.preview,
+    errorMessage,
+    requestPayload: record.payload,
+    responsePayload: result.parsed.json,
+    syncedAt: result.response.ok ? nowIso() : null,
+  });
+
+  await recordContaAzulSync(
+    {
+      kind: "push",
+      direction: "outbound",
+      resource: CONTA_AZUL_LOVABLE_RECEIPTS_RESOURCE,
+      status: result.response.ok ? "success" : "error",
+      endpoint: result.endpoint,
+      recordCount: result.response.ok ? 1 : 0,
+      responseCode: result.response.status,
+      summary: result.response.ok
+        ? `Recebimento Lovable ${record.externalId} baixado no Conta Azul.`
+        : `Falha ao baixar recebimento Lovable ${record.externalId} no Conta Azul.`,
+      errorMessage,
+      startedAt,
+      finishedAt: nowIso(),
+    },
+    {
+      lastPushAt: nowIso(),
+      lastPushResource: CONTA_AZUL_LOVABLE_RECEIPTS_RESOURCE,
+      lastPushStatus: result.response.ok ? "success" : "error",
+      lastError: errorMessage,
+    }
+  );
+
+  if (!result.response.ok) {
+    return {
+      statusCode: result.response.status === 401 ? 401 : 400,
+      body: {
+        ok: false,
+        error: `Conta Azul recusou a baixa do Lovable. ${errorMessage}`,
+        receipt: savedReceipt,
+        responsePreview: result.parsed.preview,
+      },
+    };
+  }
+
+  return { statusCode: 201, body: { ok: true, receipt: savedReceipt, contaAzul: acquittanceResponse } };
+}
+
+function getBusinessDate(value = null) {
+  const raw = String(value || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: process.env.RECEIVABLES_TIMEZONE || "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return formatter.format(new Date());
+}
+
+function readCollectionPayload(source, keys) {
+  if (Array.isArray(source)) return source;
+  const safeSource = source && typeof source === "object" ? source : {};
+  for (const key of keys) {
+    const value = readNestedValue(safeSource, key);
+    if (Array.isArray(value)) return value;
+  }
+  return null;
+}
+
+function extractFinanceResponseItems(body, keys) {
+  const items = readCollectionPayload(body, keys);
+  return Array.isArray(items) ? items : [];
+}
+
+function readFinanceBearerToken() {
+  return readFirstEnvValue(["COLLI_FINANCE_API_TOKEN", "FINANCE_API_TOKEN", "LOVABLE_API_TOKEN"]);
+}
+
+function buildFinanceUrl(rawUrl, params = {}) {
+  const url = new URL(rawUrl);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value == null || value === "") return;
+    url.searchParams.set(key, String(value));
+  });
+  return url;
+}
+
+async function fetchFinanceCollection({ body, bodyKeys, envKeys, responseKeys, query = {}, resourceLabel }) {
+  const manualItems = readCollectionPayload(body, bodyKeys);
+  if (Array.isArray(manualItems)) {
+    return {
+      configured: true,
+      source: "manual",
+      items: manualItems,
+      message: `${manualItems.length} registro(s) recebido(s) manualmente para ${resourceLabel}.`,
+    };
+  }
+
+  const rawUrl = readFirstEnvValue(envKeys);
+  if (!rawUrl) {
+    return {
+      configured: false,
+      source: "not_configured",
+      items: [],
+      message: `Configure ${envKeys[0]} para o FP&A puxar ${resourceLabel} automaticamente do Colli Finance.`,
+    };
+  }
+
+  const url = buildFinanceUrl(rawUrl, query);
+  const headers = { accept: "application/json" };
+  const token = readFinanceBearerToken();
+  if (token) headers.authorization = `Bearer ${token}`;
+
+  const response = await fetch(url, { headers });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw createHttpError(response.status, `Colli Finance recusou a busca de ${resourceLabel}. ${json.error || json.message || `HTTP ${response.status}`}`);
+  }
+
+  const items = extractFinanceResponseItems(json, responseKeys);
+  return {
+    configured: true,
+    source: rawUrl,
+    items,
+    message: `${items.length} registro(s) puxado(s) do Colli Finance para ${resourceLabel}.`,
+  };
+}
+
+function getCobrancaServiceBaseUrl() {
+  return resolveProxyBaseUrl({
+    internalEnvKeys: ["COBRANCAS_INTERNAL_URL", "BOT_COBRANCA_INTERNAL_URL"],
+    externalEnvKeys: ["COBRANCAS_URL", "BOT_COBRANCA_URL"],
+    defaultExternalUrl: DEFAULT_COBRANCAS_URL,
+  });
+}
+
+function buildServiceJsonHeaders() {
+  const headers = {
+    accept: "application/json",
+    "content-type": "application/json",
+  };
+  const authorization = buildInternalModuleAuthorizationHeader();
+  if (authorization) headers.authorization = authorization;
+  return headers;
+}
+
+function buildCobrancaUrl(pathname, params = {}) {
+  const baseUrl = getCobrancaServiceBaseUrl();
+  if (!baseUrl) throw createHttpError(503, "Bot de cobrança não configurado.");
+  const url = new URL(pathname, `${baseUrl}/`);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value == null || value === "") return;
+    url.searchParams.set(key, Array.isArray(value) ? value.join(",") : String(value));
+  });
+  return url;
+}
+
+async function requestCobrancaJson(pathname, { method = "GET", params = {}, body = null } = {}) {
+  const response = await fetch(buildCobrancaUrl(pathname, params), {
+    method,
+    headers: buildServiceJsonHeaders(),
+    body: body == null ? undefined : JSON.stringify(body),
+  });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw createHttpError(response.status, json.error || json.message || `Bot de cobrança respondeu HTTP ${response.status}.`);
+  }
+  return json;
+}
+
+function extractFinanceExternalId(item = {}) {
+  return readFirstText(item, [
+    "externalId",
+    "cardId",
+    "card_id",
+    "walletItemId",
+    "wallet_item_id",
+    "billingCardId",
+    "billing_card_id",
+    "id",
+    "data.externalId",
+    "data.cardId",
+    "data.card_id",
+    "data.id",
+    "payment.cardId",
+    "receipt.cardId",
+  ]);
+}
+
+function extractPaymentExternalId(payment = {}) {
+  return readFirstText(payment, [
+    "cardId",
+    "card_id",
+    "walletItemId",
+    "wallet_item_id",
+    "billingCardId",
+    "billing_card_id",
+    "externalContractId",
+    "contractId",
+    "invoiceExternalId",
+    "payment.cardId",
+    "receipt.cardId",
+    "payment.contractId",
+    "receipt.contractId",
+  ]);
+}
+
+function pickSendableInvoices(invoices, businessDate) {
+  return (Array.isArray(invoices) ? invoices : [])
+    .filter((invoice) => ["pending", "failed"].includes(String(invoice.status || "pending")))
+    .filter((invoice) => String(invoice.dueDate || "") <= businessDate)
+    .filter((invoice) => String(invoice.paymentLink || "").trim())
+    .map((invoice) => invoice.id)
+    .filter(Boolean);
+}
+
+async function saveReceivablesRun(run, patch = {}) {
+  return upsertReceivablesOrchestratorRun({
+    ...run,
+    ...patch,
+    updatedAt: nowIso(),
+  });
+}
+
+async function appendReceivablesStep(run, step) {
+  const nextStep = {
+    key: step.key,
+    title: step.title,
+    status: step.status || "success",
+    summary: step.summary || "",
+    details: step.details || null,
+    at: nowIso(),
+  };
+  return saveReceivablesRun(run, {
+    steps: [...(run.steps || []), nextStep].slice(-80),
+  });
+}
+
+async function createReceivablesRun({ businessDate, title = "Ciclo diário de contas a receber" } = {}) {
+  const startedAt = nowIso();
+  return upsertReceivablesOrchestratorRun({
+    businessDate: getBusinessDate(businessDate),
+    status: "running",
+    phase: "starting",
+    title,
+    summary: {
+      contractsPulled: 0,
+      contractsSynced: 0,
+      billingCardsPulled: 0,
+      invoicesCreated: 0,
+      invoicesUpdated: 0,
+      missingPaymentLinks: 0,
+      invoicesQueuedToSend: 0,
+      paymentsPulled: 0,
+      paymentsSynced: 0,
+    },
+    steps: [],
+    missingPaymentLinks: [],
+    invoicesToSend: [],
+    financePayload: {},
+    startedAt,
+    createdAt: startedAt,
+    updatedAt: startedAt,
+  });
+}
+
+async function syncContractsForReceivablesRun(run, contracts) {
+  const summary = { total: contracts.length, success: 0, idempotent: 0, failed: 0, errors: [] };
+  for (const contract of contracts) {
+    try {
+      const result = await syncLovableContractToContaAzul(contract, { force: false });
+      if (result.body?.idempotent) summary.idempotent += 1;
+      else if (result.body?.ok) summary.success += 1;
+      else summary.failed += 1;
+    } catch (error) {
+      summary.failed += 1;
+      summary.errors.push({
+        externalId: readFirstText(contract, ["externalId", "contractId", "id"]),
+        error: error?.message || "Falha ao cadastrar contrato no Conta Azul.",
+      });
+    }
+  }
+  return saveReceivablesRun(run, {
+    summary: {
+      ...(run.summary || {}),
+      contractsPulled: contracts.length,
+      contractsSynced: summary.success + summary.idempotent,
+      contractSyncFailures: summary.failed,
+    },
+  }).then((saved) => appendReceivablesStep(saved, {
+    key: "contracts_to_conta_azul",
+    title: "Contratos no Conta Azul",
+    status: summary.failed ? "warning" : "success",
+    summary: `${summary.success + summary.idempotent}/${summary.total} contrato(s) sincronizado(s).`,
+    details: summary,
+  }));
+}
+
+async function syncBillingCardsWithCobranca(run, billingCards) {
+  if (!billingCards.length) {
+    return appendReceivablesStep(run, {
+      key: "billing_cards_to_cobranca",
+      title: "Cards de cobrança",
+      status: "success",
+      summary: "Nenhum card novo recebido para criar cobranças.",
+    });
+  }
+
+  const result = await requestCobrancaJson("/api/orchestrator/wallet-items", {
+    method: "POST",
+    body: { items: billingCards },
+  });
+
+  return saveReceivablesRun(run, {
+    summary: {
+      ...(run.summary || {}),
+      billingCardsPulled: billingCards.length,
+      invoicesCreated: result.created || 0,
+      invoicesUpdated: result.updated || 0,
+      invoiceSyncFailures: result.failed || 0,
+    },
+  }).then((saved) => appendReceivablesStep(saved, {
+    key: "billing_cards_to_cobranca",
+    title: "Cobranças no bot",
+    status: result.failed ? "warning" : "success",
+    summary: `${result.created || 0} criada(s), ${result.updated || 0} atualizada(s), ${result.ignored || 0} ignorada(s).`,
+    details: result,
+  }));
+}
+
+async function auditAndMaybeSendReceivables(run, { cardIds, startSending = true } = {}) {
+  const uniqueCardIds = Array.from(new Set((cardIds || []).filter(Boolean)));
+  const audit = await requestCobrancaJson("/api/orchestrator/payment-link-audit", {
+    params: { dueTo: run.businessDate, cardIds: uniqueCardIds },
+  });
+  const invoicesResult = await requestCobrancaJson("/api/orchestrator/invoices", {
+    params: { dueTo: run.businessDate, cardIds: uniqueCardIds },
+  });
+  const invoiceIds = pickSendableInvoices(invoicesResult.invoices, run.businessDate);
+
+  run = await saveReceivablesRun(run, {
+    missingPaymentLinks: audit.missingPaymentLinks || [],
+    invoicesToSend: invoiceIds,
+    summary: {
+      ...(run.summary || {}),
+      missingPaymentLinks: audit.missingCount || 0,
+      invoicesQueuedToSend: invoiceIds.length,
+    },
+  });
+
+  if (audit.missingCount) {
+    return appendReceivablesStep(run, {
+      key: "payment_link_audit",
+      title: "Links de pagamento",
+      status: "waiting",
+      summary: `${audit.missingCount} cobrança(s) sem link de pagamento. Inclua manualmente e retome o ciclo.`,
+      details: audit,
+    }).then((saved) => saveReceivablesRun(saved, {
+      status: "waiting_payment_links",
+      phase: "waiting_payment_links",
+    }));
+  }
+
+  run = await appendReceivablesStep(run, {
+    key: "payment_link_audit",
+    title: "Links de pagamento",
+    status: "success",
+    summary: "Todas as cobranças elegíveis têm link de pagamento.",
+    details: audit,
+  });
+
+  if (!startSending || !invoiceIds.length) {
+    return saveReceivablesRun(run, {
+      status: "completed",
+      phase: "no_charges_to_send",
+      finishedAt: nowIso(),
+    });
+  }
+
+  const batch = await requestCobrancaJson("/api/invoices/send-batch", {
+    method: "POST",
+    body: {
+      invoiceIds,
+      delayMs: Number(process.env.RECEIVABLES_SEND_DELAY_MS || 15000),
+    },
+  });
+
+  return appendReceivablesStep(run, {
+    key: "send_charges",
+    title: "Envio de cobranças",
+    status: batch.started ? "running" : "success",
+    summary: batch.message || `${invoiceIds.length} cobrança(s) encaminhada(s) ao bot de cobrança.`,
+    details: batch,
+  }).then((saved) => saveReceivablesRun(saved, {
+    status: batch.started ? "billing_started" : "completed",
+    phase: batch.started ? "monitoring_charges" : "no_charges_to_send",
+    batchSend: batch.batchSend || null,
+    finishedAt: batch.started ? null : nowIso(),
+  }));
+}
+
+async function runReceivablesOrchestrator({ businessDate, body = {}, startSending = true } = {}) {
+  let run = await createReceivablesRun({ businessDate });
+  try {
+    run = await appendReceivablesStep(run, {
+      key: "start",
+      title: "Início do ciclo",
+      status: "running",
+      summary: `Ciclo iniciado para ${run.businessDate}.`,
+    });
+
+    const contractsPull = await fetchFinanceCollection({
+      body,
+      bodyKeys: ["contracts", "newContracts", "data.contracts"],
+      envKeys: ["COLLI_FINANCE_CONTRACTS_URL", "FINANCE_CONTRACTS_URL"],
+      responseKeys: ["contracts", "newContracts", "data.contracts", "data", "items", "records"],
+      query: { businessDate: run.businessDate, date: run.businessDate, status: "new" },
+      resourceLabel: "contratos novos",
+    });
+    run = await appendReceivablesStep(run, {
+      key: "pull_contracts",
+      title: "Buscar contratos no Finance",
+      status: contractsPull.configured ? "success" : "warning",
+      summary: contractsPull.message,
+      details: { source: contractsPull.source, count: contractsPull.items.length },
+    });
+    run = await syncContractsForReceivablesRun(run, contractsPull.items);
+
+    const cardsPull = await fetchFinanceCollection({
+      body,
+      bodyKeys: ["billingCards", "cards", "walletItems", "data.cards"],
+      envKeys: ["COLLI_FINANCE_BILLING_CARDS_URL", "FINANCE_BILLING_CARDS_URL", "FINANCE_WALLET_ITEMS_URL"],
+      responseKeys: ["billingCards", "cards", "walletItems", "data.billingCards", "data.cards", "data", "items", "records"],
+      query: { businessDate: run.businessDate, dueTo: run.businessDate, overdue: "true", status: "pending" },
+      resourceLabel: "cards de cobrança vencidos ou do dia",
+    });
+    run = await appendReceivablesStep(run, {
+      key: "pull_billing_cards",
+      title: "Buscar cards de cobrança",
+      status: cardsPull.configured ? "success" : "warning",
+      summary: cardsPull.message,
+      details: { source: cardsPull.source, count: cardsPull.items.length },
+    });
+    run = await syncBillingCardsWithCobranca(run, cardsPull.items);
+
+    const cardIds = cardsPull.items.map(extractFinanceExternalId).filter(Boolean);
+    run = await auditAndMaybeSendReceivables(run, { cardIds, startSending });
+    return run;
+  } catch (error) {
+    return saveReceivablesRun(run, {
+      status: "failed",
+      phase: "failed",
+      lastError: error?.message || "Falha no orquestrador de contas a receber.",
+      finishedAt: nowIso(),
+    });
+  }
+}
+
+async function refreshReceivablesMonitoring(run) {
+  if (!run) return null;
+  const [batchSend, messages] = await Promise.all([
+    requestCobrancaJson("/api/invoices/send-batch/status").catch((error) => ({ status: "unavailable", error: error.message })),
+    requestCobrancaJson("/api/messages", { params: { limit: 80 } }).catch(() => []),
+  ]);
+  return saveReceivablesRun(run, {
+    batchSend,
+    summary: {
+      ...(run.summary || {}),
+      inboundMessagesTracked: Array.isArray(messages) ? messages.filter((message) => message.direction === "in").length : 0,
+    },
+  });
+}
+
+async function closeReceivablesDay({ businessDate, body = {} } = {}) {
+  let run = (await getLatestReceivablesOrchestratorRun()) || (await createReceivablesRun({ businessDate, title: "Fechamento de pagamentos" }));
+  run = await saveReceivablesRun(run, {
+    businessDate: getBusinessDate(businessDate || run.businessDate),
+    status: "running",
+    phase: "closing_day",
+  });
+
+  try {
+    const paymentsPull = await fetchFinanceCollection({
+      body,
+      bodyKeys: ["payments", "receipts", "paidCards", "data.payments"],
+      envKeys: ["COLLI_FINANCE_PAYMENTS_URL", "FINANCE_PAYMENTS_URL", "FINANCE_RECEIPTS_URL"],
+      responseKeys: ["payments", "receipts", "paidCards", "data.payments", "data.receipts", "data", "items", "records"],
+      query: { businessDate: run.businessDate, paymentDate: run.businessDate, status: "paid" },
+      resourceLabel: "pagamentos confirmados",
+    });
+    run = await appendReceivablesStep(run, {
+      key: "pull_payments",
+      title: "Atualizar pagamentos",
+      status: paymentsPull.configured ? "success" : "warning",
+      summary: paymentsPull.message,
+      details: { source: paymentsPull.source, count: paymentsPull.items.length },
+    });
+
+    const externalIds = paymentsPull.items.map(extractPaymentExternalId).filter(Boolean);
+    const invoicesResult = externalIds.length
+      ? await requestCobrancaJson("/api/orchestrator/invoices", { params: { cardIds: externalIds } })
+      : { invoices: [] };
+    const invoicesByExternalId = new Map((invoicesResult.invoices || []).map((invoice) => [invoice.integration?.externalId, invoice]));
+    const summary = { total: paymentsPull.items.length, markedPaid: 0, contaAzulSynced: 0, failed: 0, errors: [] };
+
+    for (const payment of paymentsPull.items) {
+      const externalId = extractPaymentExternalId(payment);
+      const invoice = externalId ? invoicesByExternalId.get(externalId) : null;
+      try {
+        if (invoice && invoice.status !== "paid") {
+          await requestCobrancaJson(`/api/invoices/${encodeURIComponent(invoice.id)}/mark-paid`, { method: "POST", body: {} });
+          summary.markedPaid += 1;
+        }
+        const receiptPayload = {
+          ...payment,
+          externalId: readFirstText(payment, ["externalId", "paymentId", "receiptId", "id"]) || `payment_${externalId || Date.now()}`,
+          externalContractId: readFirstText(payment, ["externalContractId", "contractId"]) || externalId,
+          amountCents: readFirstValue(payment, ["amountCents", "paidAmountCents", "valueCents"]) || invoice?.valueCents,
+          paymentDate: readFirstText(payment, ["paymentDate", "paidAt", "dataPagamento", "data_pagamento"], 10) || run.businessDate,
+        };
+        const result = await syncLovableReceiptToContaAzul(receiptPayload, { force: false });
+        if (result.body?.ok) summary.contaAzulSynced += 1;
+      } catch (error) {
+        summary.failed += 1;
+        summary.errors.push({ externalId, error: error?.message || "Falha ao baixar pagamento." });
+      }
+    }
+
+    run = await appendReceivablesStep(run, {
+      key: "payments_to_conta_azul",
+      title: "Baixas no Conta Azul",
+      status: summary.failed ? "warning" : "success",
+      summary: `${summary.markedPaid} cobrança(s) marcada(s) como paga(s); ${summary.contaAzulSynced} baixa(s) enviada(s) ao Conta Azul.`,
+      details: summary,
+    });
+
+    return saveReceivablesRun(run, {
+      status: summary.failed ? "completed_with_warnings" : "completed",
+      phase: "day_closed",
+      summary: {
+        ...(run.summary || {}),
+        paymentsPulled: paymentsPull.items.length,
+        paymentsMarkedPaid: summary.markedPaid,
+        paymentsSynced: summary.contaAzulSynced,
+        paymentSyncFailures: summary.failed,
+      },
+      finishedAt: nowIso(),
+    });
+  } catch (error) {
+    return saveReceivablesRun(run, {
+      status: "failed",
+      phase: "closing_failed",
+      lastError: error?.message || "Falha no fechamento de pagamentos.",
+      finishedAt: nowIso(),
+    });
+  }
+}
+
 app.post(
   "/api/integrations/lovable/contracts",
   requireLovableWebhookAuth,
   asyncHandler(async (req, res) => {
     const dryRun = req.body?.dryRun === true || req.query?.dryRun === "true";
     const force = req.body?.force === true || req.query?.force === "true";
-    const currentSettings = await getSettings();
-    const contaAzulSettings = await ensureContaAzulAccessToken(currentSettings, { allowRefresh: true });
-    if (!contaAzulSettings.enabled || !contaAzulSettings.allowOutbound) {
-      throw createHttpError(400, "Ative a integração Conta Azul antes de receber contratos do Lovable.");
-    }
-
-    const nextContractNumber =
-      readFirstValue(req.body || {}, ["contractNumber", "number", "numero", "contract.contractNumber", "contract.termos.numero"]) ||
-      await fetchContaAzulNextContractNumber(contaAzulSettings);
-    const record = buildContaAzulContractRecord({
-      settings: contaAzulSettings,
-      source: req.body || {},
-      nextContractNumber,
-    });
-    if (!record.externalId) throw createHttpError(400, "Informe externalId, contractId ou id do contrato Lovable.");
-
-    const existing = await findLovableContractSync(record.externalId);
-    if (existing?.status === "success" && !force) {
-      res.json({ ok: true, idempotent: true, contract: existing });
-      return;
-    }
-
-    if (record.missingRequiredFields.length) {
-      await upsertLovableContractSync({
-        externalId: record.externalId,
-        amountCents: record.amountCents,
-        status: "error",
-        errorMessage: `Campos obrigatórios ausentes: ${record.missingRequiredFields.join(", ")}`,
-        requestPayload: record.payload,
-      });
-      throw createHttpError(400, `Campos obrigatórios ausentes para criar contrato no Conta Azul: ${record.missingRequiredFields.join(", ")}.`);
-    }
-
-    if (dryRun) {
-      res.json({ ok: true, dryRun: true, record });
-      return;
-    }
-
-    const startedAt = nowIso();
-    const result = await postContaAzulJson(contaAzulSettings, record.endpointPath, record.payload);
-    const contractResponse = normalizeContaAzulContractResponse(result.parsed.json);
-    const errorMessage = result.response.ok ? null : result.parsed.preview || `HTTP ${result.response.status}`;
-    const savedContract = await upsertLovableContractSync({
-      externalId: record.externalId,
-      amountCents: record.amountCents,
-      contractNumber: record.payload?.termos?.numero,
-      status: result.response.ok ? "success" : "error",
-      contaAzulContractId: contractResponse.id,
-      contaAzulSaleId: contractResponse.saleId,
-      contaAzulLegacyId: contractResponse.legacyId,
-      endpoint: result.endpoint,
-      responseCode: result.response.status,
-      responsePreview: result.parsed.preview,
-      errorMessage,
-      requestPayload: record.payload,
-      responsePayload: result.parsed.json,
-      syncedAt: result.response.ok ? nowIso() : null,
-    });
-
-    await recordContaAzulSync(
-      {
-        kind: "push",
-        direction: "outbound",
-        resource: CONTA_AZUL_LOVABLE_CONTRACTS_RESOURCE,
-        status: result.response.ok ? "success" : "error",
-        endpoint: result.endpoint,
-        recordCount: result.response.ok ? 1 : 0,
-        responseCode: result.response.status,
-        summary: result.response.ok
-          ? `Contrato Lovable ${record.externalId} criado no Conta Azul.`
-          : `Falha ao criar contrato Lovable ${record.externalId} no Conta Azul.`,
-        errorMessage,
-        startedAt,
-        finishedAt: nowIso(),
-      },
-      {
-        lastPushAt: nowIso(),
-        lastPushResource: CONTA_AZUL_LOVABLE_CONTRACTS_RESOURCE,
-        lastPushStatus: result.response.ok ? "success" : "error",
-        lastError: errorMessage,
-      }
-    );
-
-    if (!result.response.ok) {
-      res.status(result.response.status === 401 ? 401 : 400).json({
-        ok: false,
-        error: `Conta Azul recusou o contrato Lovable. ${errorMessage}`,
-        contract: savedContract,
-        responsePreview: result.parsed.preview,
-      });
-      return;
-    }
-
-    res.status(201).json({ ok: true, contract: savedContract, contaAzul: contractResponse });
+    const result = await syncLovableContractToContaAzul(req.body || {}, { dryRun, force });
+    res.status(result.statusCode).json(result.body);
   })
 );
 
@@ -1027,103 +1647,8 @@ app.post(
   asyncHandler(async (req, res) => {
     const dryRun = req.body?.dryRun === true || req.query?.dryRun === "true";
     const force = req.body?.force === true || req.query?.force === "true";
-    const externalId = readFirstText(req.body || {}, ["externalId", "paymentId", "receiptId", "id", "payment.id", "receipt.id"]);
-    if (!externalId) throw createHttpError(400, "Informe externalId, paymentId, receiptId ou id do recebimento Lovable.");
-
-    const existing = await findLovableReceiptSync(externalId);
-    if (existing?.status === "success" && !force) {
-      res.json({ ok: true, idempotent: true, receipt: existing });
-      return;
-    }
-
-    const currentSettings = await getSettings();
-    const contaAzulSettings = await ensureContaAzulAccessToken(currentSettings, { allowRefresh: true });
-    if (!contaAzulSettings.enabled || !contaAzulSettings.allowOutbound) {
-      throw createHttpError(400, "Ative a integração Conta Azul antes de receber baixas do Lovable.");
-    }
-
-    const resolvedInstallment = await resolveContaAzulInstallmentForLovableReceipt(contaAzulSettings, req.body || {});
-    const record = buildContaAzulAcquittanceRecord({
-      settings: contaAzulSettings,
-      source: req.body || {},
-      installmentId: resolvedInstallment?.id,
-    });
-
-    if (record.missingRequiredFields.length) {
-      await upsertLovableReceiptSync({
-        externalId: record.externalId || externalId,
-        externalContractId: readFirstText(req.body || {}, ["contractId", "externalContractId", "contract.id"]),
-        amountCents: record.amountCents,
-        paymentDate: record.paymentDate,
-        status: "error",
-        contaAzulInstallmentId: record.installmentId,
-        errorMessage: `Campos obrigatórios ausentes: ${record.missingRequiredFields.join(", ")}`,
-        requestPayload: record.payload,
-      });
-      throw createHttpError(400, `Campos obrigatórios ausentes para dar baixa no Conta Azul: ${record.missingRequiredFields.join(", ")}.`);
-    }
-
-    if (dryRun) {
-      res.json({ ok: true, dryRun: true, resolvedInstallment, record });
-      return;
-    }
-
-    const startedAt = nowIso();
-    const result = await postContaAzulJson(contaAzulSettings, record.endpointPath, record.payload);
-    const acquittanceResponse = normalizeContaAzulAcquittanceResponse(result.parsed.json);
-    const errorMessage = result.response.ok ? null : result.parsed.preview || `HTTP ${result.response.status}`;
-    const savedReceipt = await upsertLovableReceiptSync({
-      externalId: record.externalId || externalId,
-      externalContractId: readFirstText(req.body || {}, ["contractId", "externalContractId", "contract.id"]),
-      amountCents: record.amountCents,
-      paymentDate: record.paymentDate,
-      status: result.response.ok ? "success" : "error",
-      contaAzulInstallmentId: record.installmentId,
-      contaAzulAcquittanceId: acquittanceResponse.id,
-      endpoint: result.endpoint,
-      responseCode: result.response.status,
-      responsePreview: result.parsed.preview,
-      errorMessage,
-      requestPayload: record.payload,
-      responsePayload: result.parsed.json,
-      syncedAt: result.response.ok ? nowIso() : null,
-    });
-
-    await recordContaAzulSync(
-      {
-        kind: "push",
-        direction: "outbound",
-        resource: CONTA_AZUL_LOVABLE_RECEIPTS_RESOURCE,
-        status: result.response.ok ? "success" : "error",
-        endpoint: result.endpoint,
-        recordCount: result.response.ok ? 1 : 0,
-        responseCode: result.response.status,
-        summary: result.response.ok
-          ? `Recebimento Lovable ${record.externalId} baixado no Conta Azul.`
-          : `Falha ao baixar recebimento Lovable ${record.externalId} no Conta Azul.`,
-        errorMessage,
-        startedAt,
-        finishedAt: nowIso(),
-      },
-      {
-        lastPushAt: nowIso(),
-        lastPushResource: CONTA_AZUL_LOVABLE_RECEIPTS_RESOURCE,
-        lastPushStatus: result.response.ok ? "success" : "error",
-        lastError: errorMessage,
-      }
-    );
-
-    if (!result.response.ok) {
-      res.status(result.response.status === 401 ? 401 : 400).json({
-        ok: false,
-        error: `Conta Azul recusou a baixa do Lovable. ${errorMessage}`,
-        receipt: savedReceipt,
-        responsePreview: result.parsed.preview,
-      });
-      return;
-    }
-
-    res.status(201).json({ ok: true, receipt: savedReceipt, contaAzul: acquittanceResponse });
+    const result = await syncLovableReceiptToContaAzul(req.body || {}, { dryRun, force });
+    res.status(result.statusCode).json(result.body);
   })
 );
 
@@ -1163,6 +1688,94 @@ app.get(
       listLovableReceiptSyncs({ limit }),
     ]);
     res.json({ ok: true, contracts, receipts });
+  })
+);
+
+app.get(
+  "/api/fpa/receivables-orchestrator",
+  asyncHandler(async (req, res) => {
+    const [latestRun, runs] = await Promise.all([
+      getLatestReceivablesOrchestratorRun(),
+      listReceivablesOrchestratorRuns({ limit: readLargeLimit(req.query?.limit, 10) }),
+    ]);
+    res.json({
+      ok: true,
+      latestRun,
+      runs,
+      config: {
+        businessDate: getBusinessDate(),
+        hasContractsPullUrl: Boolean(readFirstEnvValue(["COLLI_FINANCE_CONTRACTS_URL", "FINANCE_CONTRACTS_URL"])),
+        hasBillingCardsPullUrl: Boolean(readFirstEnvValue(["COLLI_FINANCE_BILLING_CARDS_URL", "FINANCE_BILLING_CARDS_URL", "FINANCE_WALLET_ITEMS_URL"])),
+        hasPaymentsPullUrl: Boolean(readFirstEnvValue(["COLLI_FINANCE_PAYMENTS_URL", "FINANCE_PAYMENTS_URL", "FINANCE_RECEIPTS_URL"])),
+        hasFinanceToken: Boolean(readFinanceBearerToken()),
+        cobrancaUrl: getCobrancaServiceBaseUrl(),
+      },
+    });
+  })
+);
+
+app.post(
+  "/api/fpa/receivables-orchestrator/run",
+  asyncHandler(async (req, res) => {
+    if (receivablesOrchestratorPromise) {
+      throw createHttpError(409, "Já existe um ciclo de contas a receber em execução.");
+    }
+
+    receivablesOrchestratorPromise = runReceivablesOrchestrator({
+      businessDate: req.body?.businessDate,
+      body: req.body || {},
+      startSending: req.body?.startSending !== false,
+    }).finally(() => {
+      receivablesOrchestratorPromise = null;
+    });
+    const run = await receivablesOrchestratorPromise;
+    res.json({ ok: run.status !== "failed", run });
+  })
+);
+
+app.post(
+  "/api/fpa/receivables-orchestrator/resume",
+  asyncHandler(async (req, res) => {
+    const run = await getLatestReceivablesOrchestratorRun();
+    if (!run) throw createHttpError(404, "Nenhum ciclo de contas a receber encontrado.");
+    if (receivablesOrchestratorPromise) throw createHttpError(409, "Já existe um ciclo de contas a receber em execução.");
+
+    receivablesOrchestratorPromise = auditAndMaybeSendReceivables(run, {
+      cardIds: Array.isArray(req.body?.cardIds) ? req.body.cardIds : [],
+      startSending: req.body?.startSending !== false,
+    }).finally(() => {
+      receivablesOrchestratorPromise = null;
+    });
+    const updatedRun = await receivablesOrchestratorPromise;
+    res.json({ ok: true, run: updatedRun });
+  })
+);
+
+app.post(
+  "/api/fpa/receivables-orchestrator/refresh",
+  asyncHandler(async (req, res) => {
+    const run = await getLatestReceivablesOrchestratorRun();
+    if (!run) throw createHttpError(404, "Nenhum ciclo de contas a receber encontrado.");
+    const updatedRun = await refreshReceivablesMonitoring(run);
+    res.json({ ok: true, run: updatedRun });
+  })
+);
+
+app.post(
+  "/api/fpa/receivables-orchestrator/close-day",
+  asyncHandler(async (req, res) => {
+    if (receivablesOrchestratorPromise) {
+      throw createHttpError(409, "Já existe um ciclo de contas a receber em execução.");
+    }
+
+    receivablesOrchestratorPromise = closeReceivablesDay({
+      businessDate: req.body?.businessDate,
+      body: req.body || {},
+    }).finally(() => {
+      receivablesOrchestratorPromise = null;
+    });
+    const run = await receivablesOrchestratorPromise;
+    res.json({ ok: run.status !== "failed", run });
   })
 );
 

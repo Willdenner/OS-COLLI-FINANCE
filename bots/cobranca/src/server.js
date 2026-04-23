@@ -766,6 +766,116 @@ const wa = createWhatsAppService({
 });
 const email = createEmailService({ uploadsDir: UPLOADS_DIR });
 
+async function upsertLovableWalletItemInvoice(payload) {
+  const card = extractLovableCardPayload(payload);
+  const eligibility = shouldCreateLovableInvoice(card);
+  if (!eligibility.ok) {
+    return {
+      statusCode: 202,
+      body: {
+        ok: true,
+        ignored: true,
+        reason: eligibility.reason,
+        cardId: card.cardId || null,
+      },
+    };
+  }
+
+  const templates = await listTemplates();
+  const resolvedTemplate = card.templateName ? findTemplateByName(templates, card.templateName) : null;
+  const recurrence = buildRecurrenceLabel({
+    isInstallment: card.isInstallment,
+    installmentCount: card.installmentCount,
+  });
+  const paymentLink = normalizePaymentLink(card.paymentLink);
+
+  let client = await findClientByPhone(card.phone);
+  if (!client) {
+    client = await createClient({
+      name: card.clientName,
+      phone: card.phone,
+      companyName: card.companyName && card.companyName !== card.clientName ? card.companyName : null,
+      email: card.email,
+      notes: card.notes,
+      defaultTemplateId: resolvedTemplate?.id || null,
+    });
+  } else {
+    const clientPatch = {};
+    if (!client.companyName && card.companyName && card.companyName !== client.name) clientPatch.companyName = card.companyName;
+    if (!client.email && card.email) clientPatch.email = card.email;
+    if (!client.notes && card.notes) clientPatch.notes = card.notes;
+    if (!client.defaultTemplateId && resolvedTemplate?.id) clientPatch.defaultTemplateId = resolvedTemplate.id;
+    if (Object.keys(clientPatch).length) {
+      client = await updateClient(client.id, clientPatch);
+    }
+  }
+
+  const integrationPatch = {
+    source: "lovable",
+    externalId: card.cardId,
+    event: card.event,
+    externalStatus: card.status,
+    paymentMethod: card.paymentMethod,
+    lastSyncedAt: nowIso(),
+    metadata: {
+      timestamp: card.timestamp,
+      assignedTo: card.assignedTo,
+      sellerName: card.sellerName,
+      isInstallment: card.isInstallment,
+      installmentCount: card.installmentCount,
+    },
+  };
+
+  const existingInvoice = await findInvoiceByIntegration("lovable", card.cardId);
+  if (existingInvoice) {
+    const updatedInvoice = await updateInvoice(existingInvoice.id, {
+      clientId: client.id,
+      valueCents: card.valueCents,
+      dueDate: card.dueDate,
+      paymentLink,
+      recurrence,
+      templateId: resolvedTemplate?.id || existingInvoice.templateId || null,
+      integration: integrationPatch,
+    });
+
+    return {
+      statusCode: 200,
+      body: {
+        ok: true,
+        created: false,
+        updated: true,
+        clientId: client.id,
+        invoiceId: updatedInvoice.id,
+        cardId: card.cardId,
+      },
+    };
+  }
+
+  const createdInvoice = await createInvoice({
+    clientId: client.id,
+    valueCents: card.valueCents,
+    dueDate: card.dueDate,
+    paymentLink,
+    recurrence,
+    templateId: resolvedTemplate?.id || null,
+    attachment: null,
+    attachments: [],
+    integration: integrationPatch,
+  });
+
+  return {
+    statusCode: 201,
+    body: {
+      ok: true,
+      created: true,
+      updated: false,
+      clientId: client.id,
+      invoiceId: createdInvoice.id,
+      cardId: card.cardId,
+    },
+  };
+}
+
 app.post(
   "/api/integrations/lovable/wallet-items",
   asyncHandler(async (req, res) => {
@@ -788,104 +898,8 @@ app.post(
       throw createHttpError(401, "Assinatura inválida para integração Lovable.");
     }
 
-    const card = extractLovableCardPayload(req.body);
-    const eligibility = shouldCreateLovableInvoice(card);
-    if (!eligibility.ok) {
-      return res.status(202).json({
-        ok: true,
-        ignored: true,
-        reason: eligibility.reason,
-        cardId: card.cardId || null,
-      });
-    }
-
-    const templates = await listTemplates();
-    const resolvedTemplate = card.templateName ? findTemplateByName(templates, card.templateName) : null;
-    const recurrence = buildRecurrenceLabel({
-      isInstallment: card.isInstallment,
-      installmentCount: card.installmentCount,
-    });
-    const paymentLink = normalizePaymentLink(card.paymentLink);
-
-    let client = await findClientByPhone(card.phone);
-    if (!client) {
-      client = await createClient({
-        name: card.clientName,
-        phone: card.phone,
-        companyName: card.companyName && card.companyName !== card.clientName ? card.companyName : null,
-        email: card.email,
-        notes: card.notes,
-        defaultTemplateId: resolvedTemplate?.id || null,
-      });
-    } else {
-      const clientPatch = {};
-      if (!client.companyName && card.companyName && card.companyName !== client.name) clientPatch.companyName = card.companyName;
-      if (!client.email && card.email) clientPatch.email = card.email;
-      if (!client.notes && card.notes) clientPatch.notes = card.notes;
-      if (!client.defaultTemplateId && resolvedTemplate?.id) clientPatch.defaultTemplateId = resolvedTemplate.id;
-      if (Object.keys(clientPatch).length) {
-        client = await updateClient(client.id, clientPatch);
-      }
-    }
-
-    const integrationPatch = {
-      source: "lovable",
-      externalId: card.cardId,
-      event: card.event,
-      externalStatus: card.status,
-      paymentMethod: card.paymentMethod,
-      lastSyncedAt: nowIso(),
-      metadata: {
-        timestamp: card.timestamp,
-        assignedTo: card.assignedTo,
-        sellerName: card.sellerName,
-        isInstallment: card.isInstallment,
-        installmentCount: card.installmentCount,
-      },
-    };
-
-    const existingInvoice = await findInvoiceByIntegration("lovable", card.cardId);
-    if (existingInvoice) {
-      const updatedInvoice = await updateInvoice(existingInvoice.id, {
-        clientId: client.id,
-        valueCents: card.valueCents,
-        dueDate: card.dueDate,
-        paymentLink,
-        recurrence,
-        templateId: resolvedTemplate?.id || existingInvoice.templateId || null,
-        integration: integrationPatch,
-      });
-
-      return res.json({
-        ok: true,
-        created: false,
-        updated: true,
-        clientId: client.id,
-        invoiceId: updatedInvoice.id,
-        cardId: card.cardId,
-      });
-    }
-
-    const createdInvoice = await createInvoice({
-      clientId: client.id,
-      valueCents: card.valueCents,
-      dueDate: card.dueDate,
-      paymentLink,
-      recurrence,
-      templateId: resolvedTemplate?.id || null,
-      attachment: null,
-      attachments: [],
-      integration: integrationPatch,
-    });
-
-    res.status(201).json({
-      ok: true,
-      created: true,
-      updated: false,
-      clientId: client.id,
-      invoiceId: createdInvoice.id,
-      cardId: card.cardId,
-    });
+    const result = await upsertLovableWalletItemInvoice(req.body);
+    res.status(result.statusCode).json(result.body);
   })
 );
 
@@ -948,6 +962,104 @@ app.get(
       whatsapp: waStatus,
       email: emailStatus,
       batchSend: getBatchSendState(),
+    });
+  })
+);
+
+app.post(
+  "/api/orchestrator/wallet-items",
+  asyncHandler(async (req, res) => {
+    const items = Array.isArray(req.body?.items) ? req.body.items : Array.isArray(req.body) ? req.body : [req.body];
+    if (!items.length || !items.some((item) => item && typeof item === "object")) {
+      throw createHttpError(400, "Informe ao menos um card de cobrança para sincronizar.");
+    }
+
+    const summary = {
+      total: items.length,
+      processed: 0,
+      created: 0,
+      updated: 0,
+      ignored: 0,
+      failed: 0,
+      results: [],
+      errors: [],
+    };
+
+    for (const item of items) {
+      try {
+        const result = await upsertLovableWalletItemInvoice(item);
+        const body = result.body || {};
+        summary.processed += 1;
+        if (body.created) summary.created += 1;
+        if (body.updated) summary.updated += 1;
+        if (body.ignored) summary.ignored += 1;
+        summary.results.push(body);
+      } catch (error) {
+        summary.failed += 1;
+        summary.errors.push({
+          cardId: item?.card_id || item?.cardId || item?.id || item?.data?.card_id || item?.data?.id || null,
+          error: error?.message || "Falha ao sincronizar card de cobrança.",
+        });
+      }
+    }
+
+    res.status(summary.failed ? 207 : 200).json({
+      ok: summary.failed === 0,
+      ...summary,
+    });
+  })
+);
+
+app.get(
+  "/api/orchestrator/invoices",
+  asyncHandler(async (req, res) => {
+    const dueTo = String(req.query?.dueTo || "").trim();
+    const rawCardIds = String(req.query?.cardIds || "").trim();
+    const cardIds = new Set(rawCardIds ? rawCardIds.split(",").map((item) => item.trim()).filter(Boolean) : []);
+    const [clients, templates, invoices] = await Promise.all([listClients(), listTemplates(), listInvoices()]);
+    const invoiceViews = buildInvoiceViews({ invoices, clients, templates });
+    const filtered = invoiceViews.filter((invoice) => {
+      const externalId = invoice.integration?.externalId || "";
+      if (cardIds.size) return cardIds.has(externalId);
+      if (dueTo) return String(invoice.dueDate || "") <= dueTo && invoice.status !== "paid";
+      return true;
+    });
+
+    res.json({ ok: true, invoices: filtered });
+  })
+);
+
+app.get(
+  "/api/orchestrator/payment-link-audit",
+  asyncHandler(async (req, res) => {
+    const dueTo = String(req.query?.dueTo || "").trim() || new Date().toISOString().slice(0, 10);
+    const rawCardIds = String(req.query?.cardIds || "").trim();
+    const cardIds = new Set(rawCardIds ? rawCardIds.split(",").map((item) => item.trim()).filter(Boolean) : []);
+    const [clients, templates, invoices] = await Promise.all([listClients(), listTemplates(), listInvoices()]);
+    const invoiceViews = buildInvoiceViews({ invoices, clients, templates });
+    const relevantInvoices = invoiceViews.filter((invoice) => {
+      const externalId = invoice.integration?.externalId || "";
+      if (cardIds.size) return cardIds.has(externalId);
+      return String(invoice.dueDate || "") <= dueTo && invoice.status !== "paid";
+    });
+    const missingPaymentLinks = relevantInvoices
+      .filter((invoice) => !String(invoice.paymentLink || "").trim())
+      .map((invoice) => ({
+        invoiceId: invoice.id,
+        cardId: invoice.integration?.externalId || null,
+        clientId: invoice.clientId,
+        clientName: clients.find((client) => client.id === invoice.clientId)?.name || null,
+        dueDate: invoice.dueDate,
+        valueCents: invoice.valueCents,
+        status: invoice.status,
+      }));
+
+    res.json({
+      ok: true,
+      dueTo,
+      totalInvoices: relevantInvoices.length,
+      missingCount: missingPaymentLinks.length,
+      missingPaymentLinks,
     });
   })
 );
