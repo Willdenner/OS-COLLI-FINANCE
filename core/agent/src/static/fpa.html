@@ -1019,7 +1019,7 @@
                       <th>Nota</th>
                       <th><code>condicao_pagamento.tipo</code></th>
                       <th><code>id_conta_financeira</code></th>
-                      <th><code>itens[0].id</code></th>
+                      <th><code>itens[0].id</code> <span style="color:var(--muted);font-weight:400">(não usado)</span></th>
                       <th><code>itens[0].valor</code> (R$, opc.)</th>
                       <th style="width:72px"></th>
                     </tr>
@@ -1028,7 +1028,7 @@
                 </table>
               </div>
               <div class="field-hint">
-                A chave precisa bater (sem diferenciar maiúsculas) com <code>paymentMethod</code>, <code>forma_pagamento</code>, etc. Preencha pelo menos um campo do Conta Azul por linha; campos vazios usam o padrão do contrato ou do FP&A.
+                A chave precisa bater (sem diferenciar maiúsculas) com <code>paymentMethod</code>, <code>forma_pagamento</code>, etc. O item do contrato vem só do mapa de produto acima; aqui use <code>tipo</code>, conta e opcionalmente <code>itens[0].valor</code>.
               </div>
             </div>
           </div>
@@ -1333,7 +1333,7 @@
           </div>
           <div class="card-body">
             <div class="alert" style="margin-bottom:18px">
-              <strong>Como funciona:</strong> o campo <strong>CATEGORIA</strong> do Finance define qual item/serviço usar no Conta Azul (<code>itens[0].id</code>). O campo <strong>FORMA DE PAGAMENTO</strong> define o tipo de pagamento (<code>tipo_pagamento</code>). A conta financeira padrão (<code>id_conta_financeira</code>) é definida uma vez nas configurações do Conta Azul acima.
+              <strong>Como funciona:</strong> o <code>itens[0].id</code> do contrato vem <strong>só</strong> do mapa <strong>Produto Finance → Item</strong> em <em>Configurações → Contratos (Lovable)</em> / página de vínculos — não desta tabela. Aqui, <strong>CATEGORIA</strong> e <strong>FORMA DE PAGAMENTO</strong> ajudam em conta, tipo e descrição quando batem com o contrato; a conta padrão do contrato continua nas configurações do Conta Azul acima.
             </div>
 
             <div id="fpa-finance-payment-links-table" style="margin-bottom:24px"></div>
@@ -1347,7 +1347,7 @@
               <div class="field">
                 <label class="field-label">CATEGORIA (Finance) → Item Conta Azul</label>
                 <input class="field-input" id="fpa-fpl-finance-category" type="text" placeholder="Ex: CONTABILIDADE, JURIDICO, FOLHA" autocomplete="off" />
-                <div class="field-hint">Valor exato do campo <code>categoria</code> / <code>category</code> no contrato Finance. Define o <code>itens[0].id</code>.</div>
+                <div class="field-hint">Valor exato do campo <code>categoria</code> / <code>category</code> no contrato Finance (uso em vínculos auxiliares, não define <code>itens[0].id</code>).</div>
               </div>
               <div class="field">
                 <label class="field-label">FORMA DE PAGAMENTO (Finance) → Tipo Pagamento CA</label>
@@ -1358,9 +1358,9 @@
 
             <div class="form-grid g2">
               <div class="field">
-                <label class="field-label">ID do Item/Serviço no Conta Azul (itens[0].id) <span style="color:var(--danger)">*</span></label>
+                <label class="field-label">ID do Item/Serviço no Conta Azul (legado / outros fluxos)</label>
                 <input class="field-input" id="fpa-fpl-ca-item-id" type="text" placeholder="UUID do produto ou serviço no Conta Azul" autocomplete="off" />
-                <div class="field-hint">UUID do item que será usado em <code>itens[0].id</code>. Obrigatório quando informar CATEGORIA.</div>
+                <div class="field-hint">Contratos Lovable usam o mapa produto na seção Contratos. Este campo permanece para consistência do cadastro de vínculos FP&amp;A.</div>
               </div>
               <div class="field">
                 <label class="field-label">Descrição do Item</label>
@@ -3685,7 +3685,7 @@
                 <tr>
                   <th>CATEGORIA (Finance)</th>
                   <th>FORMA DE PAGAMENTO (Finance)</th>
-                  <th>Item / Serviço (CA · itens[0].id)</th>
+                  <th>Item CA (vínculo FP&amp;A · não define contrato)</th>
                   <th>Tipo Pagamento (CA)</th>
                   <th></th>
                 </tr>

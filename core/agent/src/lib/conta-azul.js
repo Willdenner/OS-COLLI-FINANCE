@@ -1702,45 +1702,9 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
       ? resolveMoneyCents(contract, CONTRACT_MONEY_CENTAVOS_PATHS, CONTRACT_MONEY_DECIMAL_PATHS)
       : pickContractAmountInCentavosFromFinance(contract);
   const amount = moneyCentsToDecimal(amountCents) || 0;
+  /** itens[0].id vem exclusivamente da tabela Produto Finance → Item (lovableContracts.financeProductMappings). */
   const mappedItemId = resolveContaAzulItemFromProductMapping(contract, lc.financeProductMappings);
-  /** IDs que costumam ser UUID Conta Azul / item explícito — não misturar com productId do Finance antes do mapa. */
-  const contractItemIdCaLike = pickFirstText(
-    pickFirstNested(contract, [
-      "contaAzulItemId",
-      "conta_azul_item_id",
-      "itemId",
-      "serviceId",
-      "servicoId",
-      "id_servico",
-      "id_produto",
-      "servico_id",
-      "produto_id",
-      "item.id",
-      "items.0.id",
-      "itens.0.id",
-      "servico.id",
-      "produto.id",
-      "billing.serviceId",
-      "billing.itemId",
-      "billing.contaAzulItemId",
-      "item.itemId",
-    ])
-  );
-  const contractItemIdFinanceLike = pickFirstNested(contract, [
-    "productId",
-    "produtoId",
-    "plano_id",
-    "planoId",
-    "billing.productId",
-  ]);
-  const itemId = pickFirstText(
-    contractItemIdCaLike,
-    mappedItemId,
-    linkedByCategory?.contaAzulItemId,
-    linkedByMethod?.contaAzulItemId,
-    contractItemIdFinanceLike,
-    readContaAzulEnvFirst("CONTA_AZUL_DEFAULT_CONTRACT_ITEM_ID")
-  );
+  const itemId = normalizeOptionalText(mappedItemId, 160) || "";
   const itemDescription = pickFirstText(
     pickFirstNested(contract, ["itemDescription", "description", "descricao", "name", "nome", "item.description", "item.descricao"]),
     linkedByCategory?.contaAzulItemDescription,
@@ -1825,22 +1789,10 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
       rawPaymentKey
   );
   let resolvedFinancialAccountId = financialAccountId;
-  let resolvedItemId = itemId;
+  const resolvedItemId = itemId;
   let lineValor = amount;
   if (paymentMapping) {
     if (paymentMapping.contaAzulFinancialAccountId) resolvedFinancialAccountId = paymentMapping.contaAzulFinancialAccountId;
-    const pmItem = normalizeOptionalText(paymentMapping.contaAzulItemId, 160);
-    if (pmItem) {
-      const pmTipo = normalizeOptionalText(paymentMapping.contaAzulTipoPagamento, 80);
-      const keyLower = String(rawPaymentKey || "").trim().toLowerCase();
-      const itemLower = pmItem.toLowerCase();
-      const tipoLower = pmTipo ? pmTipo.toLowerCase() : "";
-      const looksLikePaymentTokenNotItem =
-        (tipoLower && itemLower === tipoLower) || (keyLower && itemLower === keyLower);
-      if (!looksLikePaymentTokenNotItem) {
-        resolvedItemId = pmItem;
-      }
-    }
     if (paymentMapping.contaAzulItemValor != null && Number.isFinite(paymentMapping.contaAzulItemValor)) {
       lineValor = paymentMapping.contaAzulItemValor;
     }
@@ -1915,6 +1867,9 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
     baseContractPayload,
     safeOverride
   );
+  if (itemId && mergedContractPayload.itens?.[0]) {
+    mergedContractPayload.itens[0] = { ...mergedContractPayload.itens[0], id: itemId };
+  }
   const payload = compactContaAzulPayload(mergedContractPayload);
 
   const missingRequiredFields = [];

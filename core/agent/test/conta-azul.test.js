@@ -432,13 +432,20 @@ test("monta payload de lançamento teste do Conta Azul para receber e pagar", ()
 });
 
 test("monta payload de contrato recorrente do Lovable para o Conta Azul", () => {
-  const settings = {
-    fpaExport: {
-      defaultContactId: "cliente_default",
-      defaultFinancialAccountId: "conta_default",
-      defaultReceivableCategoryId: "categoria_receita",
+  const settings = mergeContaAzulSettings(
+    {
+      fpaExport: {
+        defaultContactId: "cliente_default",
+        defaultFinancialAccountId: "conta_default",
+        defaultReceivableCategoryId: "categoria_receita",
+      },
     },
-  };
+    {
+      lovableContracts: {
+        financeProductMappings: [{ financeProductId: "servico_123", contaAzulItemId: "servico_123" }],
+      },
+    }
+  );
 
   const record = buildContaAzulContractRecord({
     settings,
@@ -481,6 +488,7 @@ test("lovableContracts.defaultContractFinancialAccountId tem precedencia sobre f
     },
     lovableContracts: {
       defaultContractFinancialAccountId: "conta_somente_contrato",
+      financeProductMappings: [{ financeProductId: "p1", contaAzulItemId: "item-p1" }],
     },
   };
   const record = buildContaAzulContractRecord({
@@ -491,7 +499,7 @@ test("lovableContracts.defaultContractFinancialAccountId tem precedencia sobre f
   assert.equal(record.payload.condicao_pagamento.id_conta_financeira, "conta_somente_contrato");
 });
 
-test("financePaymentMappings aplica condicao_pagamento, id_conta_financeira, itens[0] conforme forma de pagamento", () => {
+test("financePaymentMappings aplica condicao_pagamento, id_conta_financeira e valor; itens[0].id vem do mapa de produto", () => {
   const settings = mergeContaAzulSettings(
     {
       fpaExport: {
@@ -501,12 +509,12 @@ test("financePaymentMappings aplica condicao_pagamento, id_conta_financeira, ite
     },
     {
       lovableContracts: {
+        financeProductMappings: [{ financeProductId: "prod_ignored", contaAzulItemId: "item_servico_boleto" }],
         financePaymentMappings: [
           {
             financePaymentKey: "boleto",
             contaAzulTipoPagamento: "BOLETO_BANCARIO",
             contaAzulFinancialAccountId: "conta_boleto_uuid",
-            contaAzulItemId: "item_servico_boleto",
             contaAzulItemValor: "150,50",
           },
         ],
@@ -532,7 +540,7 @@ test("financePaymentMappings aplica condicao_pagamento, id_conta_financeira, ite
   assert.equal(record.amountCents, 15050);
 });
 
-test("mapa de produto tem prioridade; forma de pagamento nao usa itens[0].id igual a chave ou ao tipo", () => {
+test("forma de pagamento nao altera itens[0].id; item vem so do mapa de produto", () => {
   const settings = mergeContaAzulSettings(
     { fpaExport: { defaultReceivableCategoryId: "cat_r", defaultFinancialAccountId: "conta_padrao" } },
     {
@@ -592,7 +600,10 @@ test("baixa Lovable usa conta e metodo do financePaymentMappings quando a chave 
 
 test("contaAzulContractPayload vazio nao descarta o payload calculado (merge com base)", () => {
   const record = buildContaAzulContractRecord({
-    settings: { fpaExport: { defaultReceivableCategoryId: "categoria_receita" } },
+    settings: {
+      fpaExport: { defaultReceivableCategoryId: "categoria_receita" },
+      lovableContracts: { financeProductMappings: [{ financeProductId: "prod-map-1", contaAzulItemId: "prod-map-1" }] },
+    },
     nextContractNumber: 100,
     source: {
       contractId: "c_webhook",
@@ -613,7 +624,10 @@ test("contaAzulContractPayload vazio nao descarta o payload calculado (merge com
 
 test("contaAzulContractPayload com strings vazias nao apaga id_conta_financeira nem itens[0] da base", () => {
   const record = buildContaAzulContractRecord({
-    settings: { fpaExport: { defaultReceivableCategoryId: "categoria_receita" } },
+    settings: {
+      fpaExport: { defaultReceivableCategoryId: "categoria_receita" },
+      lovableContracts: { financeProductMappings: [{ financeProductId: "prod-x", contaAzulItemId: "prod-x" }] },
+    },
     nextContractNumber: 200,
     source: {
       contractId: "c_finance",
@@ -634,10 +648,33 @@ test("contaAzulContractPayload com strings vazias nao apaga id_conta_financeira 
   assert.deepEqual(record.missingRequiredFields, []);
 });
 
+test("contaAzulContractPayload do webhook nao substitui itens[0].id fora do mapa de produto", () => {
+  const record = buildContaAzulContractRecord({
+    settings: {
+      fpaExport: { defaultReceivableCategoryId: "categoria_receita" },
+      lovableContracts: { financeProductMappings: [{ financeProductId: "pid", contaAzulItemId: "uuid-vinculo" }] },
+    },
+    nextContractNumber: 1,
+    source: {
+      contractId: "c1",
+      customerId: "p1",
+      productId: "pid",
+      amountCents: 1000,
+      startDate: "2026-01-01",
+      firstDueDate: "2026-01-10",
+      contaAzulContractPayload: { itens: [{ id: "uuid-enviado-pelo-finance" }] },
+    },
+  });
+  assert.equal(record.payload.itens[0].id, "uuid-vinculo");
+});
+
 test("mapeia contrato vindo do Finance com billing_clients em lista e campos em snake_case", () => {
   const settings = {
     fpaExport: {
       defaultReceivableCategoryId: "categoria_receita",
+    },
+    lovableContracts: {
+      financeProductMappings: [{ financeProductId: "prod-finance-billing", contaAzulItemId: "servico-uuid-1" }],
     },
   };
   const record = buildContaAzulContractRecord({
@@ -650,7 +687,7 @@ test("mapeia contrato vindo do Finance com billing_clients em lista e campos em 
       monthly_value: 1500.5,
       billing_clients: [{ id: "pessoa-uuid-caz", conta_azul_id: "pessoa-uuid-caz" }],
       id_conta_financeira: "conta-financeira-uuid",
-      servico_id: "servico-uuid-1",
+      productId: "prod-finance-billing",
     },
   });
   assert.equal(record.payload.id_cliente, "pessoa-uuid-caz");
@@ -679,7 +716,12 @@ test("permite customizar rotas de contrato via integracao lovableContracts", () 
   const record = buildContaAzulContractRecord({
     settings: mergeContaAzulSettings(
       { fpaExport: { defaultFinancialAccountId: "conta_x", defaultReceivableCategoryId: "cat_x" } },
-      { lovableContracts: { contractsCreatePath: "/custom/v1/contratos" } }
+      {
+        lovableContracts: {
+          contractsCreatePath: "/custom/v1/contratos",
+          financeProductMappings: [{ financeProductId: "p", contaAzulItemId: "item-p" }],
+        },
+      }
     ),
     nextContractNumber: 1,
     source: {

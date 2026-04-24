@@ -305,11 +305,10 @@
           class="alert"
           style="border-color: rgba(22, 199, 132, 0.35); background: rgba(22, 199, 132, 0.08); color: var(--text)"
         >
-          <strong style="color: var(--brand)">Como funciona:</strong> a tabela <strong>Produto Finance → Item</strong> define o
-          <code>itens[0].id</code> do contrato. Na tabela de <strong>forma de pagamento</strong>, preencha
-          <code>tipo</code> e <code>id_conta_financeira</code>; as colunas <code>itens[0]</code> são opcionais (só para exceção por método).
-          Valores iguais à chave do Finance ou ao tipo de pagamento nessa linha não substituem o item do mapa de produto. Com o Conta Azul conectado, use
-          <strong>Carregar lista</strong> para escolher UUIDs nas listas.
+          <strong style="color: var(--brand)">Como funciona:</strong> o UUID em <code>itens[0].id</code> do contrato no Conta Azul vem <strong>só</strong> da tabela
+          <strong>Produto Finance → Item</strong> (nada no payload do Finance, vínculos FP&amp;A nem forma de pagamento alteram esse id). Na tabela de
+          <strong>forma de pagamento</strong> use <code>tipo</code> e <code>id_conta_financeira</code>; <code>itens[0].valor</code> ali só altera o valor da linha quando preenchido.
+          Com o Conta Azul conectado, use <strong>Carregar lista</strong> para preencher UUIDs.
         </div>
 
         <div class="alert" id="cazv-alert">
@@ -442,7 +441,7 @@
           </div>
           <div class="card-body">
             <p class="field-hint" style="margin-bottom: 12px">
-              Chave sem diferenciar maiúsculas. Preencha pelo menos um destino por linha; vazio mantém o padrão do contrato ou do FP&amp;A.
+              Chave sem diferenciar maiúsculas. O <code>itens[0].id</code> do contrato vem só do mapa de produto acima; nesta tabela use <code>tipo</code>, conta e opcionalmente valor da linha.
             </p>
             <div class="table-wrap" style="max-height: 280px; overflow: auto">
               <table class="data-table" style="font-size: 12px">
@@ -452,7 +451,7 @@
                     <th>Nota</th>
                     <th><code>tipo</code></th>
                     <th><code>id_conta_financeira</code></th>
-                    <th><code>itens[0].id</code> (lista)</th>
+                    <th><code>itens[0].id</code> <span style="color: var(--muted); font-weight: 400">(não usado)</span></th>
                     <th><code>itens[0].valor</code></th>
                     <th style="width: 72px"></th>
                   </tr>
