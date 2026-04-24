@@ -437,21 +437,20 @@ function normalizeLovableContractSyncRecord(record) {
 
 function normalizeFinancePaymentLink(record) {
   if (!record || typeof record !== "object") return null;
-  const financePaymentMethod = normalizeOptionalText(record.financePaymentMethod, 120);
-  if (!financePaymentMethod) return null;
+  const financePaymentMethod = normalizeOptionalText(record.financePaymentMethod, 120) || null;
+  const financeCategory = normalizeOptionalText(record.financeCategory, 120) || null;
+  if (!financePaymentMethod && !financeCategory) return null;
 
   return {
     id: normalizeOptionalText(record.id, 80) || nextId("fpmlink"),
     financePaymentMethod,
-    label: normalizeOptionalText(record.label, 120) || financePaymentMethod,
+    financeCategory,
+    label: normalizeOptionalText(record.label, 120) || financeCategory || financePaymentMethod,
     contaAzulPaymentType: normalizeOptionalText(record.contaAzulPaymentType, 80) || null,
     contaAzulFinancialAccountId: normalizeOptionalText(record.contaAzulFinancialAccountId, 160) || null,
     contaAzulFinancialAccountName: normalizeOptionalText(record.contaAzulFinancialAccountName, 160) || null,
     contaAzulItemId: normalizeOptionalText(record.contaAzulItemId, 160) || null,
     contaAzulItemDescription: normalizeOptionalText(record.contaAzulItemDescription, 255) || null,
-    contaAzulItemDefaultValue: Number.isFinite(Number(record.contaAzulItemDefaultValue)) && Number(record.contaAzulItemDefaultValue) > 0
-      ? Number(record.contaAzulItemDefaultValue)
-      : null,
     createdAt: record.createdAt || nowIso(),
     updatedAt: record.updatedAt || record.createdAt || nowIso(),
   };
@@ -1205,11 +1204,19 @@ async function findFinancePaymentLinkByMethod(financePaymentMethod) {
   const normalized = normalizeOptionalText(financePaymentMethod, 120);
   if (!normalized) return null;
   const upper = normalized.toUpperCase();
-  return (
-    (db.fpa.financePaymentLinks || []).find(
-      (l) => l.financePaymentMethod.toUpperCase() === upper
-    ) || null
-  );
+  return (db.fpa.financePaymentLinks || []).find(
+    (l) => l.financePaymentMethod && l.financePaymentMethod.toUpperCase() === upper
+  ) || null;
+}
+
+async function findFinancePaymentLinkByCategory(financeCategory) {
+  const db = await loadDb();
+  const normalized = normalizeOptionalText(financeCategory, 120);
+  if (!normalized) return null;
+  const upper = normalized.toUpperCase();
+  return (db.fpa.financePaymentLinks || []).find(
+    (l) => l.financeCategory && l.financeCategory.toUpperCase() === upper
+  ) || null;
 }
 
 async function upsertFinancePaymentLink(record = {}) {
@@ -1217,10 +1224,17 @@ async function upsertFinancePaymentLink(record = {}) {
   if (!db.fpa.financePaymentLinks) db.fpa.financePaymentLinks = [];
 
   const normalized = normalizeFinancePaymentLink({ ...record, updatedAt: nowIso() });
-  if (!normalized) throw new Error("Informe financePaymentMethod para criar o vínculo.");
+  if (!normalized) throw new Error("Informe financeCategory ou financePaymentMethod para criar o vínculo.");
 
-  const upper = normalized.financePaymentMethod.toUpperCase();
-  const existing = db.fpa.financePaymentLinks.find((l) => l.financePaymentMethod.toUpperCase() === upper);
+  const matchFn = (l) => {
+    if (normalized.financeCategory && l.financeCategory)
+      return l.financeCategory.toUpperCase() === normalized.financeCategory.toUpperCase();
+    if (normalized.financePaymentMethod && l.financePaymentMethod)
+      return l.financePaymentMethod.toUpperCase() === normalized.financePaymentMethod.toUpperCase();
+    return false;
+  };
+
+  const existing = db.fpa.financePaymentLinks.find(matchFn);
   if (existing) {
     Object.assign(existing, { ...normalized, id: existing.id, createdAt: existing.createdAt, updatedAt: nowIso() });
   } else {
@@ -1228,7 +1242,7 @@ async function upsertFinancePaymentLink(record = {}) {
   }
 
   await persistDb();
-  return db.fpa.financePaymentLinks.find((l) => l.financePaymentMethod.toUpperCase() === upper);
+  return db.fpa.financePaymentLinks.find(matchFn);
 }
 
 async function deleteFinancePaymentLink(id) {
@@ -1273,6 +1287,7 @@ module.exports = {
   updateSettings,
   listFinancePaymentLinks,
   findFinancePaymentLinkByMethod,
+  findFinancePaymentLinkByCategory,
   upsertFinancePaymentLink,
   deleteFinancePaymentLink,
 };

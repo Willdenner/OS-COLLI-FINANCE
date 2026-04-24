@@ -32,8 +32,18 @@ function clampInteger(value, min, max, fallback) {
   return Math.min(Math.max(Math.trunc(parsed), min), max);
 }
 
+function parseBrazilianDecimal(value) {
+  const str = String(value ?? "").trim();
+  if (!str) return NaN;
+  // "1.500,75" → "1500.75"
+  if (/^\d{1,3}(\.\d{3})*(,\d+)?$/.test(str)) return parseFloat(str.replace(/\./g, "").replace(",", "."));
+  // "1500,75" → "1500.75"
+  if (/^\d+(,\d+)?$/.test(str)) return parseFloat(str.replace(",", "."));
+  return parseFloat(str);
+}
+
 function normalizeAmountCents(value) {
-  const parsed = Number(value);
+  const parsed = typeof value === "string" ? parseBrazilianDecimal(value) : Number(value);
   if (!Number.isFinite(parsed)) return null;
   return Math.round(Math.abs(parsed) * 100);
 }
@@ -1114,10 +1124,16 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
   const contract = { ...baseSource, ...nestedContract };
   const safeLinks = Array.isArray(financePaymentLinks) ? financePaymentLinks : [];
   const rawFinancePaymentMethod = String(
-    pickFirstNested(contract, ["paymentMethod", "tipoPagamento", "billing.paymentMethod", "formaPagamento", "forma_pagamento"]) || ""
+    pickFirstNested(contract, ["paymentMethod", "tipoPagamento", "billing.paymentMethod", "formaPagamento", "forma_pagamento", "payment_method"]) || ""
   ).trim();
-  const linkedEntry = rawFinancePaymentMethod
-    ? safeLinks.find((l) => l.financePaymentMethod.toUpperCase() === rawFinancePaymentMethod.toUpperCase()) || null
+  const rawFinanceCategory = String(
+    pickFirstNested(contract, ["categoria", "category", "categoria_produto", "product_category", "service_category", "serviceCategory", "billing.categoria", "billing.category"]) || ""
+  ).trim();
+  const linkedByCategory = rawFinanceCategory
+    ? safeLinks.find((l) => l.financeCategory && l.financeCategory.toUpperCase() === rawFinanceCategory.toUpperCase()) || null
+    : null;
+  const linkedByMethod = rawFinancePaymentMethod
+    ? safeLinks.find((l) => l.financePaymentMethod && l.financePaymentMethod.toUpperCase() === rawFinancePaymentMethod.toUpperCase()) || null
     : null;
   const payloadOverride =
     (contract.contaAzulPayload && typeof contract.contaAzulPayload === "object" && contract.contaAzulPayload) ||
@@ -1190,16 +1206,25 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
       "targetAmount",
       "monthly_value",
       "monthlyValue",
+      "price",
+      "monthly_price",
       "preco",
       "preco_mensal",
+      "total",
+      "total_value",
+      "totalValue",
+      "valor_total",
       "item.valor",
       "item.amount",
+      "item.price",
       "servico.valor",
       "billing.amount",
       "billing.valor",
+      "billing.price",
+      "billing.value",
     ]
   );
-  const amount = moneyCentsToDecimal(amountCents) || linkedEntry?.contaAzulItemDefaultValue || 0;
+  const amount = moneyCentsToDecimal(amountCents) || 0;
   const itemId = pickFirstText(
     pickFirstNested(contract, [
       "itemId",
@@ -1223,12 +1248,14 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
       "billing.itemId",
       "item.itemId",
     ]),
-    linkedEntry?.contaAzulItemId,
+    linkedByCategory?.contaAzulItemId,
+    linkedByMethod?.contaAzulItemId,
     readContaAzulEnvFirst("CONTA_AZUL_DEFAULT_CONTRACT_ITEM_ID")
   );
   const itemDescription = pickFirstText(
     pickFirstNested(contract, ["itemDescription", "description", "descricao", "name", "nome", "item.description", "item.descricao"]),
-    linkedEntry?.contaAzulItemDescription
+    linkedByCategory?.contaAzulItemDescription,
+    linkedByMethod?.contaAzulItemDescription
   ) || "Contrato recorrente";
   const quantity = normalizePositiveInteger(pickFirstNested(contract, ["quantity", "quantidade", "item.quantity", "item.quantidade"]), 1);
   const rawContractNumber = Number(pickFirstNested(contract, ["contractNumber", "number", "numero", "termos.numero"]) || nextContractNumber);
@@ -1281,7 +1308,8 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
       "billing.conta_financeira_id",
       "condicao_pagamento.id_conta_financeira",
     ]),
-    linkedEntry?.contaAzulFinancialAccountId,
+    linkedByCategory?.contaAzulFinancialAccountId,
+    linkedByMethod?.contaAzulFinancialAccountId,
     readContaAzulEnvFirst("CONTA_AZUL_DEFAULT_CONTRACT_FINANCIAL_ACCOUNT_ID"),
     safeSettings.fpaExport.defaultFinancialAccountId
   );
@@ -1290,8 +1318,9 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
     safeSettings.fpaExport.defaultReceivableCategoryId
   );
   const paymentMethod = normalizeContaAzulPaymentMethod(
-    linkedEntry?.contaAzulPaymentType ||
-    pickFirstNested(contract, ["paymentMethod", "tipoPagamento", "billing.paymentMethod"])
+    linkedByMethod?.contaAzulPaymentType ||
+    linkedByCategory?.contaAzulPaymentType ||
+    pickFirstNested(contract, ["paymentMethod", "tipoPagamento", "billing.paymentMethod", "payment_method"])
   );
   const dueDay = normalizeContaAzulDueDay(pickFirstNested(contract, ["dueDay", "diaVencimento", "billing.dueDay"]), firstDueDate || startDate);
   const issueDate =

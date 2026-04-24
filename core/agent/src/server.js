@@ -36,6 +36,7 @@ const {
   updateSettings,
   listFinancePaymentLinks,
   findFinancePaymentLinkByMethod,
+  findFinancePaymentLinkByCategory,
   upsertFinancePaymentLink,
   deleteFinancePaymentLink,
 } = require("./lib/store");
@@ -2261,9 +2262,12 @@ app.get(
   "/api/fpa/finance-payment-links/lookup",
   asyncHandler(async (req, res) => {
     const method = String(req.query?.paymentMethod || "").trim();
-    if (!method) return res.status(400).json({ ok: false, error: "Informe paymentMethod." });
-    const link = await findFinancePaymentLinkByMethod(method);
-    res.json({ ok: true, link });
+    const category = String(req.query?.category || "").trim();
+    const [linkByMethod, linkByCategory] = await Promise.all([
+      method ? findFinancePaymentLinkByMethod(method) : null,
+      category ? findFinancePaymentLinkByCategory(category) : null,
+    ]);
+    res.json({ ok: true, linkByMethod, linkByCategory });
   })
 );
 

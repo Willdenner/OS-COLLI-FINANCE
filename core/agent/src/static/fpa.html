@@ -1228,7 +1228,7 @@
           </div>
           <div class="card-body">
             <div class="alert" style="margin-bottom:18px">
-              Vincule cada forma de pagamento do Finance aos campos obrigatórios do Conta Azul. O sistema usa essa tabela para preencher automaticamente <strong>conta financeira</strong>, <strong>item/serviço</strong> e <strong>tipo de pagamento</strong> ao criar contratos.
+              <strong>Como funciona:</strong> o campo <strong>CATEGORIA</strong> do Finance define qual item/serviço usar no Conta Azul (<code>itens[0].id</code>). O campo <strong>FORMA DE PAGAMENTO</strong> define o tipo de pagamento (<code>tipo_pagamento</code>). A conta financeira padrão (<code>id_conta_financeira</code>) é definida uma vez nas configurações do Conta Azul acima.
             </div>
 
             <div id="fpa-finance-payment-links-table" style="margin-bottom:24px"></div>
@@ -1240,13 +1240,26 @@
 
             <div class="form-grid g2">
               <div class="field">
-                <label class="field-label">Forma de Pagamento (Finance) <span style="color:var(--danger)">*</span></label>
-                <input class="field-input" id="fpa-fpl-finance-method" type="text" placeholder="Ex: BOLETO, PIX, CARTAO_CREDITO" autocomplete="off" />
-                <div class="field-hint">Valor exato que vem no campo <code>paymentMethod</code> do contrato Finance.</div>
+                <label class="field-label">CATEGORIA (Finance) → Item Conta Azul</label>
+                <input class="field-input" id="fpa-fpl-finance-category" type="text" placeholder="Ex: CONTABILIDADE, JURIDICO, FOLHA" autocomplete="off" />
+                <div class="field-hint">Valor exato do campo <code>categoria</code> / <code>category</code> no contrato Finance. Define o <code>itens[0].id</code>.</div>
               </div>
               <div class="field">
-                <label class="field-label">Rótulo (nome amigável)</label>
-                <input class="field-input" id="fpa-fpl-label" type="text" placeholder="Ex: Boleto Bancário" autocomplete="off" />
+                <label class="field-label">FORMA DE PAGAMENTO (Finance) → Tipo Pagamento CA</label>
+                <input class="field-input" id="fpa-fpl-finance-method" type="text" placeholder="Ex: BOLETO, PIX, CARTAO_CREDITO" autocomplete="off" />
+                <div class="field-hint">Valor exato do campo <code>payment_method</code> / <code>paymentMethod</code> no Finance. Define o <code>tipo_pagamento</code>.</div>
+              </div>
+            </div>
+
+            <div class="form-grid g2">
+              <div class="field">
+                <label class="field-label">ID do Item/Serviço no Conta Azul (itens[0].id) <span style="color:var(--danger)">*</span></label>
+                <input class="field-input" id="fpa-fpl-ca-item-id" type="text" placeholder="UUID do produto ou serviço no Conta Azul" autocomplete="off" />
+                <div class="field-hint">UUID do item que será usado em <code>itens[0].id</code>. Obrigatório quando informar CATEGORIA.</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Descrição do Item</label>
+                <input class="field-input" id="fpa-fpl-ca-item-desc" type="text" placeholder="Ex: Serviço de contabilidade recorrente" autocomplete="off" />
               </div>
             </div>
 
@@ -1254,7 +1267,7 @@
               <div class="field">
                 <label class="field-label">Tipo de Pagamento Conta Azul</label>
                 <select class="field-select" id="fpa-fpl-ca-payment-type">
-                  <option value="">— Selecione —</option>
+                  <option value="">— Selecione (opcional) —</option>
                   <option value="BOLETO_BANCARIO">Boleto Bancário</option>
                   <option value="PIX">PIX</option>
                   <option value="CARTAO_CREDITO">Cartão de Crédito</option>
@@ -1268,39 +1281,13 @@
                 <div class="field-hint">Mapeia para <code>condicao_pagamento.tipo_pagamento</code>.</div>
               </div>
               <div class="field">
-                <label class="field-label">Conta Financeira (id_conta_financeira) <span style="color:var(--danger)">*</span></label>
-                <div style="display:flex;gap:8px;align-items:center">
-                  <select class="field-select" id="fpa-fpl-ca-financial-account-select" style="flex:1">
-                    <option value="">— Busque as contas →</option>
-                  </select>
-                  <button class="btn" id="btn-fpl-load-accounts" type="button" style="white-space:nowrap;flex-shrink:0">Buscar Contas</button>
-                </div>
-                <input class="field-input" id="fpa-fpl-ca-financial-account-id" type="text" placeholder="UUID da conta financeira" autocomplete="off" style="margin-top:8px" />
-                <div class="field-hint">UUID da conta financeira no Conta Azul. Use o botão para buscar.</div>
+                <label class="field-label">Rótulo (nome amigável)</label>
+                <input class="field-input" id="fpa-fpl-label" type="text" placeholder="Ex: Contabilidade · Boleto" autocomplete="off" />
               </div>
             </div>
 
-            <div class="form-grid g2">
-              <div class="field">
-                <label class="field-label">ID do Item/Serviço Conta Azul (itens[0].id) <span style="color:var(--danger)">*</span></label>
-                <input class="field-input" id="fpa-fpl-ca-item-id" type="text" placeholder="UUID do produto ou serviço no Conta Azul" autocomplete="off" />
-                <div class="field-hint">UUID do item que será usado em <code>itens[0].id</code> no contrato.</div>
-              </div>
-              <div class="field">
-                <label class="field-label">Descrição do Item</label>
-                <input class="field-input" id="fpa-fpl-ca-item-desc" type="text" placeholder="Ex: Serviço de contabilidade recorrente" autocomplete="off" />
-              </div>
-            </div>
-
-            <div class="form-grid g2">
-              <div class="field">
-                <label class="field-label">Valor Padrão do Item (R$)</label>
-                <input class="field-input" id="fpa-fpl-ca-item-value" type="number" min="0" step="0.01" placeholder="0,00 — deixe em branco para usar o valor do contrato" />
-                <div class="field-hint">Usado em <code>itens[0].valor</code> quando o contrato não informar valor.</div>
-              </div>
-              <div class="field" style="display:flex;align-items:flex-end">
-                <button class="btn btn-primary" id="btn-save-finance-payment-link" type="button" style="width:100%">Salvar Vínculo</button>
-              </div>
+            <div style="display:flex;justify-content:flex-end">
+              <button class="btn btn-primary" id="btn-save-finance-payment-link" type="button">Salvar Vínculo</button>
             </div>
           </div>
         </section>
@@ -3479,15 +3466,9 @@
         }
 
         const paymentTypeLabels = {
-          BOLETO_BANCARIO: "Boleto Bancário",
-          PIX: "PIX",
-          CARTAO_CREDITO: "Cartão de Crédito",
-          CARTAO_DEBITO: "Cartão de Débito",
-          TRANSFERENCIA_BANCARIA: "Transferência Bancária",
-          DEPOSITO_BANCARIO: "Depósito Bancário",
-          DINHEIRO: "Dinheiro",
-          CHEQUE: "Cheque",
-          OUTROS: "Outros",
+          BOLETO_BANCARIO: "Boleto Bancário", PIX: "PIX", CARTAO_CREDITO: "Cartão de Crédito",
+          CARTAO_DEBITO: "Cartão de Débito", TRANSFERENCIA_BANCARIA: "Transferência Bancária",
+          DEPOSITO_BANCARIO: "Depósito Bancário", DINHEIRO: "Dinheiro", CHEQUE: "Cheque", OUTROS: "Outros",
         };
 
         container.innerHTML = `
@@ -3495,11 +3476,10 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Forma de Pagamento (Finance)</th>
+                  <th>CATEGORIA (Finance)</th>
+                  <th>FORMA DE PAGAMENTO (Finance)</th>
+                  <th>Item / Serviço (CA · itens[0].id)</th>
                   <th>Tipo Pagamento (CA)</th>
-                  <th>Conta Financeira (CA)</th>
-                  <th>Item / Serviço (CA)</th>
-                  <th>Valor Padrão</th>
                   <th></th>
                 </tr>
               </thead>
@@ -3507,21 +3487,24 @@
                 ${links.map((link) => `
                   <tr>
                     <td>
-                      <div style="font-weight:600;color:var(--text)">${escapeHtml(link.financePaymentMethod)}</div>
-                      ${link.label && link.label !== link.financePaymentMethod ? `<div style="font-size:11px;color:var(--muted)">${escapeHtml(link.label)}</div>` : ""}
+                      ${link.financeCategory
+                        ? `<div style="font-weight:600;color:var(--brand)">${escapeHtml(link.financeCategory)}</div>`
+                        : `<div style="color:var(--dim);font-size:11px">— qualquer —</div>`}
                     </td>
-                    <td>${escapeHtml(paymentTypeLabels[link.contaAzulPaymentType] || link.contaAzulPaymentType || "—")}</td>
                     <td>
-                      ${link.contaAzulFinancialAccountName ? `<div style="font-size:12px">${escapeHtml(link.contaAzulFinancialAccountName)}</div>` : ""}
-                      <div style="font-size:11px;color:var(--muted);font-family:monospace">${link.contaAzulFinancialAccountId ? escapeHtml(link.contaAzulFinancialAccountId.slice(0, 18)) + "…" : "—"}</div>
+                      ${link.financePaymentMethod
+                        ? `<div style="font-weight:600;color:var(--accent)">${escapeHtml(link.financePaymentMethod)}</div>`
+                        : `<div style="color:var(--dim);font-size:11px">— qualquer —</div>`}
                     </td>
                     <td>
                       ${link.contaAzulItemDescription ? `<div style="font-size:12px">${escapeHtml(link.contaAzulItemDescription)}</div>` : ""}
-                      <div style="font-size:11px;color:var(--muted);font-family:monospace">${link.contaAzulItemId ? escapeHtml(link.contaAzulItemId.slice(0, 18)) + "…" : "—"}</div>
+                      <div style="font-size:11px;color:var(--muted);font-family:monospace">${link.contaAzulItemId ? escapeHtml(link.contaAzulItemId.slice(0, 22)) + "…" : "—"}</div>
                     </td>
-                    <td>${link.contaAzulItemDefaultValue ? "R$ " + link.contaAzulItemDefaultValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "—"}</td>
+                    <td>${escapeHtml(paymentTypeLabels[link.contaAzulPaymentType] || link.contaAzulPaymentType || "—")}</td>
                     <td>
-                      <button class="btn btn-danger" type="button" style="padding:4px 10px;font-size:11px" data-delete-link-id="${escapeHtml(link.id)}" data-delete-link-method="${escapeHtml(link.financePaymentMethod)}">Excluir</button>
+                      <button class="btn btn-danger" type="button" style="padding:4px 10px;font-size:11px"
+                        data-delete-link-id="${escapeHtml(link.id)}"
+                        data-delete-link-label="${escapeHtml(link.label || link.financeCategory || link.financePaymentMethod || link.id)}">Excluir</button>
                     </td>
                   </tr>
                 `).join("")}
@@ -3533,13 +3516,13 @@
         container.querySelectorAll("[data-delete-link-id]").forEach((btn) => {
           btn.addEventListener("click", async () => {
             const id = btn.dataset.deleteLinkId;
-            const method = btn.dataset.deleteLinkMethod;
-            if (!window.confirm(`Excluir o vínculo "${method}"?`)) return;
+            const label = btn.dataset.deleteLinkLabel;
+            if (!window.confirm(`Excluir o vínculo "${label}"?`)) return;
             btn.disabled = true;
             try {
               await api(`/api/fpa/finance-payment-links/${encodeURIComponent(id)}`, { method: "DELETE" });
               await loadFinancePaymentLinks();
-              toast(`Vínculo "${method}" removido.`);
+              toast(`Vínculo "${label}" removido.`);
             } catch (err) {
               toast(err.message || "Erro ao excluir vínculo.");
               btn.disabled = false;
@@ -3549,27 +3532,22 @@
       }
 
       function readFinancePaymentLinkForm() {
-        const financePaymentMethod = el("fpa-fpl-finance-method").value.trim().toUpperCase();
-        const label = el("fpa-fpl-label").value.trim();
+        const financeCategory = el("fpa-fpl-finance-category").value.trim().toUpperCase() || null;
+        const financePaymentMethod = el("fpa-fpl-finance-method").value.trim().toUpperCase() || null;
+        const label = el("fpa-fpl-label").value.trim() || null;
         const contaAzulPaymentType = el("fpa-fpl-ca-payment-type").value || null;
-        const contaAzulFinancialAccountId = el("fpa-fpl-ca-financial-account-id").value.trim() || null;
-        const selectedAccountOption = el("fpa-fpl-ca-financial-account-select");
-        const contaAzulFinancialAccountName = selectedAccountOption?.selectedOptions?.[0]?.textContent?.trim() || null;
         const contaAzulItemId = el("fpa-fpl-ca-item-id").value.trim() || null;
         const contaAzulItemDescription = el("fpa-fpl-ca-item-desc").value.trim() || null;
-        const rawValue = parseFloat(el("fpa-fpl-ca-item-value").value);
-        const contaAzulItemDefaultValue = Number.isFinite(rawValue) && rawValue > 0 ? rawValue : null;
-        return { financePaymentMethod, label: label || financePaymentMethod, contaAzulPaymentType, contaAzulFinancialAccountId, contaAzulFinancialAccountName, contaAzulItemId, contaAzulItemDescription, contaAzulItemDefaultValue };
+        return { financeCategory, financePaymentMethod, label, contaAzulPaymentType, contaAzulItemId, contaAzulItemDescription };
       }
 
       function clearFinancePaymentLinkForm() {
+        el("fpa-fpl-finance-category").value = "";
         el("fpa-fpl-finance-method").value = "";
         el("fpa-fpl-label").value = "";
         el("fpa-fpl-ca-payment-type").value = "";
-        el("fpa-fpl-ca-financial-account-id").value = "";
         el("fpa-fpl-ca-item-id").value = "";
         el("fpa-fpl-ca-item-desc").value = "";
-        el("fpa-fpl-ca-item-value").value = "";
       }
 
       async function loadReceivablesOrchestrator() {
@@ -3786,45 +3764,16 @@
 
       el("btn-refresh-finance-payment-links").addEventListener("click", () => loadFinancePaymentLinks().catch((error) => toast(error.message)));
 
-      el("btn-fpl-load-accounts").addEventListener("click", async () => {
-        const button = el("btn-fpl-load-accounts");
-        const originalLabel = button.textContent;
-        button.disabled = true;
-        button.textContent = "Buscando...";
-        try {
-          const result = await api("/api/conta-azul/financial-accounts");
-          const accounts = Array.isArray(result.items) ? result.items : [];
-          const sel = el("fpa-fpl-ca-financial-account-select");
-          sel.innerHTML = `<option value="">— Selecione a conta —</option>` +
-            accounts.map((a) => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.label || a.name || a.id)}</option>`).join("");
-          if (!accounts.length) toast("Nenhuma conta financeira encontrada no Conta Azul.");
-        } catch (err) {
-          toast(err.message || "Erro ao buscar contas financeiras.");
-        } finally {
-          button.disabled = false;
-          button.textContent = originalLabel;
-        }
-      });
-
-      el("fpa-fpl-ca-financial-account-select").addEventListener("change", () => {
-        const val = el("fpa-fpl-ca-financial-account-select").value;
-        if (val) el("fpa-fpl-ca-financial-account-id").value = val;
-      });
-
       el("btn-save-finance-payment-link").addEventListener("click", async () => {
         const button = el("btn-save-finance-payment-link");
         const originalLabel = button.textContent;
         const payload = readFinancePaymentLinkForm();
-        if (!payload.financePaymentMethod) {
-          toast("Informe a Forma de Pagamento do Finance.");
+        if (!payload.financeCategory && !payload.financePaymentMethod) {
+          toast("Informe ao menos a CATEGORIA ou a FORMA DE PAGAMENTO do Finance.");
           return;
         }
-        if (!payload.contaAzulFinancialAccountId) {
-          toast("Informe o ID da Conta Financeira do Conta Azul.");
-          return;
-        }
-        if (!payload.contaAzulItemId) {
-          toast("Informe o ID do Item/Serviço do Conta Azul.");
+        if (payload.financeCategory && !payload.contaAzulItemId) {
+          toast("Ao informar CATEGORIA, o ID do Item/Serviço no Conta Azul é obrigatório.");
           return;
         }
         button.disabled = true;
@@ -3837,7 +3786,8 @@
           });
           clearFinancePaymentLinkForm();
           await loadFinancePaymentLinks();
-          toast(`Vínculo "${payload.financePaymentMethod}" salvo com sucesso.`);
+          const label = payload.financeCategory || payload.financePaymentMethod;
+          toast(`Vínculo "${label}" salvo com sucesso.`);
         } catch (err) {
           toast(err.message || "Erro ao salvar vínculo.");
         } finally {
