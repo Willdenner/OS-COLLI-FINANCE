@@ -12,6 +12,8 @@ const CONTA_AZUL_PEOPLE_PATH = "/v1/pessoas";
 const CONTA_AZUL_FINANCIAL_ACCOUNTS_PATH = "/v1/conta-financeira";
 const CONTA_AZUL_FINANCIAL_CATEGORIES_PATH = "/v1/categorias";
 const CONTA_AZUL_PRODUCTS_PATH = "/v1/produtos";
+/** Conta Azul /v1/produtos only accepts these exact tamanho_pagina values. */
+const CONTA_AZUL_PRODUCT_PAGE_SIZES = Object.freeze([10, 20, 50, 100, 200, 500, 1000]);
 const CONTA_AZUL_FPA_EXPORT_RESOURCE = "fpa_transactions";
 const CONTA_AZUL_LOVABLE_CONTRACTS_RESOURCE = "lovable_contracts";
 const CONTA_AZUL_LOVABLE_RECEIPTS_RESOURCE = "lovable_receipts";
@@ -32,6 +34,14 @@ function clampInteger(value, min, max, fallback) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.min(Math.max(Math.trunc(parsed), min), max);
+}
+
+function normalizeContaAzulProductsPageSize(value) {
+  const n = clampInteger(value, 10, 1000, 100);
+  const allowed = CONTA_AZUL_PRODUCT_PAGE_SIZES;
+  if (allowed.includes(n)) return n;
+  const ceiling = allowed.find((s) => s >= n);
+  return ceiling ?? 1000;
 }
 
 function parseBrazilianDecimal(value) {
@@ -436,7 +446,7 @@ function buildContaAzulProductsPath({ search, page = 1, pageSize = 100, status }
   const safeSearch = normalizeOptionalText(search, 160);
   if (safeSearch) params.set("busca", safeSearch);
   params.set("pagina", String(clampInteger(page, 1, 10000, 1)));
-  params.set("tamanho_pagina", String(clampInteger(pageSize, 1, 500, 100)));
+  params.set("tamanho_pagina", String(normalizeContaAzulProductsPageSize(pageSize)));
   const safeStatus = normalizeOptionalText(status, 40);
   if (safeStatus) params.set("status", safeStatus);
   return `${CONTA_AZUL_PRODUCTS_PATH}?${params.toString()}`;

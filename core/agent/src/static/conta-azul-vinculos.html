@@ -621,7 +621,7 @@
           const result = await api(
             `/api/conta-azul/products${buildQueryString({
               search,
-              pageSize: 300,
+              pageSize: 500,
               ...(statusOnly ? { status: statusOnly } : {}),
             })}`
           );

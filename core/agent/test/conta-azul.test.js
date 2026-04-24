@@ -295,6 +295,7 @@ test("monta consultas e normaliza listas de pessoas, contas e categorias do Cont
   assert.match(productsPath, /^\/v1\/produtos\?/);
   assert.match(productsPath, /busca=Assessoria/);
   assert.match(productsPath, /tamanho_pagina=200/);
+  assert.match(buildContaAzulProductsPath({ pageSize: 300 }), /tamanho_pagina=500/);
   assert.match(productsPath, /status=ATIVO/);
   assert.match(productsPathNoStatus, /pagina=2/);
   assert.doesNotMatch(productsPathNoStatus, /status=/);
