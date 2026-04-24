@@ -89,6 +89,7 @@ const {
   normalizeContaAzulListItems,
   normalizeContaAzulPerson,
   normalizeContaAzulProductsPageSize,
+  normalizeContaAzulServicosPageSize,
   normalizeContaAzulSettings,
   reconcileContaAzulFinancialRecords,
   resolveContaAzulEndpointUrl,
@@ -549,6 +550,7 @@ async function fetchContaAzulProductsAggregated(
   { search, status, pageSize: requestedSize, catalogMode } = {}
 ) {
   const pageSize = normalizeContaAzulProductsPageSize(requestedSize ?? 500);
+  const servicosPageSize = normalizeContaAzulServicosPageSize(requestedSize ?? 100);
   const maxPages = 30;
   const mode = String(catalogMode || "servicos").trim().toLowerCase() || "servicos";
   const all = [];
@@ -557,7 +559,11 @@ async function fetchContaAzulProductsAggregated(
   let catalogDiagnostics = null;
   let secondaryEndpoint = null;
 
-  async function ingestCatalogPages(buildPathForPage, { recordDiagnostics } = { recordDiagnostics: true }) {
+  async function ingestCatalogPages(
+    buildPathForPage,
+    pageSizeForApi,
+    { recordDiagnostics } = { recordDiagnostics: true }
+  ) {
     let page = 1;
     let rawRowsFetched = 0;
     while (page <= maxPages) {
@@ -587,26 +593,30 @@ async function fetchContaAzulProductsAggregated(
         all.push(item);
       }
       if (rawBatch.length === 0) break;
-      if (rawBatch.length < pageSize) break;
+      if (rawBatch.length < pageSizeForApi) break;
       if (Number.isFinite(reported) && reported > 0 && rawRowsFetched >= reported) break;
       page += 1;
     }
   }
 
   if (mode === "produtos") {
-    await ingestCatalogPages((page) => buildContaAzulProductsPath({ search, page, pageSize, status }), {
+    await ingestCatalogPages((page) => buildContaAzulProductsPath({ search, page, pageSize, status }), pageSize, {
       recordDiagnostics: true,
     });
   } else if (mode === "servicos") {
-    await ingestCatalogPages((page) => buildContaAzulServicosPath({ search, page, pageSize, status }), {
-      recordDiagnostics: true,
-    });
+    await ingestCatalogPages(
+      (page) => buildContaAzulServicosPath({ search, page, pageSize: servicosPageSize, status }),
+      servicosPageSize,
+      { recordDiagnostics: true }
+    );
   } else {
-    await ingestCatalogPages((page) => buildContaAzulServicosPath({ search, page, pageSize, status }), {
-      recordDiagnostics: true,
-    });
+    await ingestCatalogPages(
+      (page) => buildContaAzulServicosPath({ search, page, pageSize: servicosPageSize, status }),
+      servicosPageSize,
+      { recordDiagnostics: true }
+    );
     secondaryEndpoint = lastEndpoint;
-    await ingestCatalogPages((page) => buildContaAzulProductsPath({ search, page, pageSize, status }), {
+    await ingestCatalogPages((page) => buildContaAzulProductsPath({ search, page, pageSize, status }), pageSize, {
       recordDiagnostics: false,
     });
   }
@@ -3007,8 +3017,18 @@ app.get(
     }
 
     if (catalogMode === "todos") {
-      const svcPath = buildContaAzulServicosPath({ search, page: explicitPage, pageSize, status });
-      const prodPath = buildContaAzulProductsPath({ search, page: explicitPage, pageSize, status });
+      const svcPath = buildContaAzulServicosPath({
+        search,
+        page: explicitPage,
+        pageSize: normalizeContaAzulServicosPageSize(pageSize ?? 100),
+        status,
+      });
+      const prodPath = buildContaAzulProductsPath({
+        search,
+        page: explicitPage,
+        pageSize: normalizeContaAzulProductsPageSize(pageSize ?? 500),
+        status,
+      });
       const rServ = await fetchContaAzulJson(contaAzulSettings, svcPath);
       const rProd = await fetchContaAzulJson(contaAzulSettings, prodPath);
       const svcRows = mergeContaAzulCatalogListRows(rServ.parsed.json);
@@ -3051,10 +3071,14 @@ app.get(
     }
 
     const catalogListPath = catalogMode === "produtos" ? buildContaAzulProductsPath : buildContaAzulServicosPath;
+    const normalizedListPageSize =
+      catalogMode === "produtos"
+        ? normalizeContaAzulProductsPageSize(pageSize ?? 500)
+        : normalizeContaAzulServicosPageSize(pageSize ?? 100);
     const endpointPath = catalogListPath({
       search,
       page: explicitPage,
-      pageSize,
+      pageSize: normalizedListPageSize,
       status,
     });
     const result = await fetchContaAzulJson(contaAzulSettings, endpointPath);
