@@ -34,6 +34,10 @@ const {
   updateFpaTransaction,
   updateFpaTransactionsBatch,
   updateSettings,
+  listFinancePaymentLinks,
+  findFinancePaymentLinkByMethod,
+  upsertFinancePaymentLink,
+  deleteFinancePaymentLink,
 } = require("./lib/store");
 const {
   CATEGORY_OPTIONS,
@@ -935,13 +939,16 @@ async function syncLovableContractToContaAzul(source = {}, { dryRun = false, for
     throw createHttpError(400, "Ative a integração Conta Azul antes de receber contratos do Lovable.");
   }
 
-  const nextContractNumber =
-    readFirstValue(source || {}, ["contractNumber", "number", "numero", "contract.contractNumber", "contract.termos.numero"]) ||
-    await fetchContaAzulNextContractNumber(contaAzulSettings);
+  const contractNumberFromSource = readFirstValue(source || {}, ["contractNumber", "number", "numero", "contract.contractNumber", "contract.termos.numero"]);
+  const [nextContractNumber, financePaymentLinks] = await Promise.all([
+    contractNumberFromSource || fetchContaAzulNextContractNumber(contaAzulSettings),
+    listFinancePaymentLinks(),
+  ]);
   const record = buildContaAzulContractRecord({
     settings: contaAzulSettings,
     source: source || {},
     nextContractNumber,
+    financePaymentLinks,
   });
   if (!record.externalId) throw createHttpError(400, "Informe externalId, contractId ou id do contrato Lovable.");
 
@@ -2222,6 +2229,41 @@ app.get(
       listLovableReceiptSyncs({ limit }),
     ]);
     res.json({ ok: true, contracts, receipts });
+  })
+);
+
+app.get(
+  "/api/fpa/finance-payment-links",
+  asyncHandler(async (req, res) => {
+    const links = await listFinancePaymentLinks();
+    res.json({ ok: true, links });
+  })
+);
+
+app.post(
+  "/api/fpa/finance-payment-links",
+  asyncHandler(async (req, res) => {
+    const link = await upsertFinancePaymentLink(req.body || {});
+    res.status(201).json({ ok: true, link });
+  })
+);
+
+app.delete(
+  "/api/fpa/finance-payment-links/:id",
+  asyncHandler(async (req, res) => {
+    const deleted = await deleteFinancePaymentLink(req.params.id);
+    if (!deleted) return res.status(404).json({ ok: false, error: "Vínculo não encontrado." });
+    res.json({ ok: true });
+  })
+);
+
+app.get(
+  "/api/fpa/finance-payment-links/lookup",
+  asyncHandler(async (req, res) => {
+    const method = String(req.query?.paymentMethod || "").trim();
+    if (!method) return res.status(400).json({ ok: false, error: "Informe paymentMethod." });
+    const link = await findFinancePaymentLinkByMethod(method);
+    res.json({ ok: true, link });
   })
 );
 

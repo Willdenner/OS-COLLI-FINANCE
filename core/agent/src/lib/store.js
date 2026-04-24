@@ -220,6 +220,7 @@ function createEmptyFpaState() {
     lovableContracts: [],
     lovableReceipts: [],
     receivablesOrchestratorRuns: [],
+    financePaymentLinks: [],
   };
 }
 
@@ -434,6 +435,28 @@ function normalizeLovableContractSyncRecord(record) {
   };
 }
 
+function normalizeFinancePaymentLink(record) {
+  if (!record || typeof record !== "object") return null;
+  const financePaymentMethod = normalizeOptionalText(record.financePaymentMethod, 120);
+  if (!financePaymentMethod) return null;
+
+  return {
+    id: normalizeOptionalText(record.id, 80) || nextId("fpmlink"),
+    financePaymentMethod,
+    label: normalizeOptionalText(record.label, 120) || financePaymentMethod,
+    contaAzulPaymentType: normalizeOptionalText(record.contaAzulPaymentType, 80) || null,
+    contaAzulFinancialAccountId: normalizeOptionalText(record.contaAzulFinancialAccountId, 160) || null,
+    contaAzulFinancialAccountName: normalizeOptionalText(record.contaAzulFinancialAccountName, 160) || null,
+    contaAzulItemId: normalizeOptionalText(record.contaAzulItemId, 160) || null,
+    contaAzulItemDescription: normalizeOptionalText(record.contaAzulItemDescription, 255) || null,
+    contaAzulItemDefaultValue: Number.isFinite(Number(record.contaAzulItemDefaultValue)) && Number(record.contaAzulItemDefaultValue) > 0
+      ? Number(record.contaAzulItemDefaultValue)
+      : null,
+    createdAt: record.createdAt || nowIso(),
+    updatedAt: record.updatedAt || record.createdAt || nowIso(),
+  };
+}
+
 function normalizeLovableReceiptSyncRecord(record) {
   if (!record || typeof record !== "object") return null;
   const externalId = normalizeOptionalText(record.externalId || record.receiptId || record.paymentId || record.id, 160);
@@ -519,6 +542,9 @@ function normalizeFpaState(rawFpaState) {
           .filter(Boolean)
           .sort((a, b) => String(b.updatedAt || b.createdAt || "").localeCompare(String(a.updatedAt || a.createdAt || "")))
           .slice(0, 100)
+      : [],
+    financePaymentLinks: Array.isArray(safeState.financePaymentLinks)
+      ? safeState.financePaymentLinks.map(normalizeFinancePaymentLink).filter(Boolean)
       : [],
   };
 }
@@ -1169,6 +1195,54 @@ async function upsertReceivablesOrchestratorRun(run = {}) {
   return db.fpa.receivablesOrchestratorRuns.find((entry) => entry.id === normalized.id);
 }
 
+async function listFinancePaymentLinks() {
+  const db = await loadDb();
+  return (db.fpa.financePaymentLinks || []).slice();
+}
+
+async function findFinancePaymentLinkByMethod(financePaymentMethod) {
+  const db = await loadDb();
+  const normalized = normalizeOptionalText(financePaymentMethod, 120);
+  if (!normalized) return null;
+  const upper = normalized.toUpperCase();
+  return (
+    (db.fpa.financePaymentLinks || []).find(
+      (l) => l.financePaymentMethod.toUpperCase() === upper
+    ) || null
+  );
+}
+
+async function upsertFinancePaymentLink(record = {}) {
+  const db = await loadDb();
+  if (!db.fpa.financePaymentLinks) db.fpa.financePaymentLinks = [];
+
+  const normalized = normalizeFinancePaymentLink({ ...record, updatedAt: nowIso() });
+  if (!normalized) throw new Error("Informe financePaymentMethod para criar o vínculo.");
+
+  const upper = normalized.financePaymentMethod.toUpperCase();
+  const existing = db.fpa.financePaymentLinks.find((l) => l.financePaymentMethod.toUpperCase() === upper);
+  if (existing) {
+    Object.assign(existing, { ...normalized, id: existing.id, createdAt: existing.createdAt, updatedAt: nowIso() });
+  } else {
+    db.fpa.financePaymentLinks.push(normalized);
+  }
+
+  await persistDb();
+  return db.fpa.financePaymentLinks.find((l) => l.financePaymentMethod.toUpperCase() === upper);
+}
+
+async function deleteFinancePaymentLink(id) {
+  const db = await loadDb();
+  if (!db.fpa.financePaymentLinks) return false;
+  const safeId = normalizeOptionalText(id, 80);
+  if (!safeId) return false;
+  const before = db.fpa.financePaymentLinks.length;
+  db.fpa.financePaymentLinks = db.fpa.financePaymentLinks.filter((l) => l.id !== safeId);
+  if (db.fpa.financePaymentLinks.length === before) return false;
+  await persistDb();
+  return true;
+}
+
 module.exports = {
   createFpaImport,
   createFpaDreAccount,
@@ -1197,4 +1271,8 @@ module.exports = {
   updateFpaTransaction,
   updateFpaTransactionsBatch,
   updateSettings,
+  listFinancePaymentLinks,
+  findFinancePaymentLinkByMethod,
+  upsertFinancePaymentLink,
+  deleteFinancePaymentLink,
 };
