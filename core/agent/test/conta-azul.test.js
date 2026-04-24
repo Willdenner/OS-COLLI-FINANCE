@@ -313,6 +313,7 @@ test("monta consultas e normaliza listas de pessoas, contas e categorias do Cont
   assert.deepEqual(normalizeContaAzulListItems({ itens: [{ id: "x" }] }), [{ id: "x" }]);
   assert.deepEqual(normalizeContaAzulListItems({ produtos: [{ id: "p1" }] }), [{ id: "p1" }]);
   assert.deepEqual(normalizeContaAzulListItems({ data: { itens: [{ id: "nested" }] } }), [{ id: "nested" }]);
+  assert.deepEqual(normalizeContaAzulListItems({ itens: [], items: [{ id: "from_items" }] }), [{ id: "from_items" }]);
   const prodKind = normalizeContaAzulProduct({ id: "p2", nome: "Mesa", tipo: "PRODUTO" });
   assert.match(prodKind.label, /Produto/);
   assert.equal(prodKind.tipoRaw, "PRODUTO");
@@ -321,10 +322,14 @@ test("monta consultas e normaliza listas de pessoas, contas e categorias do Cont
     normalizeContaAzulProduct({ id: "a", nome: "TV", tipo: "PRODUTO" }),
     normalizeContaAzulProduct({ id: "b", nome: "Consultoria", tipo: "SERVICO" }),
     normalizeContaAzulProduct({ id: "c", nome: "Misto", tipo: "PRODUCT" }),
+    normalizeContaAzulProduct({ id: "d", nome: "Sem tipo no resumo", tipo: "" }),
   ];
-  assert.equal(filterContaAzulCatalogByMode(mixedCatalog, "servicos").length, 1);
+  assert.equal(filterContaAzulCatalogByMode(mixedCatalog, "servicos").length, 2);
   assert.equal(filterContaAzulCatalogByMode(mixedCatalog, "produtos").length, 2);
-  assert.equal(filterContaAzulCatalogByMode(mixedCatalog, "todos").length, 3);
+  assert.equal(filterContaAzulCatalogByMode(mixedCatalog, "todos").length, 4);
+  const fiscalServ = normalizeContaAzulProduct({ id: "e", nome: "Via fiscal", fiscal: { tipo_produto: "SERVICOS" } });
+  assert.match(String(fiscalServ.tipoRaw || ""), /SERVICOS/i);
+  assert.equal(filterContaAzulCatalogByMode([fiscalServ], "servicos").length, 1);
   assert.equal(person.id, "person_123");
   assert.equal(person.label, "Fornecedor Acme · 12.345.678/0001-99");
   assert.equal(account.id, "account_123");

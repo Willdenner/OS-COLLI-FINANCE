@@ -345,7 +345,9 @@
                   <option value="produtos">Somente produtos (estoque / revenda)</option>
                   <option value="todos">Serviços e produtos</option>
                 </select>
-                <div class="field-hint">O mesmo endpoint lista os dois; o filtro usa o campo <code>tipo</code> de cada linha.</div>
+                <div class="field-hint">
+                  O mesmo endpoint lista os dois. Em <strong>Somente serviços</strong> entram linhas que não são produto/kit explícitos (inclui itens sem <code>tipo</code> no JSON, comum em serviços).
+                </div>
               </div>
               <div class="field">
                 <label class="field-label" for="cazv-catalog-status-only">Status (opcional)</label>

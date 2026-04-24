@@ -263,6 +263,13 @@ function normalizeContaAzulConnectedAccount(account) {
   };
 }
 
+function pickFirstListArray(candidates) {
+  const arrays = candidates.filter(Array.isArray);
+  const nonEmpty = arrays.find((a) => a.length > 0);
+  if (nonEmpty) return nonEmpty;
+  return arrays[0] || [];
+}
+
 function normalizeContaAzulListItems(payload) {
   if (Array.isArray(payload)) return payload;
   const safePayload = payload && typeof payload === "object" ? payload : {};
@@ -273,23 +280,21 @@ function normalizeContaAzulListItems(payload) {
     readNestedArray(safePayload, "resultado.itens"),
     readNestedArray(safePayload, "result.itens"),
   ];
-  return (
-    [
-      safePayload.itens,
-      safePayload.items,
-      safePayload.produtos,
-      safePayload.lista,
-      safePayload.registros,
-      ...nestedArrays,
-      safePayload.data,
-      safePayload.pessoas,
-      safePayload.contas,
-      safePayload.contas_financeiras,
-      safePayload.categorias,
-      safePayload.results,
-      safePayload.content,
-    ].find(Array.isArray) || []
-  );
+  return pickFirstListArray([
+    safePayload.itens,
+    safePayload.items,
+    safePayload.produtos,
+    safePayload.lista,
+    safePayload.registros,
+    ...nestedArrays,
+    safePayload.data,
+    safePayload.pessoas,
+    safePayload.contas,
+    safePayload.contas_financeiras,
+    safePayload.categorias,
+    safePayload.results,
+    safePayload.content,
+  ]);
 }
 
 function normalizeContaAzulPersonProfileType(value) {
@@ -400,6 +405,7 @@ function formatContaAzulProductKind(raw) {
 
 function normalizeContaAzulProduct(product) {
   const safe = product && typeof product === "object" ? product : {};
+  const fiscal = safe.fiscal && typeof safe.fiscal === "object" ? safe.fiscal : {};
   const id = normalizeOptionalText(safe.id || safe.uuid || safe.produto_id || safe.id_produto, 120);
   const name = normalizeOptionalText(safe.nome || safe.name || safe.descricao || safe.description, 200);
   const sku = normalizeOptionalText(safe.sku || safe.codigo || safe.codigo_sku, 80);
@@ -410,6 +416,8 @@ function normalizeContaAzulProduct(product) {
     safe.tipoItem ||
     safe.tipo_produto ||
     safe.tipoProduto ||
+    fiscal.tipo_produto ||
+    fiscal.tipoProduto ||
     safe.natureza ||
     safe.classificacao;
   const tipoRaw = normalizeOptionalText(kindRaw, 80) || null;
@@ -455,8 +463,9 @@ function filterContaAzulCatalogByMode(items, mode = "servicos") {
   if (m === "todos" || m === "all") return items;
   return items.filter((item) => {
     const cls = contaAzulCatalogItemClass(item);
-    if (m === "produtos") return cls === "produto" || cls === "unknown";
-    return cls === "servico";
+    if (m === "produtos") return cls === "produto";
+    // servicos: tudo que não é produto/kit/variação explícitos (a API muitas vezes omite `tipo` em serviços)
+    return cls !== "produto";
   });
 }
 
