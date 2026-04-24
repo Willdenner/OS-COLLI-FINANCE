@@ -571,6 +571,7 @@ async function fetchContaAzulProductsAggregated(
   let page = 1;
   let lastEndpoint = "";
   let rawRowsFetched = 0;
+  let catalogDiagnostics = null;
   while (page <= maxPages) {
     const endpointPath = buildContaAzulProductsPath({ search, page, pageSize, status });
     const result = await fetchContaAzulJson(contaAzulSettings, endpointPath);
@@ -578,12 +579,25 @@ async function fetchContaAzulProductsAggregated(
     const rawBatch = mergeContaAzulCatalogListRows(result.parsed.json);
     rawRowsFetched += rawBatch.length;
     const batch = rawBatch.map(normalizeContaAzulProduct).filter((item) => item.id);
+    const reported = Number(result.parsed.json?.total_itens ?? result.parsed.json?.totalItems ?? 0);
+    if (page === 1) {
+      const normAll = rawBatch.map(normalizeContaAzulProduct);
+      catalogDiagnostics = {
+        responseRootShape: Array.isArray(result.parsed.json) ? "array" : result.parsed.json ? "object" : "null",
+        responseRootKeys:
+          result.parsed.json && typeof result.parsed.json === "object" && !Array.isArray(result.parsed.json)
+            ? Object.keys(result.parsed.json).slice(0, 48)
+            : [],
+        mergedRows: rawBatch.length,
+        normalizedWithId: normAll.filter((x) => x.id).length,
+        reportedTotal: Number.isFinite(reported) && reported > 0 ? reported : null,
+      };
+    }
     for (const item of batch) {
       if (seen.has(item.id)) continue;
       seen.add(item.id);
       all.push(item);
     }
-    const reported = Number(result.parsed.json?.total_itens ?? result.parsed.json?.totalItems ?? 0);
     if (rawBatch.length === 0) break;
     if (rawBatch.length < pageSize) break;
     if (Number.isFinite(reported) && reported > 0 && rawRowsFetched >= reported) break;
@@ -619,6 +633,7 @@ async function fetchContaAzulProductsAggregated(
     rawCountBeforeFilter: all.length,
     endpoint: lastEndpoint,
     secondaryEndpoint,
+    catalogDiagnostics,
   };
 }
 
@@ -3000,6 +3015,7 @@ app.get(
         allPages: true,
         total: aggregated.total,
         rawCountBeforeFilter: aggregated.rawCountBeforeFilter,
+        catalogDiagnostics: aggregated.catalogDiagnostics || null,
         items: aggregated.items,
       });
       return;
@@ -3012,8 +3028,11 @@ app.get(
       status,
     });
     const result = await fetchContaAzulJson(contaAzulSettings, endpointPath);
-    const merged = mergeContaAzulCatalogListRows(result.parsed.json).map(normalizeContaAzulProduct).filter((item) => item.id);
+    const rawMerged = mergeContaAzulCatalogListRows(result.parsed.json);
+    const merged = rawMerged.map(normalizeContaAzulProduct).filter((item) => item.id);
     const items = filterContaAzulCatalogByMode(merged, catalogMode);
+    const reportedSingle = Number(result.parsed.json?.total_itens ?? result.parsed.json?.totalItems ?? 0);
+    const normAllSingle = rawMerged.map(normalizeContaAzulProduct);
 
     res.json({
       ok: true,
@@ -3025,6 +3044,16 @@ app.get(
       allPages: false,
       total: items.length,
       rawCountBeforeFilter: merged.length,
+      catalogDiagnostics: {
+        responseRootShape: Array.isArray(result.parsed.json) ? "array" : result.parsed.json ? "object" : "null",
+        responseRootKeys:
+          result.parsed.json && typeof result.parsed.json === "object" && !Array.isArray(result.parsed.json)
+            ? Object.keys(result.parsed.json).slice(0, 48)
+            : [],
+        mergedRows: rawMerged.length,
+        normalizedWithId: normAllSingle.filter((x) => x.id).length,
+        reportedTotal: Number.isFinite(reportedSingle) && reportedSingle > 0 ? reportedSingle : null,
+      },
       items,
     });
   })

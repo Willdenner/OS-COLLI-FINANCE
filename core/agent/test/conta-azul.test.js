@@ -320,6 +320,9 @@ test("monta consultas e normaliza listas de pessoas, contas e categorias do Cont
     mergeContaAzulCatalogListRows({ produtos: [{ id: "p" }], servicos: [{ id: "s", nome: "Srv" }] }),
     [{ id: "p" }, { id: "s", nome: "Srv" }]
   );
+  assert.deepEqual(mergeContaAzulCatalogListRows({ value: [{ id: "v1", nome: "OData" }] }), [{ id: "v1", nome: "OData" }]);
+  assert.equal(normalizeContaAzulProduct({ productId: "uuid-prod", nome: "X" }).id, "uuid-prod");
+  assert.match(normalizeContaAzulProduct({ id_legado: 999, nome: "Leg" }).id, /legacy_999/);
   const prodKind = normalizeContaAzulProduct({ id: "p2", nome: "Mesa", tipo: "PRODUTO" });
   assert.match(prodKind.label, /Produto/);
   assert.equal(prodKind.tipoRaw, "PRODUTO");
@@ -330,9 +333,20 @@ test("monta consultas e normaliza listas de pessoas, contas e categorias do Cont
     normalizeContaAzulProduct({ id: "c", nome: "Misto", tipo: "PRODUCT" }),
     normalizeContaAzulProduct({ id: "d", nome: "Sem tipo no resumo", tipo: "" }),
   ];
-  assert.equal(filterContaAzulCatalogByMode(mixedCatalog, "servicos").length, 2);
-  assert.equal(filterContaAzulCatalogByMode(mixedCatalog, "produtos").length, 2);
+  assert.equal(filterContaAzulCatalogByMode(mixedCatalog, "servicos").length, 3);
+  assert.equal(filterContaAzulCatalogByMode(mixedCatalog, "produtos").length, 1);
   assert.equal(filterContaAzulCatalogByMode(mixedCatalog, "todos").length, 4);
+  const listProdutoSemFiscal = normalizeContaAzulProduct({ id: "g", nome: "Como no GET /v1/produtos", tipo: "PRODUTO" });
+  assert.equal(filterContaAzulCatalogByMode([listProdutoSemFiscal], "servicos").length, 1);
+  assert.equal(filterContaAzulCatalogByMode([listProdutoSemFiscal], "produtos").length, 0);
+  const listProdutoComFiscalMerc = normalizeContaAzulProduct({
+    id: "h",
+    nome: "Mercadoria",
+    tipo: "PRODUTO",
+    fiscal: { tipo_produto: "MERCADORIAS" },
+  });
+  assert.equal(filterContaAzulCatalogByMode([listProdutoComFiscalMerc], "produtos").length, 1);
+  assert.equal(filterContaAzulCatalogByMode([listProdutoComFiscalMerc], "servicos").length, 0);
   const fiscalServ = normalizeContaAzulProduct({ id: "e", nome: "Via fiscal", fiscal: { tipo_produto: "SERVICOS" } });
   assert.match(String(fiscalServ.tipoRaw || ""), /SERVICOS/i);
   assert.equal(filterContaAzulCatalogByMode([fiscalServ], "servicos").length, 1);

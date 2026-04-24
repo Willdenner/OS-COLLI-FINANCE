@@ -346,7 +346,7 @@
                   <option value="todos">Serviços e produtos</option>
                 </select>
                 <div class="field-hint">
-                  O mesmo endpoint lista os dois. Em <strong>Somente serviços</strong> entram linhas que não são produto/kit explícitos (inclui itens sem <code>tipo</code> no JSON, comum em serviços).
+                  O mesmo endpoint lista os dois. A listagem costuma trazer <code>tipo=PRODUTO</code> também para serviços (fiscal completo só no detalhe), então esses itens entram em <strong>Somente serviços</strong>. Kits e variações ficam em <strong>Somente produtos</strong>.
                 </div>
               </div>
               <div class="field">
@@ -725,7 +725,12 @@
               ? ` · brutos (antes do filtro): ${result.rawCountBeforeFilter}`
               : "";
           const svcHint = result.secondaryEndpoint ? " · incluiu listagem secundária de serviços" : "";
-          statusEl.textContent = `${cazvState.catalogItems.length} item(ns) (${modeLabel}) após filtro${rawHint}${svcHint} · total: ${total}`;
+          const diag = result.catalogDiagnostics;
+          const diagHint =
+            diag && (cazvState.catalogItems.length === 0 || diag.mergedRows === 0)
+              ? ` Diagnóstico: JSON=${diag.responseRootShape}; chaves=${(diag.responseRootKeys || []).join(", ") || "—"}; linhas_mescladas=${diag.mergedRows}; com_id=${diag.normalizedWithId}; total_API=${diag.reportedTotal ?? "—"}. Se linhas_mescladas>0 e com_id=0, o payload não traz id/uuid. Tente esvaziar o filtro de status.`
+              : "";
+          statusEl.textContent = `${cazvState.catalogItems.length} item(ns) (${modeLabel}) após filtro${rawHint}${svcHint} · total: ${total}.${diagHint}`;
           syncItemPickersWithInputs();
           if (!silent) toast(`Catálogo: ${cazvState.catalogItems.length} item(ns) (${modeLabel}).`);
         } catch (e) {

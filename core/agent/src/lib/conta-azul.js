@@ -293,13 +293,52 @@ const CONTA_AZUL_CATALOG_MERGE_NESTED = [
   "result.itens",
 ];
 
+function scoreContaAzulCatalogLikeRow(o) {
+  if (!o || typeof o !== "object" || Array.isArray(o)) return 0;
+  let s = 0;
+  if (o.id != null && String(o.id).trim() !== "") s += 3;
+  if (o.uuid != null && String(o.uuid).trim() !== "") s += 3;
+  if (o.nome || o.name || o.descricao || o.description) s += 2;
+  if (o.codigo || o.codigo_sku || o.sku) s += 1;
+  if (o.tipo || o.type || o.valor_venda != null || o.valorVenda != null) s += 1;
+  return s;
+}
+
+/** Último recurso: varrer JSON (ex.: envelope Microsoft, OData value, etc.). */
+function deepCollectContaAzulCatalogRows(node, depth = 0, maxDepth = 12) {
+  const acc = [];
+  function walk(n, d) {
+    if (d > maxDepth || n == null) return;
+    if (Array.isArray(n)) {
+      if (!n.length) return;
+      const allObj = n.every((x) => x && typeof x === "object" && !Array.isArray(x));
+      if (allObj) {
+        const scores = n.map(scoreContaAzulCatalogLikeRow);
+        const maxS = scores.length ? Math.max(...scores) : 0;
+        if (maxS >= 4 || (n.length > 0 && scores.some((sc) => sc >= 3))) {
+          acc.push(...n);
+          return;
+        }
+      }
+      for (const el of n) walk(el, d + 1);
+      return;
+    }
+    if (typeof n === "object") {
+      for (const v of Object.values(n)) walk(v, d + 1);
+    }
+  }
+  walk(node, depth);
+  return acc;
+}
+
 /**
  * Une todas as listas plausíveis do JSON de catálogo (produtos/serviços em chaves diferentes).
  * Usado só no fluxo GET /v1/produtos (+ /v1/services quando existir).
  */
 function mergeContaAzulCatalogListRows(payload) {
+  if (payload == null) return [];
   if (Array.isArray(payload)) return payload;
-  const safe = payload && typeof payload === "object" ? payload : {};
+  const safe = typeof payload === "object" ? payload : {};
   const seen = new Set();
   const out = [];
   function pushRows(rows) {
@@ -329,13 +368,18 @@ function mergeContaAzulCatalogListRows(payload) {
   }
   if (Array.isArray(safe.data)) pushRows(safe.data);
   if (Array.isArray(safe.result)) pushRows(safe.result);
+  if (Array.isArray(safe.value)) pushRows(safe.value);
   if (out.length) return out;
-  return normalizeContaAzulListItems(safe);
+  pushRows(normalizeContaAzulListItems(safe));
+  if (out.length) return out;
+  pushRows(deepCollectContaAzulCatalogRows(safe));
+  return out;
 }
 
 function normalizeContaAzulListItems(payload) {
+  if (payload == null) return [];
   if (Array.isArray(payload)) return payload;
-  const safePayload = payload && typeof payload === "object" ? payload : {};
+  const safePayload = typeof payload === "object" ? payload : {};
   const nestedArrays = [
     readNestedArray(safePayload, "data.itens"),
     readNestedArray(safePayload, "data.items"),
@@ -475,22 +519,41 @@ function isContaAzulFiscalTipoServico(value) {
   return u === "SERVICOS" || u.includes("SERVICO");
 }
 
+function pickContaAzulProductRowId(safe) {
+  const nested = safe.produto && typeof safe.produto === "object" ? safe.produto : {};
+  const candidates = [
+    safe.id,
+    safe.uuid,
+    safe.produto_id,
+    safe.id_produto,
+    safe.productId,
+    safe.product_id,
+    safe.service_id,
+    safe.serviceId,
+    safe.task_id,
+    safe.taskId,
+    nested.id,
+    nested.uuid,
+  ];
+  for (const c of candidates) {
+    if (c == null || c === "") continue;
+    const t = String(c).trim();
+    if (!t) continue;
+    const n = normalizeOptionalText(t, 120);
+    if (n) return n;
+  }
+  if (safe.id_legado != null && String(safe.id_legado).trim() !== "") {
+    return normalizeOptionalText(`legacy_${safe.id_legado}`, 120);
+  }
+  return null;
+}
+
 function normalizeContaAzulProduct(product) {
   const safe = product && typeof product === "object" ? product : {};
   const fiscal = safe.fiscal && typeof safe.fiscal === "object" ? safe.fiscal : {};
   const fiscalTipo = fiscal.tipo_produto || fiscal.tipoProduto;
   const fiscalTipoRaw = normalizeOptionalText(fiscalTipo, 80) || null;
-  const id = normalizeOptionalText(
-    safe.id ||
-      safe.uuid ||
-      safe.produto_id ||
-      safe.id_produto ||
-      safe.service_id ||
-      safe.serviceId ||
-      safe.task_id ||
-      safe.taskId,
-    120
-  );
+  const id = pickContaAzulProductRowId(safe);
   const name = normalizeOptionalText(safe.nome || safe.name || safe.descricao || safe.description, 200);
   const sku = normalizeOptionalText(safe.sku || safe.codigo || safe.codigo_sku, 80);
   const topTipo = safe.tipo || safe.type || safe.tipo_item || safe.tipoItem || safe.tipo_produto || safe.tipoProduto;
@@ -524,16 +587,14 @@ function contaAzulCatalogItemClass(item) {
     .replace(/\s+/g, "_");
   const kind = String(item?.kind || "");
   if (raw.includes("SERV") || kind.includes("Serviço") || kind.includes("Servico")) return "servico";
-  if (
-    raw.includes("PROD") ||
-    raw === "PRODUCT" ||
-    raw.includes("KIT") ||
-    raw.includes("VARIACAO") ||
-    raw.includes("VARIAÇÃO") ||
-    kind.includes("Produto")
-  ) {
-    return "produto";
+  // Resumo da listagem costuma trazer só PRODUTO | KIT_PRODUTO | VARIACAO_PRODUTO; serviços ficam como PRODUTO até o detalhe (fiscal.tipo_produto).
+  if (raw.includes("KIT") || raw.includes("VARIACAO") || raw.includes("VARIAÇÃO") || raw === "PRODUCT") return "produto";
+  const fiscalHint = normalizeOptionalText(item?.fiscalTipoRaw, 80);
+  if (raw === "PRODUTO") {
+    if (fiscalHint && !isContaAzulFiscalTipoServico(item.fiscalTipoRaw)) return "produto";
+    return "unknown";
   }
+  if (raw.includes("PROD") || kind.includes("Produto")) return "produto";
   return "unknown";
 }
 
@@ -623,7 +684,7 @@ function buildContaAzulInventoryListPath(basePath, { search, page = 1, pageSize 
   params.set("pagina", String(clampInteger(page, 1, 10000, 1)));
   params.set("tamanho_pagina", String(normalizeContaAzulProductsPageSize(pageSize)));
   const safeStatus = normalizeOptionalText(status, 40);
-  if (safeStatus) params.set("status", safeStatus);
+  if (safeStatus) params.set("status", safeStatus.toUpperCase());
   return `${base}?${params.toString()}`;
 }
 
