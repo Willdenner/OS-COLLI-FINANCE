@@ -72,6 +72,7 @@ const {
   buildContaAzulPeoplePath,
   buildContaAzulTestFinancialEventRecord,
   buildContaAzulTokenHeaders,
+  filterContaAzulCatalogByMode,
   isContaAzulAccessTokenExpired,
   mergeContaAzulSettings,
   normalizeContaAzulAcquittanceResponse,
@@ -540,30 +541,37 @@ async function fetchContaAzulJson(contaAzulSettings, endpointPath) {
   return { endpoint, response, parsed };
 }
 
-async function fetchContaAzulProductsAggregated(contaAzulSettings, { search, status, pageSize: requestedSize } = {}) {
+async function fetchContaAzulProductsAggregated(
+  contaAzulSettings,
+  { search, status, pageSize: requestedSize, catalogMode } = {}
+) {
   const pageSize = normalizeContaAzulProductsPageSize(requestedSize ?? 500);
   const maxPages = 30;
   const all = [];
   const seen = new Set();
   let page = 1;
   let lastEndpoint = "";
+  let rawRowsFetched = 0;
   while (page <= maxPages) {
     const endpointPath = buildContaAzulProductsPath({ search, page, pageSize, status });
     const result = await fetchContaAzulJson(contaAzulSettings, endpointPath);
     lastEndpoint = result.endpoint;
-    const batch = normalizeContaAzulListItems(result.parsed.json).map(normalizeContaAzulProduct).filter((item) => item.id);
+    const rawBatch = normalizeContaAzulListItems(result.parsed.json);
+    rawRowsFetched += rawBatch.length;
+    const batch = rawBatch.map(normalizeContaAzulProduct).filter((item) => item.id);
     for (const item of batch) {
       if (seen.has(item.id)) continue;
       seen.add(item.id);
       all.push(item);
     }
     const reported = Number(result.parsed.json?.total_itens ?? result.parsed.json?.totalItems ?? 0);
-    if (batch.length === 0) break;
-    if (batch.length < pageSize) break;
-    if (Number.isFinite(reported) && reported > 0 && all.length >= reported) break;
+    if (rawBatch.length === 0) break;
+    if (rawBatch.length < pageSize) break;
+    if (Number.isFinite(reported) && reported > 0 && rawRowsFetched >= reported) break;
     page += 1;
   }
-  return { items: all, total: all.length, endpoint: lastEndpoint };
+  const filtered = filterContaAzulCatalogByMode(all, catalogMode);
+  return { items: filtered, total: filtered.length, endpoint: lastEndpoint };
 }
 
 async function postContaAzulJson(contaAzulSettings, endpointPath, payload) {
@@ -2922,14 +2930,24 @@ app.get(
     const explicitPage = req.query?.page || req.query?.pagina;
     const pageSize = req.query?.pageSize || req.query?.tamanho_pagina;
     const wantAllPages = !explicitPage && String(req.query?.allPages ?? "true").toLowerCase() !== "false";
+    const catalogMode =
+      String(req.query?.catalog || req.query?.catalogMode || req.query?.itemClass || "servicos")
+        .trim()
+        .toLowerCase() || "servicos";
 
     if (wantAllPages) {
-      const aggregated = await fetchContaAzulProductsAggregated(contaAzulSettings, { search, status, pageSize });
+      const aggregated = await fetchContaAzulProductsAggregated(contaAzulSettings, {
+        search,
+        status,
+        pageSize,
+        catalogMode,
+      });
       res.json({
         ok: true,
         endpoint: aggregated.endpoint,
         responseCode: 200,
         search,
+        catalogMode,
         allPages: true,
         total: aggregated.total,
         items: aggregated.items,
@@ -2944,15 +2962,19 @@ app.get(
       status,
     });
     const result = await fetchContaAzulJson(contaAzulSettings, endpointPath);
-    const items = normalizeContaAzulListItems(result.parsed.json).map(normalizeContaAzulProduct).filter((item) => item.id);
+    const items = filterContaAzulCatalogByMode(
+      normalizeContaAzulListItems(result.parsed.json).map(normalizeContaAzulProduct).filter((item) => item.id),
+      catalogMode
+    );
 
     res.json({
       ok: true,
       endpoint: result.endpoint,
       responseCode: result.response.status,
       search,
+      catalogMode,
       allPages: false,
-      total: Number(result.parsed.json?.total_itens || result.parsed.json?.totalItems || items.length) || items.length,
+      total: items.length,
       items,
     });
   })

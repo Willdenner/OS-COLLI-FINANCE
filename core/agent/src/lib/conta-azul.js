@@ -412,6 +412,7 @@ function normalizeContaAzulProduct(product) {
     safe.tipoProduto ||
     safe.natureza ||
     safe.classificacao;
+  const tipoRaw = normalizeOptionalText(kindRaw, 80) || null;
   const kind = formatContaAzulProductKind(kindRaw) || normalizeOptionalText(kindRaw, 40) || "";
   const label = [name || id || "Item sem nome", sku || null, kind || null].filter(Boolean).join(" · ");
 
@@ -419,9 +420,44 @@ function normalizeContaAzulProduct(product) {
     id: id || null,
     name: name || null,
     sku: sku || null,
+    tipoRaw,
     kind: kind || null,
     label,
   };
+}
+
+/** Classifica item do GET /v1/produtos para filtrar serviço vs produto físico/kit. */
+function contaAzulCatalogItemClass(item) {
+  const raw = String(item?.tipoRaw || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+  const kind = String(item?.kind || "");
+  if (raw.includes("SERV") || kind.includes("Serviço") || kind.includes("Servico")) return "servico";
+  if (
+    raw.includes("PROD") ||
+    raw === "PRODUCT" ||
+    raw.includes("KIT") ||
+    raw.includes("VARIACAO") ||
+    raw.includes("VARIAÇÃO") ||
+    kind.includes("Produto")
+  ) {
+    return "produto";
+  }
+  return "unknown";
+}
+
+/**
+ * @param {string} mode servicos | produtos | todos
+ */
+function filterContaAzulCatalogByMode(items, mode = "servicos") {
+  const m = String(mode || "servicos").toLowerCase();
+  if (m === "todos" || m === "all") return items;
+  return items.filter((item) => {
+    const cls = contaAzulCatalogItemClass(item);
+    if (m === "produtos") return cls === "produto" || cls === "unknown";
+    return cls === "servico";
+  });
 }
 
 function normalizeContaAzulFinancialInstallment(installment, type) {
@@ -2014,6 +2050,7 @@ module.exports = {
   buildContaAzulPeoplePath,
   buildContaAzulTokenHeaders,
   createDefaultContaAzulSettings,
+  filterContaAzulCatalogByMode,
   getContaAzulFpaExportCandidates,
   getContaAzulLovableContractPaths,
   isContaAzulAccessTokenExpired,

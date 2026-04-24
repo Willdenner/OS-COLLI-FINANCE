@@ -322,7 +322,7 @@
           <div class="card-body">
             <div class="form-grid g2">
               <div class="field">
-                <label class="field-label" for="cazv-catalog-search">Buscar produtos e serviços</label>
+                <label class="field-label" for="cazv-catalog-search">Buscar no Conta Azul</label>
                 <div class="field-inline" style="flex-wrap: wrap">
                   <input
                     class="field-input"
@@ -335,8 +335,17 @@
                   <button class="btn btn-primary" id="cazv-btn-load-catalog" type="button">Carregar lista</button>
                 </div>
                 <div class="field-hint" id="cazv-catalog-status">
-                  Após o OAuth no FP&amp;A, clique em Carregar lista para preencher os seletores (API <code>GET /v1/produtos</code>).
+                  Após o OAuth no FP&amp;A, clique em Carregar lista (API <code>GET /v1/produtos</code>). Por padrão mostramos só <strong>serviços</strong> (tipo SERVIÇO no cadastro).
                 </div>
+              </div>
+              <div class="field">
+                <label class="field-label" for="cazv-catalog-kind">Tipo de item no catálogo</label>
+                <select class="field-select" id="cazv-catalog-kind">
+                  <option value="servicos" selected>Somente serviços (recomendado p/ contratos)</option>
+                  <option value="produtos">Somente produtos (estoque / revenda)</option>
+                  <option value="todos">Serviços e produtos</option>
+                </select>
+                <div class="field-hint">O mesmo endpoint lista os dois; o filtro usa o campo <code>tipo</code> de cada linha.</div>
               </div>
               <div class="field">
                 <label class="field-label" for="cazv-catalog-status-only">Status (opcional)</label>
@@ -697,18 +706,21 @@
           btn.textContent = "Carregando…";
         }
         try {
+          const catalog = el("cazv-catalog-kind")?.value || "servicos";
           const result = await api(
             `/api/conta-azul/products${buildQueryString({
               search,
               pageSize: 500,
+              catalog,
               ...(statusOnly ? { status: statusOnly } : {}),
             })}`
           );
           cazvState.catalogItems = Array.isArray(result.items) ? result.items : [];
           const total = result.total != null ? result.total : cazvState.catalogItems.length;
-          statusEl.textContent = `${cazvState.catalogItems.length} item(ns) nesta página · total informado pela API: ${total}`;
+          const modeLabel = result.catalogMode || catalog;
+          statusEl.textContent = `${cazvState.catalogItems.length} item(ns) (${modeLabel}) após filtro · total na resposta: ${total}`;
           syncItemPickersWithInputs();
-          if (!silent) toast(`Catálogo: ${cazvState.catalogItems.length} produto(s)/serviço(s).`);
+          if (!silent) toast(`Catálogo: ${cazvState.catalogItems.length} item(ns) (${modeLabel}).`);
         } catch (e) {
           statusEl.textContent = silent
             ? "Catálogo não carregado automaticamente. Conecte o Conta Azul no FP&A e clique em Carregar lista."
