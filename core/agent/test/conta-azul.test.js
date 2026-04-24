@@ -648,6 +648,59 @@ test("contaAzulContractPayload com strings vazias nao apaga id_conta_financeira 
   assert.deepEqual(record.missingRequiredFields, []);
 });
 
+test("mapa de produto casa com items[0].productId no payload (webhook em linhas)", () => {
+  const settings = mergeContaAzulSettings(
+    { fpaExport: { defaultReceivableCategoryId: "cat_r", defaultFinancialAccountId: "conta_padrao" } },
+    {
+      lovableContracts: {
+        financeProductMappings: [
+          { financeProductId: "79415434-968f-439d-a362-5c686716b2fe", contaAzulItemId: "ffdef8af-0d45-4737-af0c-b7a84dcf98a2" },
+        ],
+      },
+    }
+  );
+  const record = buildContaAzulContractRecord({
+    settings,
+    nextContractNumber: 12,
+    source: {
+      contractId: "094711fb-968a-4f4f-9403-f0eafeee0c9a",
+      customerId: "c1",
+      items: [{ productId: "79415434-968f-439d-a362-5c686716b2fe", nome: "Executar Loyalty" }],
+      amountCents: 100000,
+      startDate: "2026-01-01",
+      firstDueDate: "2026-01-10",
+    },
+  });
+  assert.equal(record.payload.itens[0].id, "ffdef8af-0d45-4737-af0c-b7a84dcf98a2");
+  assert.deepEqual(record.missingRequiredFields, []);
+});
+
+test("mapa de produto aceita UUID com casing diferente entre payload e mapa", () => {
+  const settings = mergeContaAzulSettings(
+    { fpaExport: { defaultReceivableCategoryId: "cat_r", defaultFinancialAccountId: "conta_padrao" } },
+    {
+      lovableContracts: {
+        financeProductMappings: [
+          { financeProductId: "79415434-968F-439D-A362-5C686716B2FE", contaAzulItemId: "uuid-ca" },
+        ],
+      },
+    }
+  );
+  const record = buildContaAzulContractRecord({
+    settings,
+    nextContractNumber: 1,
+    source: {
+      contractId: "x",
+      customerId: "c",
+      productId: "79415434-968f-439d-a362-5c686716b2fe",
+      amountCents: 1000,
+      startDate: "2026-01-01",
+      firstDueDate: "2026-01-10",
+    },
+  });
+  assert.equal(record.payload.itens[0].id, "uuid-ca");
+});
+
 test("contaAzulContractPayload do webhook nao substitui itens[0].id fora do mapa de produto", () => {
   const record = buildContaAzulContractRecord({
     settings: {

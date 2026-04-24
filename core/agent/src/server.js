@@ -1055,14 +1055,20 @@ async function syncLovableContractToContaAzul(source = {}, { dryRun = false, for
   }
 
   if (record.missingRequiredFields.length) {
+    const mapDbg = record.productMappingDebug;
+    const mapHint =
+      mapDbg && record.missingRequiredFields.includes("itens[0].id")
+        ? ` No payload foram detectados estes ids de produto: ${mapDbg.payloadProductKeys.length ? mapDbg.payloadProductKeys.join(", ") : "nenhum"}. No mapa (financeProductId): ${mapDbg.configuredFinanceProductIds.length ? mapDbg.configuredFinanceProductIds.join(", ") : "nenhum"}.`
+        : "";
+    const errText = `Campos obrigatórios ausentes: ${record.missingRequiredFields.join(", ")}.${mapHint}`;
     await upsertLovableContractSync({
       externalId: record.externalId,
       amountCents: record.amountCents,
       status: "error",
-      errorMessage: `Campos obrigatórios ausentes: ${record.missingRequiredFields.join(", ")}`,
+      errorMessage: errText,
       requestPayload: record.payload,
     });
-    throw createHttpError(400, `Campos obrigatórios ausentes para criar contrato no Conta Azul: ${record.missingRequiredFields.join(", ")}.`);
+    throw createHttpError(400, `Campos obrigatórios ausentes para criar contrato no Conta Azul: ${record.missingRequiredFields.join(", ")}.${mapHint}`);
   }
 
   if (dryRun) {

@@ -1585,9 +1585,19 @@ function pickContractAmountInCentavosFromFinance(contract) {
   return parseMoneyStringToCentavos(String(v));
 }
 
-function resolveContaAzulItemFromProductMapping(contract, mappings) {
-  if (!Array.isArray(mappings) || !mappings.length) return "";
-  const candidateKeys = new Set();
+function addFinanceProductMappingCandidateKey(set, value) {
+  if (value == null || value === "") return;
+  const s = String(value).trim();
+  if (s) set.add(s);
+}
+
+/**
+ * Coleta identificadores de produto/serviço do Finance no payload do contrato (webhook Lovable, API, etc.).
+ * Inclui linhas em arrays (items, line_items, …) — caminhos do tipo items.0.x falham com readNestedValue.
+ */
+function collectFinanceProductMappingCandidateKeys(contract) {
+  const keys = new Set();
+  if (!contract || typeof contract !== "object") return keys;
   for (const path of [
     "productId",
     "product_id",
@@ -1595,19 +1605,71 @@ function resolveContaAzulItemFromProductMapping(contract, mappings) {
     "sku",
     "codigo_produto",
     "plano_id",
+    "planoId",
     "servico_codigo",
     "id_produto_finance",
+    "servico_id",
+    "produto_id",
     "billing.productId",
     "billing.product_id",
     "billing.sku",
     "billing.financeProductId",
+    "billing.serviceId",
   ]) {
-    const v = readNestedValue(contract, path);
-    if (v != null && v !== "") candidateKeys.add(String(v).trim());
+    addFinanceProductMappingCandidateKey(keys, readNestedValue(contract, path));
   }
+  const productObj = readNestedValue(contract, "product");
+  if (productObj && typeof productObj === "object") {
+    addFinanceProductMappingCandidateKey(keys, productObj.id);
+    addFinanceProductMappingCandidateKey(keys, productObj.productId);
+    addFinanceProductMappingCandidateKey(keys, productObj.product_id);
+    addFinanceProductMappingCandidateKey(keys, productObj.financeProductId);
+    addFinanceProductMappingCandidateKey(keys, productObj.sku);
+  }
+  const lineArrays = [
+    readNestedArray(contract, "items"),
+    readNestedArray(contract, "line_items"),
+    readNestedArray(contract, "lines"),
+    readNestedArray(contract, "products"),
+    readNestedArray(contract, "contract_items"),
+    readNestedArray(contract, "billing.items"),
+    readNestedArray(contract, "billing.line_items"),
+    readNestedArray(contract, "subscription.items"),
+  ];
+  for (const arr of lineArrays) {
+    if (!Array.isArray(arr)) continue;
+    for (const row of arr.slice(0, 12)) {
+      if (!row || typeof row !== "object") continue;
+      addFinanceProductMappingCandidateKey(keys, row.productId);
+      addFinanceProductMappingCandidateKey(keys, row.product_id);
+      addFinanceProductMappingCandidateKey(keys, row.financeProductId);
+      addFinanceProductMappingCandidateKey(keys, row.sku);
+      addFinanceProductMappingCandidateKey(keys, row.id_produto);
+      addFinanceProductMappingCandidateKey(keys, row.service_id);
+      addFinanceProductMappingCandidateKey(keys, row.serviceId);
+      const rp = row.product;
+      if (rp && typeof rp === "object") {
+        addFinanceProductMappingCandidateKey(keys, rp.id);
+        addFinanceProductMappingCandidateKey(keys, rp.productId);
+        addFinanceProductMappingCandidateKey(keys, rp.product_id);
+      }
+    }
+  }
+  return keys;
+}
+
+function resolveContaAzulItemFromProductMapping(contract, mappings) {
+  if (!Array.isArray(mappings) || !mappings.length) return "";
+  const candidateKeys = collectFinanceProductMappingCandidateKeys(contract);
   for (const m of mappings) {
     if (!m?.financeProductId || !m?.contaAzulItemId) continue;
-    if (candidateKeys.has(String(m.financeProductId).trim())) return m.contaAzulItemId;
+    const fid = String(m.financeProductId).trim();
+    if (!fid) continue;
+    if (candidateKeys.has(fid)) return m.contaAzulItemId;
+    const fidLower = fid.toLowerCase();
+    for (const k of candidateKeys) {
+      if (String(k).toLowerCase() === fidLower) return m.contaAzulItemId;
+    }
   }
   return "";
 }
@@ -1890,6 +1952,17 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
   if (!Number.isFinite(lineQty) || lineQty < 1) missingRequiredFields.push("itens[0].quantidade");
   if (!Number.isFinite(payloadLineValor) || payloadLineValor < 0) missingRequiredFields.push("itens[0].valor");
 
+  const productMappingDebug =
+    missingRequiredFields.includes("itens[0].id") && Array.isArray(lc.financeProductMappings)
+      ? {
+          payloadProductKeys: [...collectFinanceProductMappingCandidateKeys(contract)].slice(0, 24),
+          configuredFinanceProductIds: lc.financeProductMappings
+            .map((m) => normalizeOptionalText(m.financeProductId, 160))
+            .filter(Boolean)
+            .slice(0, 24),
+        }
+      : null;
+
   const outAmountCents = Number.isFinite(payloadLineValor) ? Math.round(payloadLineValor * 100) : amountCents;
   return {
     source: "lovable",
@@ -1900,6 +1973,7 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
     amountCents: outAmountCents,
     amountFormatted: outAmountCents ? formatMoneyBRL(outAmountCents) : "",
     missingRequiredFields: Array.from(new Set(missingRequiredFields)),
+    productMappingDebug,
     payload,
   };
 }
