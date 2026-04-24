@@ -65,6 +65,7 @@ const {
   buildContaAzulContractRecord,
   buildContaAzulFinancialAccountsPath,
   buildContaAzulFinancialCategoriesPath,
+  buildContaAzulInventoryListPath,
   buildContaAzulProductsPath,
   buildContaAzulFinancialEventsSearchPath,
   buildContaAzulFpaExportPayload,
@@ -74,6 +75,7 @@ const {
   buildContaAzulTokenHeaders,
   filterContaAzulCatalogByMode,
   isContaAzulAccessTokenExpired,
+  mergeContaAzulCatalogListRows,
   mergeContaAzulSettings,
   normalizeContaAzulAcquittanceResponse,
   normalizeContaAzulAuthorizationCode,
@@ -541,6 +543,23 @@ async function fetchContaAzulJson(contaAzulSettings, endpointPath) {
   return { endpoint, response, parsed };
 }
 
+async function tryFetchContaAzulGetOk(contaAzulSettings, endpointPath) {
+  try {
+    const endpoint = resolveContaAzulEndpointUrl(contaAzulSettings.baseUrl, endpointPath);
+    if (!endpoint) return null;
+    const response = await fetch(endpoint, {
+      method: "GET",
+      headers: buildContaAzulHeaders(contaAzulSettings),
+      signal: AbortSignal.timeout(15000),
+    });
+    const parsed = await readContaAzulResponse(response);
+    if (!response.ok) return null;
+    return { endpoint, response, parsed };
+  } catch {
+    return null;
+  }
+}
+
 async function fetchContaAzulProductsAggregated(
   contaAzulSettings,
   { search, status, pageSize: requestedSize, catalogMode } = {}
@@ -556,7 +575,7 @@ async function fetchContaAzulProductsAggregated(
     const endpointPath = buildContaAzulProductsPath({ search, page, pageSize, status });
     const result = await fetchContaAzulJson(contaAzulSettings, endpointPath);
     lastEndpoint = result.endpoint;
-    const rawBatch = normalizeContaAzulListItems(result.parsed.json);
+    const rawBatch = mergeContaAzulCatalogListRows(result.parsed.json);
     rawRowsFetched += rawBatch.length;
     const batch = rawBatch.map(normalizeContaAzulProduct).filter((item) => item.id);
     for (const item of batch) {
@@ -570,8 +589,37 @@ async function fetchContaAzulProductsAggregated(
     if (Number.isFinite(reported) && reported > 0 && rawRowsFetched >= reported) break;
     page += 1;
   }
+
+  let secondaryEndpoint = null;
+  for (const svcBase of ["/v1/services", "/v1/servicos"]) {
+    const svcPath = buildContaAzulInventoryListPath(svcBase, {
+      search,
+      page: 1,
+      pageSize: Math.min(pageSize, 1000),
+      status,
+    });
+    const svcTry = await tryFetchContaAzulGetOk(contaAzulSettings, svcPath);
+    if (!svcTry) continue;
+    secondaryEndpoint = svcTry.endpoint;
+    const svcRows = mergeContaAzulCatalogListRows(svcTry.parsed.json);
+    for (const row of svcRows) {
+      const item = normalizeContaAzulProduct(row);
+      if (!item.id) continue;
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      all.push(item);
+    }
+    break;
+  }
+
   const filtered = filterContaAzulCatalogByMode(all, catalogMode);
-  return { items: filtered, total: filtered.length, endpoint: lastEndpoint };
+  return {
+    items: filtered,
+    total: filtered.length,
+    rawCountBeforeFilter: all.length,
+    endpoint: lastEndpoint,
+    secondaryEndpoint,
+  };
 }
 
 async function postContaAzulJson(contaAzulSettings, endpointPath, payload) {
@@ -2945,11 +2993,13 @@ app.get(
       res.json({
         ok: true,
         endpoint: aggregated.endpoint,
+        secondaryEndpoint: aggregated.secondaryEndpoint || null,
         responseCode: 200,
         search,
         catalogMode,
         allPages: true,
         total: aggregated.total,
+        rawCountBeforeFilter: aggregated.rawCountBeforeFilter,
         items: aggregated.items,
       });
       return;
@@ -2962,19 +3012,19 @@ app.get(
       status,
     });
     const result = await fetchContaAzulJson(contaAzulSettings, endpointPath);
-    const items = filterContaAzulCatalogByMode(
-      normalizeContaAzulListItems(result.parsed.json).map(normalizeContaAzulProduct).filter((item) => item.id),
-      catalogMode
-    );
+    const merged = mergeContaAzulCatalogListRows(result.parsed.json).map(normalizeContaAzulProduct).filter((item) => item.id);
+    const items = filterContaAzulCatalogByMode(merged, catalogMode);
 
     res.json({
       ok: true,
       endpoint: result.endpoint,
+      secondaryEndpoint: null,
       responseCode: result.response.status,
       search,
       catalogMode,
       allPages: false,
       total: items.length,
+      rawCountBeforeFilter: merged.length,
       items,
     });
   })

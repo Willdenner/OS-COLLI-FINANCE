@@ -270,6 +270,69 @@ function pickFirstListArray(candidates) {
   return arrays[0] || [];
 }
 
+const CONTA_AZUL_CATALOG_MERGE_KEYS = [
+  "itens",
+  "items",
+  "produtos",
+  "servicos",
+  "services",
+  "lista",
+  "registros",
+  "records",
+  "resultados",
+];
+
+const CONTA_AZUL_CATALOG_MERGE_NESTED = [
+  "data.itens",
+  "data.items",
+  "data.produtos",
+  "data.servicos",
+  "data.services",
+  "resultado.itens",
+  "result.items",
+  "result.itens",
+];
+
+/**
+ * Une todas as listas plausíveis do JSON de catálogo (produtos/serviços em chaves diferentes).
+ * Usado só no fluxo GET /v1/produtos (+ /v1/services quando existir).
+ */
+function mergeContaAzulCatalogListRows(payload) {
+  if (Array.isArray(payload)) return payload;
+  const safe = payload && typeof payload === "object" ? payload : {};
+  const seen = new Set();
+  const out = [];
+  function pushRows(rows) {
+    if (!Array.isArray(rows)) return;
+    for (const row of rows) {
+      if (!row || typeof row !== "object") continue;
+      const rid =
+        row.id ??
+        row.uuid ??
+        row.produto_id ??
+        row.id_produto ??
+        row.service_id ??
+        row.serviceId ??
+        row.task_id ??
+        row.taskId;
+      const key = rid != null && String(rid).trim() !== "" ? `id:${String(rid)}` : `anon:${out.length}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(row);
+    }
+  }
+  for (const k of CONTA_AZUL_CATALOG_MERGE_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(safe, k)) pushRows(safe[k]);
+  }
+  for (const path of CONTA_AZUL_CATALOG_MERGE_NESTED) {
+    pushRows(readNestedArray(safe, path));
+  }
+  if (Array.isArray(safe.data)) pushRows(safe.data);
+  if (Array.isArray(safe.result)) pushRows(safe.result);
+  if (out.length) return out;
+  return normalizeContaAzulListItems(safe);
+}
+
 function normalizeContaAzulListItems(payload) {
   if (Array.isArray(payload)) return payload;
   const safePayload = payload && typeof payload === "object" ? payload : {};
@@ -403,21 +466,38 @@ function formatContaAzulProductKind(raw) {
   return normalizeOptionalText(raw, 40) || "";
 }
 
+/** fiscal.tipo_produto SERVICOS = cadastro de prestação de serviço no Conta Azul (mesmo com tipo=PRODUTO na listagem). */
+function isContaAzulFiscalTipoServico(value) {
+  const u = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+  return u === "SERVICOS" || u.includes("SERVICO");
+}
+
 function normalizeContaAzulProduct(product) {
   const safe = product && typeof product === "object" ? product : {};
   const fiscal = safe.fiscal && typeof safe.fiscal === "object" ? safe.fiscal : {};
-  const id = normalizeOptionalText(safe.id || safe.uuid || safe.produto_id || safe.id_produto, 120);
+  const fiscalTipo = fiscal.tipo_produto || fiscal.tipoProduto;
+  const fiscalTipoRaw = normalizeOptionalText(fiscalTipo, 80) || null;
+  const id = normalizeOptionalText(
+    safe.id ||
+      safe.uuid ||
+      safe.produto_id ||
+      safe.id_produto ||
+      safe.service_id ||
+      safe.serviceId ||
+      safe.task_id ||
+      safe.taskId,
+    120
+  );
   const name = normalizeOptionalText(safe.nome || safe.name || safe.descricao || safe.description, 200);
   const sku = normalizeOptionalText(safe.sku || safe.codigo || safe.codigo_sku, 80);
+  const topTipo = safe.tipo || safe.type || safe.tipo_item || safe.tipoItem || safe.tipo_produto || safe.tipoProduto;
   const kindRaw =
-    safe.tipo ||
-    safe.type ||
-    safe.tipo_item ||
-    safe.tipoItem ||
-    safe.tipo_produto ||
-    safe.tipoProduto ||
-    fiscal.tipo_produto ||
-    fiscal.tipoProduto ||
+    (isContaAzulFiscalTipoServico(fiscalTipo) ? fiscalTipo : null) ||
+    topTipo ||
+    fiscalTipo ||
     safe.natureza ||
     safe.classificacao;
   const tipoRaw = normalizeOptionalText(kindRaw, 80) || null;
@@ -428,6 +508,7 @@ function normalizeContaAzulProduct(product) {
     id: id || null,
     name: name || null,
     sku: sku || null,
+    fiscalTipoRaw,
     tipoRaw,
     kind: kind || null,
     label,
@@ -436,6 +517,7 @@ function normalizeContaAzulProduct(product) {
 
 /** Classifica item do GET /v1/produtos para filtrar serviço vs produto físico/kit. */
 function contaAzulCatalogItemClass(item) {
+  if (isContaAzulFiscalTipoServico(item?.fiscalTipoRaw)) return "servico";
   const raw = String(item?.tipoRaw || "")
     .trim()
     .toUpperCase()
@@ -533,7 +615,8 @@ function buildContaAzulFinancialCategoriesPath({ search, type, page = 1, pageSiz
   return `${CONTA_AZUL_FINANCIAL_CATEGORIES_PATH}?${params.toString()}`;
 }
 
-function buildContaAzulProductsPath({ search, page = 1, pageSize = 100, status } = {}) {
+function buildContaAzulInventoryListPath(basePath, { search, page = 1, pageSize = 100, status } = {}) {
+  const base = String(basePath || "").split("?")[0];
   const params = new URLSearchParams();
   const safeSearch = normalizeOptionalText(search, 160);
   if (safeSearch) params.set("busca", safeSearch);
@@ -541,7 +624,11 @@ function buildContaAzulProductsPath({ search, page = 1, pageSize = 100, status }
   params.set("tamanho_pagina", String(normalizeContaAzulProductsPageSize(pageSize)));
   const safeStatus = normalizeOptionalText(status, 40);
   if (safeStatus) params.set("status", safeStatus);
-  return `${CONTA_AZUL_PRODUCTS_PATH}?${params.toString()}`;
+  return `${base}?${params.toString()}`;
+}
+
+function buildContaAzulProductsPath(opts = {}) {
+  return buildContaAzulInventoryListPath(CONTA_AZUL_PRODUCTS_PATH, opts);
 }
 
 function buildContaAzulFinancialEventsSearchPath({
@@ -2050,6 +2137,7 @@ module.exports = {
   buildContaAzulContractSearchPath,
   buildContaAzulFinancialAccountsPath,
   buildContaAzulFinancialCategoriesPath,
+  buildContaAzulInventoryListPath,
   buildContaAzulProductsPath,
   buildContaAzulFinancialEventsSearchPath,
   buildContaAzulFpaExportPayload,
@@ -2063,6 +2151,7 @@ module.exports = {
   getContaAzulFpaExportCandidates,
   getContaAzulLovableContractPaths,
   isContaAzulAccessTokenExpired,
+  mergeContaAzulCatalogListRows,
   mergeContaAzulSettings,
   normalizeContaAzulAuthorizationCode,
   normalizeContaAzulAcquittanceResponse,

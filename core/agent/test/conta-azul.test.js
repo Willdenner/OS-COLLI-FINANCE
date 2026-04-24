@@ -12,6 +12,7 @@ const {
   buildContaAzulContractRecord,
   buildContaAzulFinancialAccountsPath,
   buildContaAzulFinancialCategoriesPath,
+  buildContaAzulInventoryListPath,
   buildContaAzulProductsPath,
   buildContaAzulFinancialEventsSearchPath,
   buildContaAzulFpaExportPayload,
@@ -26,6 +27,7 @@ const {
   normalizeContaAzulFinancialAccount,
   normalizeContaAzulFinancialCategory,
   normalizeContaAzulFinancialInstallment,
+  mergeContaAzulCatalogListRows,
   normalizeContaAzulListItems,
   normalizeContaAzulPerson,
   normalizeContaAzulProduct,
@@ -314,6 +316,10 @@ test("monta consultas e normaliza listas de pessoas, contas e categorias do Cont
   assert.deepEqual(normalizeContaAzulListItems({ produtos: [{ id: "p1" }] }), [{ id: "p1" }]);
   assert.deepEqual(normalizeContaAzulListItems({ data: { itens: [{ id: "nested" }] } }), [{ id: "nested" }]);
   assert.deepEqual(normalizeContaAzulListItems({ itens: [], items: [{ id: "from_items" }] }), [{ id: "from_items" }]);
+  assert.deepEqual(
+    mergeContaAzulCatalogListRows({ produtos: [{ id: "p" }], servicos: [{ id: "s", nome: "Srv" }] }),
+    [{ id: "p" }, { id: "s", nome: "Srv" }]
+  );
   const prodKind = normalizeContaAzulProduct({ id: "p2", nome: "Mesa", tipo: "PRODUTO" });
   assert.match(prodKind.label, /Produto/);
   assert.equal(prodKind.tipoRaw, "PRODUTO");
@@ -330,6 +336,16 @@ test("monta consultas e normaliza listas de pessoas, contas e categorias do Cont
   const fiscalServ = normalizeContaAzulProduct({ id: "e", nome: "Via fiscal", fiscal: { tipo_produto: "SERVICOS" } });
   assert.match(String(fiscalServ.tipoRaw || ""), /SERVICOS/i);
   assert.equal(filterContaAzulCatalogByMode([fiscalServ], "servicos").length, 1);
+  const mixedTipo = normalizeContaAzulProduct({
+    id: "f",
+    nome: "Mensalidade",
+    tipo: "PRODUTO",
+    fiscal: { tipo_produto: "SERVICOS" },
+  });
+  assert.equal(mixedTipo.kind, "Serviço");
+  assert.equal(filterContaAzulCatalogByMode([mixedTipo], "servicos").length, 1);
+  assert.equal(filterContaAzulCatalogByMode([mixedTipo], "produtos").length, 0);
+  assert.match(buildContaAzulInventoryListPath("/v1/services", { page: 1, pageSize: 100 }), /^\/v1\/services\?/);
   assert.equal(person.id, "person_123");
   assert.equal(person.label, "Fornecedor Acme · 12.345.678/0001-99");
   assert.equal(account.id, "account_123");

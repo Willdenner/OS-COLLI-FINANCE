@@ -720,7 +720,12 @@
           cazvState.catalogItems = Array.isArray(result.items) ? result.items : [];
           const total = result.total != null ? result.total : cazvState.catalogItems.length;
           const modeLabel = result.catalogMode || catalog;
-          statusEl.textContent = `${cazvState.catalogItems.length} item(ns) (${modeLabel}) após filtro · total na resposta: ${total}`;
+          const rawHint =
+            result.rawCountBeforeFilter != null && result.rawCountBeforeFilter !== cazvState.catalogItems.length
+              ? ` · brutos (antes do filtro): ${result.rawCountBeforeFilter}`
+              : "";
+          const svcHint = result.secondaryEndpoint ? " · incluiu listagem secundária de serviços" : "";
+          statusEl.textContent = `${cazvState.catalogItems.length} item(ns) (${modeLabel}) após filtro${rawHint}${svcHint} · total: ${total}`;
           syncItemPickersWithInputs();
           if (!silent) toast(`Catálogo: ${cazvState.catalogItems.length} item(ns) (${modeLabel}).`);
         } catch (e) {
