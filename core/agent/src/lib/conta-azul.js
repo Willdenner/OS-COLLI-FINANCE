@@ -1590,6 +1590,7 @@ function resolveContaAzulItemFromProductMapping(contract, mappings) {
   const candidateKeys = new Set();
   for (const path of [
     "productId",
+    "product_id",
     "financeProductId",
     "sku",
     "codigo_produto",
@@ -1597,6 +1598,7 @@ function resolveContaAzulItemFromProductMapping(contract, mappings) {
     "servico_codigo",
     "id_produto_finance",
     "billing.productId",
+    "billing.product_id",
     "billing.sku",
     "billing.financeProductId",
   ]) {
@@ -1701,32 +1703,42 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
       : pickContractAmountInCentavosFromFinance(contract);
   const amount = moneyCentsToDecimal(amountCents) || 0;
   const mappedItemId = resolveContaAzulItemFromProductMapping(contract, lc.financeProductMappings);
-  const itemId = pickFirstText(
+  /** IDs que costumam ser UUID Conta Azul / item explícito — não misturar com productId do Finance antes do mapa. */
+  const contractItemIdCaLike = pickFirstText(
     pickFirstNested(contract, [
+      "contaAzulItemId",
+      "conta_azul_item_id",
       "itemId",
-      "productId",
       "serviceId",
-      "produtoId",
       "servicoId",
       "id_servico",
       "id_produto",
       "servico_id",
       "produto_id",
-      "plano_id",
-      "planoId",
       "item.id",
       "items.0.id",
       "itens.0.id",
       "servico.id",
       "produto.id",
-      "billing.productId",
       "billing.serviceId",
       "billing.itemId",
+      "billing.contaAzulItemId",
       "item.itemId",
-    ]),
+    ])
+  );
+  const contractItemIdFinanceLike = pickFirstNested(contract, [
+    "productId",
+    "produtoId",
+    "plano_id",
+    "planoId",
+    "billing.productId",
+  ]);
+  const itemId = pickFirstText(
+    contractItemIdCaLike,
+    mappedItemId,
     linkedByCategory?.contaAzulItemId,
     linkedByMethod?.contaAzulItemId,
-    mappedItemId,
+    contractItemIdFinanceLike,
     readContaAzulEnvFirst("CONTA_AZUL_DEFAULT_CONTRACT_ITEM_ID")
   );
   const itemDescription = pickFirstText(
@@ -1817,7 +1829,18 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
   let lineValor = amount;
   if (paymentMapping) {
     if (paymentMapping.contaAzulFinancialAccountId) resolvedFinancialAccountId = paymentMapping.contaAzulFinancialAccountId;
-    if (paymentMapping.contaAzulItemId) resolvedItemId = paymentMapping.contaAzulItemId;
+    const pmItem = normalizeOptionalText(paymentMapping.contaAzulItemId, 160);
+    if (pmItem) {
+      const pmTipo = normalizeOptionalText(paymentMapping.contaAzulTipoPagamento, 80);
+      const keyLower = String(rawPaymentKey || "").trim().toLowerCase();
+      const itemLower = pmItem.toLowerCase();
+      const tipoLower = pmTipo ? pmTipo.toLowerCase() : "";
+      const looksLikePaymentTokenNotItem =
+        (tipoLower && itemLower === tipoLower) || (keyLower && itemLower === keyLower);
+      if (!looksLikePaymentTokenNotItem) {
+        resolvedItemId = pmItem;
+      }
+    }
     if (paymentMapping.contaAzulItemValor != null && Number.isFinite(paymentMapping.contaAzulItemValor)) {
       lineValor = paymentMapping.contaAzulItemValor;
     }

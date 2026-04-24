@@ -305,10 +305,11 @@
           class="alert"
           style="border-color: rgba(22, 199, 132, 0.35); background: rgba(22, 199, 132, 0.08); color: var(--text)"
         >
-          <strong style="color: var(--brand)">Como funciona:</strong> a categoria ou código de produto no Finance define qual
-          <code>itens[0].id</code> usar no Conta Azul. A forma de pagamento no Finance pode definir
-          <code>tipo_pagamento</code>, <code>id_conta_financeira</code> e item quando você preencher as colunas. Com o Conta Azul conectado, use
-          <strong>Carregar lista</strong> para escolher o produto/serviço e preencher o UUID automaticamente.
+          <strong style="color: var(--brand)">Como funciona:</strong> a tabela <strong>Produto Finance → Item</strong> define o
+          <code>itens[0].id</code> do contrato. Na tabela de <strong>forma de pagamento</strong>, preencha
+          <code>tipo</code> e <code>id_conta_financeira</code>; as colunas <code>itens[0]</code> são opcionais (só para exceção por método).
+          Valores iguais à chave do Finance ou ao tipo de pagamento nessa linha não substituem o item do mapa de produto. Com o Conta Azul conectado, use
+          <strong>Carregar lista</strong> para escolher UUIDs nas listas.
         </div>
 
         <div class="alert" id="cazv-alert">

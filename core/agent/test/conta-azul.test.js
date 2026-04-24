@@ -532,6 +532,40 @@ test("financePaymentMappings aplica condicao_pagamento, id_conta_financeira, ite
   assert.equal(record.amountCents, 15050);
 });
 
+test("mapa de produto tem prioridade; forma de pagamento nao usa itens[0].id igual a chave ou ao tipo", () => {
+  const settings = mergeContaAzulSettings(
+    { fpaExport: { defaultReceivableCategoryId: "cat_r", defaultFinancialAccountId: "conta_padrao" } },
+    {
+      lovableContracts: {
+        financeProductMappings: [{ financeProductId: "fin_prod_loyalty", contaAzulItemId: "uuid-servico-mapeado" }],
+        financePaymentMappings: [
+          {
+            financePaymentKey: "pix",
+            contaAzulTipoPagamento: "PIX",
+            contaAzulFinancialAccountId: "conta_pix_uuid",
+            contaAzulItemId: "PIX",
+          },
+        ],
+      },
+    }
+  );
+  const record = buildContaAzulContractRecord({
+    settings,
+    nextContractNumber: 77,
+    source: {
+      customerId: "c1",
+      productId: "fin_prod_loyalty",
+      amountCents: 99000,
+      startDate: "2026-01-01",
+      firstDueDate: "2026-01-10",
+      paymentMethod: "pix",
+    },
+  });
+  assert.equal(record.payload.itens[0].id, "uuid-servico-mapeado");
+  assert.equal(record.payload.condicao_pagamento.tipo_pagamento, "PIX");
+  assert.equal(record.payload.condicao_pagamento.id_conta_financeira, "conta_pix_uuid");
+});
+
 test("baixa Lovable usa conta e metodo do financePaymentMappings quando a chave bate", () => {
   const settings = mergeContaAzulSettings(
     { fpaExport: { defaultFinancialAccountId: "conta_default" } },
