@@ -12,6 +12,7 @@ const CONTA_AZUL_PEOPLE_PATH = "/v1/pessoas";
 const CONTA_AZUL_FINANCIAL_ACCOUNTS_PATH = "/v1/conta-financeira";
 const CONTA_AZUL_FINANCIAL_CATEGORIES_PATH = "/v1/categorias";
 const CONTA_AZUL_PRODUCTS_PATH = "/v1/produtos";
+const CONTA_AZUL_SERVICOS_PATH = "/v1/servicos";
 /** Conta Azul /v1/produtos only accepts these exact tamanho_pagina values. */
 const CONTA_AZUL_PRODUCT_PAGE_SIZES = Object.freeze([10, 20, 50, 100, 200, 500, 1000]);
 const CONTA_AZUL_FPA_EXPORT_RESOURCE = "fpa_transactions";
@@ -333,7 +334,7 @@ function deepCollectContaAzulCatalogRows(node, depth = 0, maxDepth = 12) {
 
 /**
  * Une todas as listas plausíveis do JSON de catálogo (produtos/serviços em chaves diferentes).
- * Usado só no fluxo GET /v1/produtos (+ /v1/services quando existir).
+ * Usado no fluxo GET /v1/produtos e GET /v1/servicos.
  */
 function mergeContaAzulCatalogListRows(payload) {
   if (payload == null) return [];
@@ -578,7 +579,7 @@ function normalizeContaAzulProduct(product) {
   };
 }
 
-/** Classifica item do GET /v1/produtos para filtrar serviço vs produto físico/kit. */
+/** Classifica item do catálogo (produtos e/ou serviços) para filtrar serviço vs produto físico/kit. */
 function contaAzulCatalogItemClass(item) {
   if (isContaAzulFiscalTipoServico(item?.fiscalTipoRaw)) return "servico";
   const raw = String(item?.tipoRaw || "")
@@ -686,6 +687,18 @@ function buildContaAzulInventoryListPath(basePath, { search, page = 1, pageSize 
   const safeStatus = normalizeOptionalText(status, 40);
   if (safeStatus) params.set("status", safeStatus.toUpperCase());
   return `${base}?${params.toString()}`;
+}
+
+/** GET /v1/servicos — busca textual usa query `busca_textual` (não `busca`). */
+function buildContaAzulServicosPath({ search, page = 1, pageSize = 100, status } = {}) {
+  const params = new URLSearchParams();
+  const safeSearch = normalizeOptionalText(search, 160);
+  if (safeSearch) params.set("busca_textual", safeSearch);
+  params.set("pagina", String(clampInteger(page, 1, 10000, 1)));
+  params.set("tamanho_pagina", String(normalizeContaAzulProductsPageSize(pageSize)));
+  const safeStatus = normalizeOptionalText(status, 40);
+  if (safeStatus) params.set("status", safeStatus.toUpperCase());
+  return `${CONTA_AZUL_SERVICOS_PATH}?${params.toString()}`;
 }
 
 function buildContaAzulProductsPath(opts = {}) {
@@ -2180,6 +2193,7 @@ module.exports = {
   CONTA_AZUL_FINANCIAL_ACCOUNTS_PATH,
   CONTA_AZUL_FINANCIAL_CATEGORIES_PATH,
   CONTA_AZUL_PRODUCTS_PATH,
+  CONTA_AZUL_SERVICOS_PATH,
   CONTA_AZUL_FPA_EXPORT_RESOURCE,
   CONTA_AZUL_LOVABLE_CONTRACTS_RESOURCE,
   CONTA_AZUL_LOVABLE_RECEIPTS_RESOURCE,
@@ -2200,6 +2214,7 @@ module.exports = {
   buildContaAzulFinancialCategoriesPath,
   buildContaAzulInventoryListPath,
   buildContaAzulProductsPath,
+  buildContaAzulServicosPath,
   buildContaAzulFinancialEventsSearchPath,
   buildContaAzulFpaExportPayload,
   buildContaAzulFpaFinancialEventRecord,

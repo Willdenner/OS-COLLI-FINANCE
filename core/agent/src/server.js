@@ -67,6 +67,7 @@ const {
   buildContaAzulFinancialCategoriesPath,
   buildContaAzulInventoryListPath,
   buildContaAzulProductsPath,
+  buildContaAzulServicosPath,
   buildContaAzulFinancialEventsSearchPath,
   buildContaAzulFpaExportPayload,
   buildContaAzulHeaders,
@@ -543,87 +544,71 @@ async function fetchContaAzulJson(contaAzulSettings, endpointPath) {
   return { endpoint, response, parsed };
 }
 
-async function tryFetchContaAzulGetOk(contaAzulSettings, endpointPath) {
-  try {
-    const endpoint = resolveContaAzulEndpointUrl(contaAzulSettings.baseUrl, endpointPath);
-    if (!endpoint) return null;
-    const response = await fetch(endpoint, {
-      method: "GET",
-      headers: buildContaAzulHeaders(contaAzulSettings),
-      signal: AbortSignal.timeout(15000),
-    });
-    const parsed = await readContaAzulResponse(response);
-    if (!response.ok) return null;
-    return { endpoint, response, parsed };
-  } catch {
-    return null;
-  }
-}
-
 async function fetchContaAzulProductsAggregated(
   contaAzulSettings,
   { search, status, pageSize: requestedSize, catalogMode } = {}
 ) {
   const pageSize = normalizeContaAzulProductsPageSize(requestedSize ?? 500);
   const maxPages = 30;
+  const mode = String(catalogMode || "servicos").trim().toLowerCase() || "servicos";
   const all = [];
   const seen = new Set();
-  let page = 1;
   let lastEndpoint = "";
-  let rawRowsFetched = 0;
   let catalogDiagnostics = null;
-  while (page <= maxPages) {
-    const endpointPath = buildContaAzulProductsPath({ search, page, pageSize, status });
-    const result = await fetchContaAzulJson(contaAzulSettings, endpointPath);
-    lastEndpoint = result.endpoint;
-    const rawBatch = mergeContaAzulCatalogListRows(result.parsed.json);
-    rawRowsFetched += rawBatch.length;
-    const batch = rawBatch.map(normalizeContaAzulProduct).filter((item) => item.id);
-    const reported = Number(result.parsed.json?.total_itens ?? result.parsed.json?.totalItems ?? 0);
-    if (page === 1) {
-      const normAll = rawBatch.map(normalizeContaAzulProduct);
-      catalogDiagnostics = {
-        responseRootShape: Array.isArray(result.parsed.json) ? "array" : result.parsed.json ? "object" : "null",
-        responseRootKeys:
-          result.parsed.json && typeof result.parsed.json === "object" && !Array.isArray(result.parsed.json)
-            ? Object.keys(result.parsed.json).slice(0, 48)
-            : [],
-        mergedRows: rawBatch.length,
-        normalizedWithId: normAll.filter((x) => x.id).length,
-        reportedTotal: Number.isFinite(reported) && reported > 0 ? reported : null,
-      };
+  let secondaryEndpoint = null;
+
+  async function ingestCatalogPages(buildPathForPage, { recordDiagnostics } = { recordDiagnostics: true }) {
+    let page = 1;
+    let rawRowsFetched = 0;
+    while (page <= maxPages) {
+      const endpointPath = buildPathForPage(page);
+      const result = await fetchContaAzulJson(contaAzulSettings, endpointPath);
+      lastEndpoint = result.endpoint;
+      const rawBatch = mergeContaAzulCatalogListRows(result.parsed.json);
+      rawRowsFetched += rawBatch.length;
+      const batch = rawBatch.map(normalizeContaAzulProduct).filter((item) => item.id);
+      const reported = Number(result.parsed.json?.total_itens ?? result.parsed.json?.totalItems ?? 0);
+      if (page === 1 && recordDiagnostics && catalogDiagnostics == null) {
+        const normAll = rawBatch.map(normalizeContaAzulProduct);
+        catalogDiagnostics = {
+          responseRootShape: Array.isArray(result.parsed.json) ? "array" : result.parsed.json ? "object" : "null",
+          responseRootKeys:
+            result.parsed.json && typeof result.parsed.json === "object" && !Array.isArray(result.parsed.json)
+              ? Object.keys(result.parsed.json).slice(0, 48)
+              : [],
+          mergedRows: rawBatch.length,
+          normalizedWithId: normAll.filter((x) => x.id).length,
+          reportedTotal: Number.isFinite(reported) && reported > 0 ? reported : null,
+        };
+      }
+      for (const item of batch) {
+        if (seen.has(item.id)) continue;
+        seen.add(item.id);
+        all.push(item);
+      }
+      if (rawBatch.length === 0) break;
+      if (rawBatch.length < pageSize) break;
+      if (Number.isFinite(reported) && reported > 0 && rawRowsFetched >= reported) break;
+      page += 1;
     }
-    for (const item of batch) {
-      if (seen.has(item.id)) continue;
-      seen.add(item.id);
-      all.push(item);
-    }
-    if (rawBatch.length === 0) break;
-    if (rawBatch.length < pageSize) break;
-    if (Number.isFinite(reported) && reported > 0 && rawRowsFetched >= reported) break;
-    page += 1;
   }
 
-  let secondaryEndpoint = null;
-  for (const svcBase of ["/v1/services", "/v1/servicos"]) {
-    const svcPath = buildContaAzulInventoryListPath(svcBase, {
-      search,
-      page: 1,
-      pageSize: Math.min(pageSize, 1000),
-      status,
+  if (mode === "produtos") {
+    await ingestCatalogPages((page) => buildContaAzulProductsPath({ search, page, pageSize, status }), {
+      recordDiagnostics: true,
     });
-    const svcTry = await tryFetchContaAzulGetOk(contaAzulSettings, svcPath);
-    if (!svcTry) continue;
-    secondaryEndpoint = svcTry.endpoint;
-    const svcRows = mergeContaAzulCatalogListRows(svcTry.parsed.json);
-    for (const row of svcRows) {
-      const item = normalizeContaAzulProduct(row);
-      if (!item.id) continue;
-      if (seen.has(item.id)) continue;
-      seen.add(item.id);
-      all.push(item);
-    }
-    break;
+  } else if (mode === "servicos") {
+    await ingestCatalogPages((page) => buildContaAzulServicosPath({ search, page, pageSize, status }), {
+      recordDiagnostics: true,
+    });
+  } else {
+    await ingestCatalogPages((page) => buildContaAzulServicosPath({ search, page, pageSize, status }), {
+      recordDiagnostics: true,
+    });
+    secondaryEndpoint = lastEndpoint;
+    await ingestCatalogPages((page) => buildContaAzulProductsPath({ search, page, pageSize, status }), {
+      recordDiagnostics: false,
+    });
   }
 
   const filtered = filterContaAzulCatalogByMode(all, catalogMode);
@@ -2989,7 +2974,7 @@ app.get(
     const contaAzulSettings = await ensureContaAzulAccessToken(currentSettings, { allowRefresh: true });
     const statusRaw = req.query?.status;
     const status = statusRaw === undefined || statusRaw === "" ? undefined : String(statusRaw).trim();
-    const search = req.query?.search || req.query?.busca || "";
+    const search = req.query?.search || req.query?.busca || req.query?.busca_textual || "";
     const explicitPage = req.query?.page || req.query?.pagina;
     const pageSize = req.query?.pageSize || req.query?.tamanho_pagina;
     const wantAllPages = !explicitPage && String(req.query?.allPages ?? "true").toLowerCase() !== "false";
@@ -3021,7 +3006,52 @@ app.get(
       return;
     }
 
-    const endpointPath = buildContaAzulProductsPath({
+    if (catalogMode === "todos") {
+      const svcPath = buildContaAzulServicosPath({ search, page: explicitPage, pageSize, status });
+      const prodPath = buildContaAzulProductsPath({ search, page: explicitPage, pageSize, status });
+      const rServ = await fetchContaAzulJson(contaAzulSettings, svcPath);
+      const rProd = await fetchContaAzulJson(contaAzulSettings, prodPath);
+      const svcRows = mergeContaAzulCatalogListRows(rServ.parsed.json);
+      const prodRows = mergeContaAzulCatalogListRows(rProd.parsed.json);
+      const seen = new Set();
+      const merged = [];
+      for (const row of [...svcRows, ...prodRows]) {
+        const item = normalizeContaAzulProduct(row);
+        if (!item.id || seen.has(item.id)) continue;
+        seen.add(item.id);
+        merged.push(item);
+      }
+      const items = filterContaAzulCatalogByMode(merged, catalogMode);
+      const normAll = [...svcRows, ...prodRows].map(normalizeContaAzulProduct);
+      const reportedSvc = Number(rServ.parsed.json?.total_itens ?? rServ.parsed.json?.totalItems ?? 0);
+      const reportedProd = Number(rProd.parsed.json?.total_itens ?? rProd.parsed.json?.totalItems ?? 0);
+      res.json({
+        ok: true,
+        endpoint: rProd.endpoint,
+        secondaryEndpoint: rServ.endpoint,
+        responseCode: rProd.response.status,
+        search,
+        catalogMode,
+        allPages: false,
+        total: items.length,
+        rawCountBeforeFilter: merged.length,
+        catalogDiagnostics: {
+          responseRootShape: "object",
+          responseRootKeys: ["servicos", "produtos"],
+          mergedRows: svcRows.length + prodRows.length,
+          normalizedWithId: normAll.filter((x) => x.id).length,
+          reportedTotal:
+            Number.isFinite(reportedSvc) && reportedSvc > 0 && Number.isFinite(reportedProd) && reportedProd > 0
+              ? reportedSvc + reportedProd
+              : null,
+        },
+        items,
+      });
+      return;
+    }
+
+    const catalogListPath = catalogMode === "produtos" ? buildContaAzulProductsPath : buildContaAzulServicosPath;
+    const endpointPath = catalogListPath({
       search,
       page: explicitPage,
       pageSize,

@@ -335,7 +335,7 @@
                   <button class="btn btn-primary" id="cazv-btn-load-catalog" type="button">Carregar lista</button>
                 </div>
                 <div class="field-hint" id="cazv-catalog-status">
-                  Após o OAuth no FP&amp;A, clique em Carregar lista (API <code>GET /v1/produtos</code>). Por padrão mostramos só <strong>serviços</strong> (tipo SERVIÇO no cadastro).
+                  Após o OAuth no FP&amp;A, clique em Carregar lista. O padrão usa <code>GET /v1/servicos</code> (parâmetro de busca <code>busca_textual</code>); produtos usam <code>GET /v1/produtos</code>.
                 </div>
               </div>
               <div class="field">
@@ -346,7 +346,7 @@
                   <option value="todos">Serviços e produtos</option>
                 </select>
                 <div class="field-hint">
-                  O mesmo endpoint lista os dois. A listagem costuma trazer <code>tipo=PRODUTO</code> também para serviços (fiscal completo só no detalhe), então esses itens entram em <strong>Somente serviços</strong>. Kits e variações ficam em <strong>Somente produtos</strong>.
+                  <strong>Somente serviços</strong> consulta só <code>/v1/servicos</code>. <strong>Somente produtos</strong> usa <code>/v1/produtos</code>. <strong>Serviços e produtos</strong> une as duas listagens. O filtro local ainda separa kit/variação quando aplicável.
                 </div>
               </div>
               <div class="field">
@@ -724,7 +724,7 @@
             result.rawCountBeforeFilter != null && result.rawCountBeforeFilter !== cazvState.catalogItems.length
               ? ` · brutos (antes do filtro): ${result.rawCountBeforeFilter}`
               : "";
-          const svcHint = result.secondaryEndpoint ? " · incluiu listagem secundária de serviços" : "";
+          const svcHint = result.secondaryEndpoint ? " · combinou com o outro endpoint do catálogo Conta Azul" : "";
           const diag = result.catalogDiagnostics;
           const diagHint =
             diag && (cazvState.catalogItems.length === 0 || diag.mergedRows === 0)

@@ -14,6 +14,7 @@ const {
   buildContaAzulFinancialCategoriesPath,
   buildContaAzulInventoryListPath,
   buildContaAzulProductsPath,
+  buildContaAzulServicosPath,
   buildContaAzulFinancialEventsSearchPath,
   buildContaAzulFpaExportPayload,
   buildContaAzulPeoplePath,
@@ -359,7 +360,10 @@ test("monta consultas e normaliza listas de pessoas, contas e categorias do Cont
   assert.equal(mixedTipo.kind, "Serviço");
   assert.equal(filterContaAzulCatalogByMode([mixedTipo], "servicos").length, 1);
   assert.equal(filterContaAzulCatalogByMode([mixedTipo], "produtos").length, 0);
-  assert.match(buildContaAzulInventoryListPath("/v1/services", { page: 1, pageSize: 100 }), /^\/v1\/services\?/);
+  const servicosPath = buildContaAzulServicosPath({ search: "consultoria", page: 1, pageSize: 100 });
+  assert.match(servicosPath, /^\/v1\/servicos\?/);
+  assert.match(servicosPath, /busca_textual=consultoria/);
+  assert.doesNotMatch(servicosPath, /busca=/);
   assert.equal(person.id, "person_123");
   assert.equal(person.label, "Fornecedor Acme · 12.345.678/0001-99");
   assert.equal(account.id, "account_123");
