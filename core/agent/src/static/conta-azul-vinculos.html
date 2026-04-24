@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>V4 · Vínculos Finance → Conta Azul</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Open+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      :root {
+        --brand: #16c784;
+        --brand-dark: #0ea56b;
+        --brand-soft: rgba(22, 199, 132, 0.12);
+        --brand-border: rgba(22, 199, 132, 0.25);
+        --accent: #3aa0ff;
+        --danger: #ff5d5d;
+        --bg: #101314;
+        --panel: #15191b;
+        --panel-2: #1b2022;
+        --panel-3: #21282b;
+        --border: #273034;
+        --text: #f3f5f7;
+        --muted: #9aa7ad;
+        --dim: #66747b;
+        --sidebar: 240px;
+        --radius: 6px;
+      }
+      html, body { min-height: 100%; background: var(--bg); color: var(--text); font-family: "Open Sans", sans-serif; }
+      body { display: flex; }
+      .sidebar {
+        width: var(--sidebar);
+        min-height: 100vh;
+        background: #0c0f10;
+        border-right: 1px solid var(--border);
+        padding: 24px 18px;
+        position: sticky;
+        top: 0;
+      }
+      .brand-title { font-family: "Bebas Neue", sans-serif; font-size: 32px; letter-spacing: 1.5px; line-height: 1; }
+      .brand-title span { color: var(--brand); }
+      .brand-sub { margin-top: 6px; color: var(--muted); font-size: 11px; letter-spacing: 1.6px; text-transform: uppercase; }
+      .sidebar-block { margin-top: 28px; }
+      .sidebar-label {
+        color: var(--dim);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+      }
+      .sidebar-nav { display: flex; flex-direction: column; gap: 8px; }
+      .sidebar-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 11px 12px;
+        border: 1px solid transparent;
+        border-radius: var(--radius);
+        background: transparent;
+        color: var(--muted);
+        text-decoration: none;
+        text-align: left;
+        font: inherit;
+        cursor: pointer;
+        transition: 0.16s ease;
+      }
+      .sidebar-link:hover, .sidebar-link.active {
+        color: var(--text);
+        background: var(--brand-soft);
+        border-color: var(--brand-border);
+      }
+      .sidebar-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--panel-2);
+        font-size: 14px;
+      }
+      .sidebar-note {
+        margin-top: 24px;
+        padding: 14px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.7;
+      }
+      .main { flex: 1; min-width: 0; }
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 24px;
+        background: rgba(16, 19, 20, 0.92);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--border);
+      }
+      .topbar-title { font-family: "Bebas Neue", sans-serif; font-size: 24px; letter-spacing: 1px; }
+      .topbar-sub { color: var(--dim); font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; }
+      .page { padding: 28px 28px 48px; }
+      .page-header { margin-bottom: 22px; }
+      .page-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 36px;
+        letter-spacing: 1px;
+      }
+      .page-title-bar {
+        width: 4px;
+        height: 32px;
+        background: linear-gradient(180deg, var(--brand), var(--accent));
+      }
+      .page-desc { margin-left: 16px; margin-top: 6px; color: var(--muted); font-size: 13px; max-width: 720px; line-height: 1.6; }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      .card-head {
+        padding: 14px 18px;
+        background: var(--panel-2);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .card-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 20px;
+        letter-spacing: 0.8px;
+      }
+      .card-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        background: linear-gradient(135deg, var(--brand), var(--accent));
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+      }
+      .card-body { padding: 18px; }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 9px 14px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text);
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+      }
+      .btn:hover { background: var(--panel-3); }
+      .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+      .btn-primary {
+        background: var(--brand);
+        border-color: var(--brand);
+        color: #07100c;
+      }
+      .btn-primary:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
+      .inline-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+      .form-grid { display: grid; gap: 14px; }
+      .g2 { grid-template-columns: 1fr 1fr; }
+      .field { display: flex; flex-direction: column; gap: 6px; }
+      .field-inline { display: flex; gap: 10px; align-items: stretch; }
+      .field-label {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+      }
+      .field-input, .field-select {
+        width: 100%;
+        padding: 11px 12px;
+        background: var(--panel-3);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--text);
+        font: inherit;
+      }
+      .field-hint { color: var(--dim); font-size: 11px; line-height: 1.7; }
+      .alert {
+        padding: 12px 16px;
+        border-radius: var(--radius);
+        border: 1px solid var(--brand-border);
+        background: var(--brand-soft);
+        color: var(--brand);
+        font-size: 12px;
+        line-height: 1.7;
+        margin-bottom: 18px;
+      }
+      .table-wrap { overflow-x: auto; }
+      .data-table { width: 100%; border-collapse: collapse; }
+      .data-table thead tr { border-bottom: 1px solid var(--border); }
+      .data-table th, .data-table td { padding: 11px 12px; text-align: left; }
+      .data-table th {
+        color: var(--dim);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.3px;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .data-table td {
+        color: var(--muted);
+        font-size: 12px;
+        border-bottom: 1px solid rgba(39, 48, 52, 0.7);
+        vertical-align: middle;
+      }
+      .data-table tr:last-child td { border-bottom: none; }
+      .data-table tr:hover td { background: rgba(255, 255, 255, 0.015); color: var(--text); }
+      .toast {
+        position: fixed;
+        right: 22px;
+        bottom: 22px;
+        background: #0c0f10;
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 12px 16px;
+        border-radius: var(--radius);
+        opacity: 0;
+        transform: translateY(8px);
+        transition: 0.18s ease;
+        pointer-events: none;
+      }
+      .toast.show { opacity: 1; transform: translateY(0); }
+      @media (max-width: 960px) {
+        body { display: block; }
+        .sidebar { width: 100%; min-height: auto; position: static; }
+        .page { padding: 18px; }
+        .g2 { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="brand-title"><span>V4</span> FP&amp;A</div>
+      <div class="brand-sub">Vínculos com Conta Azul</div>
+
+      <div class="sidebar-block">
+        <div class="sidebar-label">Navegação</div>
+        <nav class="sidebar-nav">
+          <a class="sidebar-link" href="/fpa"><span class="sidebar-icon">◎</span> Painel FP&amp;A</a>
+          <a class="sidebar-link active" href="/fpa/conta-azul-vinculos" aria-current="page"
+            ><span class="sidebar-icon">⇢</span> Vínculos Finance → CA</a
+          >
+          <a class="sidebar-link" href="/fpa#conta-azul"><span class="sidebar-icon">⚙</span> OAuth e exportação FP&amp;A</a>
+          <a class="sidebar-link" href="/fpa/receivables-analysis"><span class="sidebar-icon">◆</span> Orquestrador recebíveis</a>
+        </nav>
+      </div>
+
+      <div class="sidebar-note">
+        Credenciais OAuth, contato padrão e categorias FP&amp;A continuam no painel principal, seção <strong>Conta Azul</strong>.
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <div class="topbar-title">Vínculos Finance → Conta Azul</div>
+          <div class="topbar-sub">Contratos Lovable / webhooks · produto e forma de pagamento</div>
+        </div>
+        <button class="btn btn-primary" id="cazv-btn-save" type="button">Salvar vínculos</button>
+      </div>
+
+      <div class="page">
+        <div class="page-header">
+          <div class="page-title">
+            <div class="page-title-bar"></div>
+            Tabela de vínculo
+          </div>
+          <p class="page-desc">
+            Una o que vem do Finance (<code>productId</code>, <code>paymentMethod</code>, <code>forma_pagamento</code>) aos UUIDs e campos que o Conta Azul espera nos contratos e baixas. Os mesmos dados são usados no painel FP&amp;A em
+            <em>Configurações → Contratos (Lovable → Conta Azul)</em>.
+          </p>
+        </div>
+
+        <div
+          class="alert"
+          style="border-color: rgba(22, 199, 132, 0.35); background: rgba(22, 199, 132, 0.08); color: var(--text)"
+        >
+          <strong style="color: var(--brand)">Como funciona:</strong> a categoria ou código de produto no Finance define qual
+          <code>itens[0].id</code> usar no Conta Azul. A forma de pagamento no Finance pode definir
+          <code>tipo_pagamento</code>, <code>id_conta_financeira</code> e item quando você preencher as colunas. Com o Conta Azul conectado, use
+          <strong>Carregar lista</strong> para escolher o produto/serviço e preencher o UUID automaticamente.
+        </div>
+
+        <div class="alert" id="cazv-alert">
+          Carregando configuração salva…
+        </div>
+
+        <section class="card">
+          <div class="card-head">
+            <div class="card-title"><span class="card-icon">◇</span> Catálogo Conta Azul</div>
+          </div>
+          <div class="card-body">
+            <div class="form-grid g2">
+              <div class="field">
+                <label class="field-label" for="cazv-catalog-search">Buscar produtos e serviços</label>
+                <div class="field-inline" style="flex-wrap: wrap">
+                  <input
+                    class="field-input"
+                    id="cazv-catalog-search"
+                    type="text"
+                    placeholder="Nome, SKU ou parte do texto"
+                    autocomplete="off"
+                    style="flex: 1; min-width: 200px"
+                  />
+                  <button class="btn btn-primary" id="cazv-btn-load-catalog" type="button">Carregar lista</button>
+                </div>
+                <div class="field-hint" id="cazv-catalog-status">
+                  Após o OAuth no FP&amp;A, clique em Carregar lista para preencher os seletores (API <code>GET /v1/produtos</code>).
+                </div>
+              </div>
+              <div class="field">
+                <label class="field-label" for="cazv-catalog-status-only">Status (opcional)</label>
+                <input
+                  class="field-input"
+                  id="cazv-catalog-status-only"
+                  type="text"
+                  placeholder="Ex.: ATIVO — deixe vazio para não filtrar"
+                  autocomplete="off"
+                />
+                <div class="field-hint">Algumas contas exigem filtro de status; outras aceitam vazio para listar tudo.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <div class="card-title"><span class="card-icon">◎</span> Padrões do contrato</div>
+          </div>
+          <div class="card-body">
+            <div class="form-grid g2">
+              <div class="field">
+                <label class="field-label" for="cazv-contract-financial-account-id">Conta financeira padrão (contrato)</label>
+                <input
+                  class="field-input"
+                  id="cazv-contract-financial-account-id"
+                  type="text"
+                  placeholder="UUID no Conta Azul"
+                  autocomplete="off"
+                />
+                <div class="field-hint">Usado em <code>condicao_pagamento.id_conta_financeira</code> quando o payload não trouxer outro.</div>
+              </div>
+              <div class="field">
+                <label class="field-label" for="cazv-contract-amount-unit">Unidade de valor (origem Finance)</label>
+                <select class="field-select" id="cazv-contract-amount-unit">
+                  <option value="centavos">Centavos (inteiro)</option>
+                  <option value="reais">Reais (decimal, ex.: 99,90)</option>
+                </select>
+                <div class="field-hint">O Conta Azul recebe valores em reais; o agente converte quando necessário.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top: 18px">
+          <div class="card-head">
+            <div class="card-title"><span class="card-icon">≣</span> Produto Finance → item Conta Azul</div>
+            <div class="inline-tools">
+              <button class="btn" id="cazv-btn-add-product" type="button">+ Linha</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <p class="field-hint" style="margin-bottom: 12px">
+              Na coluna à direita, escolha o item na lista (carregada acima) ou cole o UUID manualmente.
+            </p>
+            <div class="table-wrap" style="max-height: 320px; overflow: auto">
+              <table class="data-table" style="font-size: 12px">
+                <thead>
+                  <tr>
+                    <th>ID produto (Finance)</th>
+                    <th>Descrição (opcional)</th>
+                    <th>Item Conta Azul (lista + UUID)</th>
+                    <th style="width: 72px"></th>
+                  </tr>
+                </thead>
+                <tbody id="cazv-product-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top: 18px">
+          <div class="card-head">
+            <div class="card-title"><span class="card-icon">⇄</span> Forma de pagamento → condição Conta Azul</div>
+            <div class="inline-tools">
+              <button class="btn" id="cazv-btn-add-payment" type="button">+ Linha</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <p class="field-hint" style="margin-bottom: 12px">
+              Chave sem diferenciar maiúsculas. Preencha pelo menos um destino por linha; vazio mantém o padrão do contrato ou do FP&amp;A.
+            </p>
+            <div class="table-wrap" style="max-height: 280px; overflow: auto">
+              <table class="data-table" style="font-size: 12px">
+                <thead>
+                  <tr>
+                    <th>Chave (Finance)</th>
+                    <th>Nota</th>
+                    <th><code>tipo</code></th>
+                    <th><code>id_conta_financeira</code></th>
+                    <th><code>itens[0].id</code> (lista)</th>
+                    <th><code>itens[0].valor</code></th>
+                    <th style="width: 72px"></th>
+                  </tr>
+                </thead>
+                <tbody id="cazv-payment-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      const cazvState = { catalogItems: [] };
+
+      function el(id) {
+        return document.getElementById(id);
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function toast(message) {
+        const node = el("toast");
+        node.textContent = message;
+        node.classList.add("show");
+        clearTimeout(window.__toastTimer);
+        window.__toastTimer = setTimeout(() => node.classList.remove("show"), 2600);
+      }
+
+      async function api(path, options) {
+        const response = await fetch(path, { credentials: "same-origin", ...options });
+        const json = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(json.error || (response.status === 401 ? "Ação não autorizada." : "Falha na API"));
+        }
+        return json;
+      }
+
+      function buildQueryString(params) {
+        const search = new URLSearchParams();
+        Object.entries(params || {}).forEach(([key, value]) => {
+          if (value == null || value === "") return;
+          search.set(key, String(value));
+        });
+        const q = search.toString();
+        return q ? `?${q}` : "";
+      }
+
+      function readRows(tbodyId, fields) {
+        const tbody = el(tbodyId);
+        if (!tbody) return [];
+        return Array.from(tbody.querySelectorAll("tr"))
+          .map((row, index) => {
+            const o = { id: row.dataset.mappingId || `row_${index}` };
+            for (const f of fields) {
+              const input = row.querySelector(`[data-mapping-field="${f}"]`);
+              o[f] = input ? String(input.value || "").trim() : "";
+            }
+            return o;
+          })
+          .filter((row) => fields.some((f) => row[f]));
+      }
+
+      function readLovableContractsForm() {
+        const amountUnit = el("cazv-contract-amount-unit")?.value === "reais" ? "reais" : "centavos";
+        const financeProductMappings = readRows("cazv-product-tbody", [
+          "financeProductId",
+          "financeProductLabel",
+          "contaAzulItemId",
+        ]).filter((m) => m.financeProductId && m.contaAzulItemId);
+        const financePaymentMappings = readRows("cazv-payment-tbody", [
+          "financePaymentKey",
+          "financePaymentLabel",
+          "contaAzulTipoPagamento",
+          "contaAzulFinancialAccountId",
+          "contaAzulItemId",
+          "contaAzulItemValor",
+        ]).filter(
+          (m) =>
+            m.financePaymentKey &&
+            (m.contaAzulTipoPagamento ||
+              m.contaAzulFinancialAccountId ||
+              m.contaAzulItemId ||
+              m.contaAzulItemValor)
+        );
+        return {
+          defaultContractFinancialAccountId: el("cazv-contract-financial-account-id")?.value.trim() || "",
+          contractAmountInputUnit: amountUnit,
+          financeProductMappings,
+          financePaymentMappings,
+        };
+      }
+
+      function catalogOptionsHtml(selectedId) {
+        const sel = selectedId ? String(selectedId).trim() : "";
+        const hint = cazvState.catalogItems.length
+          ? "— Escolher produto/serviço —"
+          : "— Carregue o catálogo acima —";
+        const opts = [`<option value="">${hint}</option>`];
+        for (const it of cazvState.catalogItems) {
+          const id = it.id;
+          const label = it.label || id;
+          opts.push(
+            `<option value="${escapeHtml(id)}"${id === sel ? " selected" : ""}>${escapeHtml(label)}</option>`
+          );
+        }
+        return opts.join("");
+      }
+
+      function syncItemPickersWithInputs() {
+        document.querySelectorAll("#cazv-product-tbody tr, #cazv-payment-tbody tr").forEach((row) => {
+          const pick = row.querySelector(".cazv-pick-item");
+          const inp = row.querySelector('[data-mapping-field="contaAzulItemId"]');
+          if (!pick || !inp) return;
+          const v = inp.value.trim();
+          pick.innerHTML = catalogOptionsHtml(v);
+          if (v && cazvState.catalogItems.some((x) => x.id === v)) pick.value = v;
+          else pick.value = "";
+        });
+      }
+
+      function itemPickerCellHtml(m) {
+        const uuid = escapeHtml(m.contaAzulItemId || "");
+        return `<div class="cazv-item-cell" style="min-width: 210px">
+          <select class="field-select cazv-pick-item" aria-label="Escolher item no Conta Azul" style="font-size: 11px; margin-bottom: 6px; max-width: 100%"></select>
+          <input class="field-input" data-mapping-field="contaAzulItemId" type="text" value="${uuid}" style="font-size: 11px" placeholder="UUID (preenchido pela lista)" />
+          <div class="field-hint" style="margin: 4px 0 0; font-size: 10px">Ou digite/cole o UUID manualmente.</div>
+        </div>`;
+      }
+
+      function buildProductRow(m) {
+        const rowId = m.id || `fpm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        return `<tr data-mapping-id="${escapeHtml(rowId)}">
+          <td><input class="field-input" data-mapping-field="financeProductId" type="text" value="${escapeHtml(m.financeProductId || "")}" style="min-width:120px;font-size:12px" /></td>
+          <td><input class="field-input" data-mapping-field="financeProductLabel" type="text" value="${escapeHtml(m.financeProductLabel || "")}" style="min-width:120px;font-size:12px" /></td>
+          <td>${itemPickerCellHtml(m)}</td>
+          <td><button type="button" class="btn cazv-remove-product" style="padding:4px 8px">✕</button></td>
+        </tr>`;
+      }
+
+      function buildPaymentRow(m) {
+        const rowId = m.id || `fpay_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        return `<tr data-mapping-id="${escapeHtml(rowId)}">
+          <td><input class="field-input" data-mapping-field="financePaymentKey" type="text" value="${escapeHtml(m.financePaymentKey || "")}" style="min-width:100px;font-size:12px" placeholder="ex.: pix" /></td>
+          <td><input class="field-input" data-mapping-field="financePaymentLabel" type="text" value="${escapeHtml(m.financePaymentLabel || "")}" style="min-width:88px;font-size:12px" /></td>
+          <td><input class="field-input" data-mapping-field="contaAzulTipoPagamento" type="text" value="${escapeHtml(m.contaAzulTipoPagamento || "")}" style="min-width:100px;font-size:12px" placeholder="PIX" /></td>
+          <td><input class="field-input" data-mapping-field="contaAzulFinancialAccountId" type="text" value="${escapeHtml(m.contaAzulFinancialAccountId || "")}" style="min-width:120px;font-size:12px" /></td>
+          <td>${itemPickerCellHtml(m)}</td>
+          <td><input class="field-input" data-mapping-field="contaAzulItemValor" type="text" value="${escapeHtml(m.contaAzulItemValor != null && m.contaAzulItemValor !== "" ? String(m.contaAzulItemValor) : "")}" style="min-width:72px;font-size:12px" placeholder="—" /></td>
+          <td><button type="button" class="btn cazv-remove-payment" style="padding:4px 8px">✕</button></td>
+        </tr>`;
+      }
+
+      function renderFromSettings(contaAzul) {
+        const lc = contaAzul?.lovableContracts && typeof contaAzul.lovableContracts === "object" ? contaAzul.lovableContracts : {};
+        el("cazv-contract-financial-account-id").value = lc.defaultContractFinancialAccountId || "";
+        el("cazv-contract-amount-unit").value = lc.contractAmountInputUnit === "reais" ? "reais" : "centavos";
+        const products = Array.isArray(lc.financeProductMappings) ? lc.financeProductMappings : [];
+        const payments = Array.isArray(lc.financePaymentMappings) ? lc.financePaymentMappings : [];
+        const pBody = el("cazv-product-tbody");
+        const payBody = el("cazv-payment-tbody");
+        pBody.innerHTML = products.length ? products.map((m) => buildProductRow(m)).join("") : "";
+        payBody.innerHTML = payments.length ? payments.map((m) => buildPaymentRow(m)).join("") : "";
+        syncItemPickersWithInputs();
+        el("cazv-alert").textContent =
+          "Revise as linhas e clique em Salvar vínculos. Alterações passam a valer para contratos e baixas enviados pelo Lovable.";
+      }
+
+      async function loadCatalog(opts) {
+        const silent = opts && opts.silent === true;
+        const btn = el("cazv-btn-load-catalog");
+        const statusEl = el("cazv-catalog-status");
+        const search = el("cazv-catalog-search").value.trim();
+        const statusOnly = el("cazv-catalog-status-only").value.trim();
+        const original = btn ? btn.textContent : "";
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = "Carregando…";
+        }
+        try {
+          const result = await api(
+            `/api/conta-azul/products${buildQueryString({
+              search,
+              pageSize: 300,
+              ...(statusOnly ? { status: statusOnly } : {}),
+            })}`
+          );
+          cazvState.catalogItems = Array.isArray(result.items) ? result.items : [];
+          const total = result.total != null ? result.total : cazvState.catalogItems.length;
+          statusEl.textContent = `${cazvState.catalogItems.length} item(ns) nesta página · total informado pela API: ${total}`;
+          syncItemPickersWithInputs();
+          if (!silent) toast(`Catálogo: ${cazvState.catalogItems.length} produto(s)/serviço(s).`);
+        } catch (e) {
+          statusEl.textContent = silent
+            ? "Catálogo não carregado automaticamente. Conecte o Conta Azul no FP&A e clique em Carregar lista."
+            : e.message || "Falha ao buscar produtos.";
+          if (!silent) toast(e.message || "Falha ao buscar catálogo.");
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = original || "Carregar lista";
+          }
+        }
+      }
+
+      async function loadSettings() {
+        try {
+          const data = await api("/api/settings");
+          renderFromSettings(data.contaAzul || {});
+        } catch (e) {
+          el("cazv-alert").textContent = e.message || "Não foi possível carregar as configurações.";
+        }
+      }
+
+      async function saveVinculos() {
+        const btn = el("cazv-btn-save");
+        const prev = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = "Salvando…";
+        try {
+          const result = await api("/api/fpa/conta-azul/settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              lovableContracts: readLovableContractsForm(),
+            }),
+          });
+          renderFromSettings(result.contaAzul || {});
+          toast("Vínculos salvos. O painel FP&A usará a mesma tabela.");
+        } catch (e) {
+          toast(e.message || "Falha ao salvar.");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = prev;
+        }
+      }
+
+      function onItemPickerChange(ev) {
+        const t = ev.target;
+        if (!t.classList.contains("cazv-pick-item")) return;
+        const row = t.closest("tr");
+        const inp = row && row.querySelector('[data-mapping-field="contaAzulItemId"]');
+        if (!inp || !t.value) return;
+        inp.value = t.value;
+      }
+
+      function onItemIdInput(ev) {
+        const t = ev.target;
+        if (t.getAttribute("data-mapping-field") !== "contaAzulItemId") return;
+        const row = t.closest("tr");
+        const pick = row && row.querySelector(".cazv-pick-item");
+        if (!pick) return;
+        const v = t.value.trim();
+        if (v && cazvState.catalogItems.some((x) => x.id === v)) pick.value = v;
+        else pick.value = "";
+      }
+
+      el("cazv-btn-save").addEventListener("click", () => saveVinculos().catch((e) => toast(e.message)));
+      el("cazv-btn-load-catalog").addEventListener("click", () => loadCatalog({}).catch((e) => toast(e.message)));
+      el("cazv-btn-add-product").addEventListener("click", () => {
+        el("cazv-product-tbody").insertAdjacentHTML("beforeend", buildProductRow({}));
+        syncItemPickersWithInputs();
+      });
+      el("cazv-btn-add-payment").addEventListener("click", () => {
+        el("cazv-payment-tbody").insertAdjacentHTML("beforeend", buildPaymentRow({}));
+        syncItemPickersWithInputs();
+      });
+      el("cazv-product-tbody").addEventListener("click", (e) => {
+        if (e.target.closest(".cazv-remove-product")) e.target.closest("tr")?.remove();
+      });
+      el("cazv-payment-tbody").addEventListener("click", (e) => {
+        if (e.target.closest(".cazv-remove-payment")) e.target.closest("tr")?.remove();
+      });
+      el("cazv-product-tbody").addEventListener("change", onItemPickerChange);
+      el("cazv-payment-tbody").addEventListener("change", onItemPickerChange);
+      el("cazv-product-tbody").addEventListener("input", onItemIdInput);
+      el("cazv-payment-tbody").addEventListener("input", onItemIdInput);
+
+      loadSettings()
+        .then(() => loadCatalog({ silent: true }))
+        .catch(() => {});
+    </script>
+  </body>
+</html>

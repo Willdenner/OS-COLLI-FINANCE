@@ -65,6 +65,7 @@ const {
   buildContaAzulContractRecord,
   buildContaAzulFinancialAccountsPath,
   buildContaAzulFinancialCategoriesPath,
+  buildContaAzulProductsPath,
   buildContaAzulFinancialEventsSearchPath,
   buildContaAzulFpaExportPayload,
   buildContaAzulHeaders,
@@ -80,6 +81,7 @@ const {
   normalizeContaAzulFinancialAccount,
   normalizeContaAzulFinancialCategory,
   normalizeContaAzulFinancialInstallment,
+  normalizeContaAzulProduct,
   normalizeContaAzulListItems,
   normalizeContaAzulPerson,
   normalizeContaAzulSettings,
@@ -93,6 +95,7 @@ const STATIC_DIR = path.join(__dirname, "static");
 const HOME_INDEX = path.join(STATIC_DIR, "index.html");
 const FPA_INDEX = path.join(STATIC_DIR, "fpa.html");
 const RECEIVABLES_ANALYSIS_INDEX = path.join(STATIC_DIR, "receivables-analysis.html");
+const CONTA_AZUL_VINCULOS_INDEX = path.join(STATIC_DIR, "conta-azul-vinculos.html");
 const DEFAULT_COBRANCAS_URL = "https://bot-cobranca-25qf.onrender.com";
 const DEFAULT_EXTRATOR_URL = "https://bot-extrator.onrender.com";
 let receivablesOrchestratorPromise = null;
@@ -2208,9 +2211,15 @@ function sendReceivablesAnalysisPage(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.sendFile(RECEIVABLES_ANALYSIS_INDEX);
 }
+
+function sendContaAzulVinculosPage(req, res) {
+  res.setHeader("Cache-Control", "no-store");
+  res.sendFile(CONTA_AZUL_VINCULOS_INDEX);
+}
 app.get("/", sendHomePage);
 app.get("/fpa", sendAppPage);
 app.get("/fpa/receivables-analysis", sendReceivablesAnalysisPage);
+app.get("/fpa/conta-azul-vinculos", sendContaAzulVinculosPage);
 app.use("/cobrancas", asyncHandler(proxyCobrancasModule));
 app.use("/extrator", asyncHandler(proxyExtratorModule));
 
@@ -2627,10 +2636,12 @@ app.post(
   asyncHandler(async (req, res) => {
     const contaAzulPatch = req.body?.contaAzul && typeof req.body.contaAzul === "object" ? req.body.contaAzul : {};
     const fpaExport = req.body?.fpaExport && typeof req.body.fpaExport === "object" ? req.body.fpaExport : null;
+    const lovableContracts = req.body?.lovableContracts && typeof req.body.lovableContracts === "object" ? req.body.lovableContracts : null;
     const settings = await updateSettings({
       contaAzul: {
         ...contaAzulPatch,
         ...(fpaExport ? { fpaExport } : {}),
+        ...(lovableContracts ? { lovableContracts } : {}),
       },
     });
     res.json({ ok: true, contaAzul: sanitizeSettingsForClient(settings).contaAzul });
@@ -2845,6 +2856,32 @@ app.get(
       search: req.query?.search || req.query?.busca || req.query?.name || req.query?.nome || "",
       type: req.query?.type || req.query?.tipo || "",
       total: Number(result.parsed.json?.itens_totais || result.parsed.json?.total_itens || result.parsed.json?.totalItems || items.length) || items.length,
+      items,
+    });
+  })
+);
+
+app.get(
+  "/api/conta-azul/products",
+  asyncHandler(async (req, res) => {
+    const currentSettings = await getSettings();
+    const contaAzulSettings = await ensureContaAzulAccessToken(currentSettings, { allowRefresh: true });
+    const statusRaw = req.query?.status;
+    const endpointPath = buildContaAzulProductsPath({
+      search: req.query?.search || req.query?.busca,
+      page: req.query?.page || req.query?.pagina,
+      pageSize: req.query?.pageSize || req.query?.tamanho_pagina,
+      status: statusRaw === undefined || statusRaw === "" ? undefined : String(statusRaw).trim(),
+    });
+    const result = await fetchContaAzulJson(contaAzulSettings, endpointPath);
+    const items = normalizeContaAzulListItems(result.parsed.json).map(normalizeContaAzulProduct).filter((item) => item.id);
+
+    res.json({
+      ok: true,
+      endpoint: result.endpoint,
+      responseCode: result.response.status,
+      search: req.query?.search || req.query?.busca || "",
+      total: Number(result.parsed.json?.total_itens || result.parsed.json?.totalItems || items.length) || items.length,
       items,
     });
   })

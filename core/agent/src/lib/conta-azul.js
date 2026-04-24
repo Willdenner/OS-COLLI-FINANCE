@@ -11,6 +11,7 @@ const CONTA_AZUL_CONNECTED_ACCOUNT_PATH = "/v1/pessoas/conta-conectada";
 const CONTA_AZUL_PEOPLE_PATH = "/v1/pessoas";
 const CONTA_AZUL_FINANCIAL_ACCOUNTS_PATH = "/v1/conta-financeira";
 const CONTA_AZUL_FINANCIAL_CATEGORIES_PATH = "/v1/categorias";
+const CONTA_AZUL_PRODUCTS_PATH = "/v1/produtos";
 const CONTA_AZUL_FPA_EXPORT_RESOURCE = "fpa_transactions";
 const CONTA_AZUL_LOVABLE_CONTRACTS_RESOURCE = "lovable_contracts";
 const CONTA_AZUL_LOVABLE_RECEIPTS_RESOURCE = "lovable_receipts";
@@ -20,6 +21,7 @@ const CONTA_AZUL_PAYABLE_SEARCH_PATH = "/v1/financeiro/eventos-financeiros/conta
 const CONTA_AZUL_RECEIVABLE_SEARCH_PATH = "/v1/financeiro/eventos-financeiros/contas-a-receber/buscar";
 const CONTA_AZUL_CONTRACTS_PATH = "/v1/contratos";
 const CONTA_AZUL_NEXT_CONTRACT_NUMBER_PATH = "/v1/contratos/proximo-numero";
+const CONTA_AZUL_DEFAULT_CONTRACT_FINANCIAL_ACCOUNT_ID = "34afb732-3947-4fc8-9cb6-f9fec508872b";
 const CONTA_AZUL_ACQUITTANCE_PATH_TEMPLATE = "/v1/financeiro/eventos-financeiros/parcelas/{parcela_id}/baixa";
 
 function normalizeOptionalText(value, maxLength = 240) {
@@ -243,6 +245,7 @@ function normalizeContaAzulListItems(payload) {
   return [
     safePayload.itens,
     safePayload.items,
+    safePayload.produtos,
     safePayload.data,
     safePayload.pessoas,
     safePayload.contas,
@@ -347,6 +350,23 @@ function normalizeContaAzulFinancialCategory(category) {
   };
 }
 
+function normalizeContaAzulProduct(product) {
+  const safe = product && typeof product === "object" ? product : {};
+  const id = normalizeOptionalText(safe.id || safe.uuid || safe.produto_id || safe.id_produto, 120);
+  const name = normalizeOptionalText(safe.nome || safe.name || safe.descricao || safe.description, 200);
+  const sku = normalizeOptionalText(safe.sku || safe.codigo || safe.codigo_sku, 80);
+  const kind = normalizeOptionalText(safe.tipo || safe.type || safe.tipo_item, 40);
+  const label = [name || id || "Item sem nome", sku || null, kind || null].filter(Boolean).join(" · ");
+
+  return {
+    id: id || null,
+    name: name || null,
+    sku: sku || null,
+    kind: kind || null,
+    label,
+  };
+}
+
 function normalizeContaAzulFinancialInstallment(installment, type) {
   const safeInstallment = installment && typeof installment === "object" ? installment : {};
   const event = safeInstallment.evento && typeof safeInstallment.evento === "object" ? safeInstallment.evento : {};
@@ -409,6 +429,17 @@ function buildContaAzulFinancialCategoriesPath({ search, type, page = 1, pageSiz
   if (onlyChildren !== false) params.set("apenas_filhos", "true");
   params.set("permite_apenas_filhos", onlyChildren === false ? "false" : "true");
   return `${CONTA_AZUL_FINANCIAL_CATEGORIES_PATH}?${params.toString()}`;
+}
+
+function buildContaAzulProductsPath({ search, page = 1, pageSize = 100, status } = {}) {
+  const params = new URLSearchParams();
+  const safeSearch = normalizeOptionalText(search, 160);
+  if (safeSearch) params.set("busca", safeSearch);
+  params.set("pagina", String(clampInteger(page, 1, 10000, 1)));
+  params.set("tamanho_pagina", String(clampInteger(pageSize, 1, 500, 100)));
+  const safeStatus = normalizeOptionalText(status, 40);
+  if (safeStatus) params.set("status", safeStatus);
+  return `${CONTA_AZUL_PRODUCTS_PATH}?${params.toString()}`;
 }
 
 function buildContaAzulFinancialEventsSearchPath({
@@ -513,7 +544,7 @@ function createDefaultContaAzulSettings() {
       markAsExported: true,
       maxRecordsPerRun: 50,
     },
-    lovableContracts: createLovableContractPathsFromEnv(),
+    lovableContracts: buildInitialLovableContractsFromEnv(),
     status: {
       lastConnectionCheckAt: null,
       lastConnectionOk: false,
@@ -564,29 +595,88 @@ function readContaAzulEnvFirst(...keys) {
   return "";
 }
 
-function getStaticLovableContractPathDefaults() {
+function getBaseLovableContractDefaults() {
   return {
     contractsCreatePath: CONTA_AZUL_CONTRACTS_PATH,
     nextContractNumberPath: CONTA_AZUL_NEXT_CONTRACT_NUMBER_PATH,
+    defaultContractFinancialAccountId: CONTA_AZUL_DEFAULT_CONTRACT_FINANCIAL_ACCOUNT_ID,
+    contractAmountInputUnit: "centavos",
+    financeProductMappings: [],
+    financePaymentMappings: [],
   };
 }
 
-function createLovableContractPathsFromEnv() {
+function normalizeFinanceProductMappingEntry(entry, index) {
+  const safe = entry && typeof entry === "object" ? entry : {};
+  return {
+    id: normalizeOptionalText(safe.id, 80) || `fpm_${index}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+    financeProductId: normalizeOptionalText(safe.financeProductId, 200) || "",
+    financeProductLabel: normalizeOptionalText(safe.financeProductLabel, 240) || "",
+    contaAzulItemId: normalizeOptionalText(safe.contaAzulItemId, 160) || "",
+  };
+}
+
+function normalizeFinancePaymentItemValorReais(value) {
+  if (value == null || value === "") return null;
+  if (typeof value === "number" && Number.isFinite(value)) return Math.max(0, value);
+  const cents = parseMoneyStringToCentavos(String(value));
+  if (!cents && String(value).trim() !== "0" && String(value).trim() !== "0,00") return null;
+  return Math.max(0, cents / 100);
+}
+
+function normalizeFinancePaymentMappingEntry(entry, index) {
+  const safe = entry && typeof entry === "object" ? entry : {};
+  const itemValor = normalizeFinancePaymentItemValorReais(safe.contaAzulItemValor);
+  return {
+    id: normalizeOptionalText(safe.id, 80) || `fpay_${index}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+    financePaymentKey: normalizeOptionalText(safe.financePaymentKey, 120) || "",
+    financePaymentLabel: normalizeOptionalText(safe.financePaymentLabel, 240) || "",
+    contaAzulTipoPagamento: normalizeOptionalText(safe.contaAzulTipoPagamento, 80) || "",
+    contaAzulFinancialAccountId: normalizeOptionalText(safe.contaAzulFinancialAccountId, 160) || "",
+    contaAzulItemId: normalizeOptionalText(safe.contaAzulItemId, 160) || "",
+    contaAzulItemValor: itemValor,
+  };
+}
+
+function buildInitialLovableContractsFromEnv() {
   return normalizeContaAzulLovableContractSettings(
     {
       contractsCreatePath: readContaAzulEnvFirst("CONTA_AZUL_CONTRACTS_PATH"),
       nextContractNumberPath: readContaAzulEnvFirst("CONTA_AZUL_NEXT_CONTRACT_NUMBER_PATH"),
+      defaultContractFinancialAccountId: readContaAzulEnvFirst("CONTA_AZUL_DEFAULT_CONTRACT_FINANCIAL_ACCOUNT_ID"),
+      contractAmountInputUnit: readContaAzulEnvFirst("CONTA_AZUL_CONTRACT_AMOUNT_UNIT"),
     },
-    getStaticLovableContractPathDefaults()
+    getBaseLovableContractDefaults()
   );
 }
 
-function normalizeContaAzulLovableContractSettings(rawSettings, fallback = getStaticLovableContractPathDefaults()) {
+function normalizeContaAzulLovableContractSettings(rawSettings, fallback) {
   const safe = rawSettings && typeof rawSettings === "object" ? rawSettings : {};
-  const base = fallback && typeof fallback === "object" ? fallback : getStaticLovableContractPathDefaults();
+  const base = fallback && typeof fallback === "object" ? fallback : getBaseLovableContractDefaults();
+  const amountUnit = normalizeEnum(safe.contractAmountInputUnit, ["centavos", "reais"], base.contractAmountInputUnit);
+  const productRows = Array.isArray(safe.financeProductMappings)
+    ? safe.financeProductMappings.map(normalizeFinanceProductMappingEntry).filter((m) => m.financeProductId && m.contaAzulItemId)
+    : base.financeProductMappings;
+  const paymentRows = Array.isArray(safe.financePaymentMappings)
+    ? safe.financePaymentMappings
+        .map(normalizeFinancePaymentMappingEntry)
+        .filter(
+          (m) =>
+            m.financePaymentKey &&
+            (m.contaAzulTipoPagamento ||
+              m.contaAzulFinancialAccountId ||
+              m.contaAzulItemId ||
+              m.contaAzulItemValor != null)
+        )
+    : base.financePaymentMappings;
   return {
     contractsCreatePath: normalizeEndpointPath(safe.contractsCreatePath, base.contractsCreatePath),
     nextContractNumberPath: normalizeEndpointPath(safe.nextContractNumberPath, base.nextContractNumberPath),
+    defaultContractFinancialAccountId:
+      normalizeOptionalText(safe.defaultContractFinancialAccountId, 160) || base.defaultContractFinancialAccountId,
+    contractAmountInputUnit: amountUnit,
+    financeProductMappings: productRows.slice(0, 500),
+    financePaymentMappings: paymentRows.slice(0, 200),
   };
 }
 
@@ -1053,6 +1143,48 @@ function compactContaAzulPayload(value) {
   return compacted;
 }
 
+/**
+ * Mescla o payload canônico calculado a partir do webhook com `contaAzulContractPayload` / `contaAzulPayload` opcional.
+ * Um objeto vindo do Lovable com `{}` (ou parcial) não pode substituir o payload inteiro — caso contrário
+ * faltam id_conta_financeira, itens e valor.
+ */
+function mergeContaAzulLovableContractPayload(base, override) {
+  if (!override || typeof override !== "object") return { ...base };
+  const o = { ...base, ...override };
+  o.termos = { ...base.termos, ...override.termos };
+  o.composicao_de_valor = { ...base.composicao_de_valor, ...override.composicao_de_valor };
+  const baseCond = base.condicao_pagamento && typeof base.condicao_pagamento === "object" ? base.condicao_pagamento : {};
+  const ovCond = override.condicao_pagamento && typeof override.condicao_pagamento === "object" ? override.condicao_pagamento : {};
+  o.condicao_pagamento = { ...baseCond, ...ovCond };
+  if (!normalizeOptionalText(ovCond.id_conta_financeira, 160)) {
+    o.condicao_pagamento = { ...o.condicao_pagamento, id_conta_financeira: baseCond.id_conta_financeira };
+  }
+  const baseItens = Array.isArray(base.itens) ? base.itens : [];
+  if (Array.isArray(override.itens) && override.itens.length) {
+    o.itens = override.itens.map((row, i) => ({
+      ...((i === 0 && baseItens[0]) || {}),
+      ...row,
+    }));
+  } else {
+    o.itens = baseItens;
+  }
+  const b0 = baseItens[0] || {};
+  if (o.itens?.[0]) {
+    const row0 = { ...o.itens[0] };
+    if (!normalizeOptionalText(row0.id, 160) && normalizeOptionalText(b0.id, 160)) {
+      row0.id = b0.id;
+    }
+    if (!Number.isFinite(Number(row0.valor)) && Number.isFinite(Number(b0.valor))) {
+      row0.valor = b0.valor;
+    }
+    o.itens[0] = row0;
+  }
+  if (o.termos && (o.termos.numero == null || o.termos.numero === "") && base.termos?.numero != null) {
+    o.termos = { ...o.termos, numero: base.termos.numero };
+  }
+  return o;
+}
+
 function normalizeContaAzulContractFrequency(value) {
   const raw = String(value || "").trim().toUpperCase();
   if (["ANUAL", "ANNUAL", "YEARLY", "YEAR"].includes(raw)) return "ANUAL";
@@ -1117,8 +1249,113 @@ function normalizeContaAzulAcquittanceResponse(responseBody) {
   };
 }
 
+const CONTRACT_MONEY_CENTAVOS_PATHS = [
+  "amountCents",
+  "valueCents",
+  "monthlyAmountCents",
+  "valorCentavos",
+  "valor_centavos",
+  "item.valorCentavos",
+];
+const CONTRACT_MONEY_DECIMAL_PATHS = [
+  "amount",
+  "value",
+  "monthlyAmount",
+  "valor",
+  "valorMensal",
+  "valor_mensal",
+  "target_amount",
+  "targetAmount",
+  "monthly_value",
+  "monthlyValue",
+  "price",
+  "monthly_price",
+  "preco",
+  "preco_mensal",
+  "total",
+  "total_value",
+  "totalValue",
+  "valor_total",
+  "item.valor",
+  "item.amount",
+  "item.price",
+  "servico.valor",
+  "billing.amount",
+  "billing.valor",
+  "billing.price",
+  "billing.value",
+];
+
+function parseMoneyStringToCentavos(s) {
+  const raw = String(s || "")
+    .trim()
+    .replace(/[^\d,.-]+/g, "");
+  if (!raw) return 0;
+  const hasComma = raw.includes(",");
+  const normalized = hasComma ? raw.replace(/\./g, "").replace(",", ".") : raw.replace(/,/g, ".");
+  const n = Number(normalized);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.round(n * 100));
+}
+
+/**
+ * Modo "centavos" (visão moeda do Finance): inteiro = centavos; decimal BR ou float = reais.
+ */
+function pickContractAmountInCentavosFromFinance(contract) {
+  const paths = [...CONTRACT_MONEY_CENTAVOS_PATHS, ...CONTRACT_MONEY_DECIMAL_PATHS];
+  const v = pickFirstNested(contract, paths);
+  if (v == null || v === "") return 0;
+  if (typeof v === "number" && Number.isFinite(v)) {
+    if (Number.isInteger(v)) return Math.max(0, v);
+    return Math.max(0, Math.round(v * 100));
+  }
+  return parseMoneyStringToCentavos(String(v));
+}
+
+function resolveContaAzulItemFromProductMapping(contract, mappings) {
+  if (!Array.isArray(mappings) || !mappings.length) return "";
+  const candidateKeys = new Set();
+  for (const path of [
+    "productId",
+    "financeProductId",
+    "sku",
+    "codigo_produto",
+    "plano_id",
+    "servico_codigo",
+    "id_produto_finance",
+    "billing.productId",
+    "billing.sku",
+    "billing.financeProductId",
+  ]) {
+    const v = readNestedValue(contract, path);
+    if (v != null && v !== "") candidateKeys.add(String(v).trim());
+  }
+  for (const m of mappings) {
+    if (!m?.financeProductId || !m?.contaAzulItemId) continue;
+    if (candidateKeys.has(String(m.financeProductId).trim())) return m.contaAzulItemId;
+  }
+  return "";
+}
+
+function resolveFinancePaymentMapping(rawKey, mappings) {
+  if (rawKey == null || rawKey === "" || !Array.isArray(mappings)) return null;
+  const k = String(rawKey).trim().toLowerCase();
+  for (const m of mappings) {
+    if (!m?.financePaymentKey) continue;
+    if (String(m.financePaymentKey).trim().toLowerCase() !== k) continue;
+    return m;
+  }
+  return null;
+}
+
+function resolveContaAzulPaymentFromMapping(rawKey, mappings) {
+  const row = resolveFinancePaymentMapping(rawKey, mappings);
+  return row?.contaAzulTipoPagamento ? row.contaAzulTipoPagamento : "";
+}
+
 function buildContaAzulContractRecord({ settings, source, nextContractNumber, financePaymentLinks } = {}) {
   const safeSettings = normalizeContaAzulSettings(settings);
+  const lc = safeSettings.lovableContracts;
   const baseSource = source && typeof source === "object" ? source : {};
   const nestedContract = baseSource.contract && typeof baseSource.contract === "object" ? baseSource.contract : {};
   const contract = { ...baseSource, ...nestedContract };
@@ -1185,46 +1422,12 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
       "billing.endDate",
     ])
   );
-  const amountCents = resolveMoneyCents(
-    contract,
-    [
-      "amountCents",
-      "valueCents",
-      "monthlyAmountCents",
-      "valorCentavos",
-      "valor_centavos",
-      "item.valorCentavos",
-    ],
-    [
-      "amount",
-      "value",
-      "monthlyAmount",
-      "valor",
-      "valorMensal",
-      "valor_mensal",
-      "target_amount",
-      "targetAmount",
-      "monthly_value",
-      "monthlyValue",
-      "price",
-      "monthly_price",
-      "preco",
-      "preco_mensal",
-      "total",
-      "total_value",
-      "totalValue",
-      "valor_total",
-      "item.valor",
-      "item.amount",
-      "item.price",
-      "servico.valor",
-      "billing.amount",
-      "billing.valor",
-      "billing.price",
-      "billing.value",
-    ]
-  );
+  const amountCents =
+    lc.contractAmountInputUnit === "reais"
+      ? resolveMoneyCents(contract, CONTRACT_MONEY_CENTAVOS_PATHS, CONTRACT_MONEY_DECIMAL_PATHS)
+      : pickContractAmountInCentavosFromFinance(contract);
   const amount = moneyCentsToDecimal(amountCents) || 0;
+  const mappedItemId = resolveContaAzulItemFromProductMapping(contract, lc.financeProductMappings);
   const itemId = pickFirstText(
     pickFirstNested(contract, [
       "itemId",
@@ -1250,6 +1453,7 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
     ]),
     linkedByCategory?.contaAzulItemId,
     linkedByMethod?.contaAzulItemId,
+    mappedItemId,
     readContaAzulEnvFirst("CONTA_AZUL_DEFAULT_CONTRACT_ITEM_ID")
   );
   const itemDescription = pickFirstText(
@@ -1310,6 +1514,7 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
     ]),
     linkedByCategory?.contaAzulFinancialAccountId,
     linkedByMethod?.contaAzulFinancialAccountId,
+    lc.defaultContractFinancialAccountId,
     readContaAzulEnvFirst("CONTA_AZUL_DEFAULT_CONTRACT_FINANCIAL_ACCOUNT_ID"),
     safeSettings.fpaExport.defaultFinancialAccountId
   );
@@ -1317,11 +1522,33 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
     pickFirstNested(contract, ["categoryId", "contaAzulCategoryId", "id_categoria"]),
     safeSettings.fpaExport.defaultReceivableCategoryId
   );
+  const rawPaymentKey = pickFirstNested(contract, [
+    "paymentMethod",
+    "tipoPagamento",
+    "forma_pagamento",
+    "formaPagamento",
+    "payment_method",
+    "billing.paymentMethod",
+    "billing.forma_pagamento",
+    "condicao_pagamento.tipo_pagamento",
+  ]);
+  const paymentMapping = resolveFinancePaymentMapping(rawPaymentKey, lc.financePaymentMappings);
   const paymentMethod = normalizeContaAzulPaymentMethod(
-    linkedByMethod?.contaAzulPaymentType ||
-    linkedByCategory?.contaAzulPaymentType ||
-    pickFirstNested(contract, ["paymentMethod", "tipoPagamento", "billing.paymentMethod", "payment_method"])
+    paymentMapping?.contaAzulTipoPagamento ||
+      linkedByMethod?.contaAzulPaymentType ||
+      linkedByCategory?.contaAzulPaymentType ||
+      rawPaymentKey
   );
+  let resolvedFinancialAccountId = financialAccountId;
+  let resolvedItemId = itemId;
+  let lineValor = amount;
+  if (paymentMapping) {
+    if (paymentMapping.contaAzulFinancialAccountId) resolvedFinancialAccountId = paymentMapping.contaAzulFinancialAccountId;
+    if (paymentMapping.contaAzulItemId) resolvedItemId = paymentMapping.contaAzulItemId;
+    if (paymentMapping.contaAzulItemValor != null && Number.isFinite(paymentMapping.contaAzulItemValor)) {
+      lineValor = paymentMapping.contaAzulItemValor;
+    }
+  }
   const dueDay = normalizeContaAzulDueDay(pickFirstNested(contract, ["dueDay", "diaVencimento", "billing.dueDay"]), firstDueDate || startDate);
   const issueDate =
     normalizeIsoDateFromFinance(
@@ -1338,58 +1565,66 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
   const frequency = normalizeContaAzulContractFrequency(pickFirstNested(contract, ["frequency", "recurrence", "periodicity", "termos.tipo_frequencia"]));
   const expiration = normalizeContaAzulContractExpiration(pickFirstNested(contract, ["expirationType", "termos.tipo_expiracao"]), endDate);
 
-  const payload = payloadOverride
-    ? compactContaAzulPayload({
-        ...JSON.parse(JSON.stringify(payloadOverride)),
-        termos: {
-          ...payloadOverride.termos,
-          numero: payloadOverride.termos?.numero || contractNumber || undefined,
-        },
-      })
-    : compactContaAzulPayload({
-        id_cliente: customerId,
-        data_emissao: issueDate,
-        id_categoria: categoryId,
-        id_centro_custo: pickFirstNested(contract, ["costCenterId", "centroCustoId", "id_centro_custo"]),
-        id_vendedor: pickFirstNested(contract, ["sellerId", "vendedorId", "id_vendedor"]),
-        observacoes: pickFirstText(contract.notes, contract.observacoes, `Origem: Lovable | Contrato: ${externalId || "sem id"}`),
-        observacoes_pagamento: pickFirstText(contract.paymentNotes, contract.observacoes_pagamento),
-        termos: {
-          tipo_frequencia: frequency,
-          tipo_expiracao: expiration,
-          data_inicio: startDate,
-          data_fim: endDate,
-          intervalo_frequencia: normalizePositiveInteger(pickFirstNested(contract, ["frequencyInterval", "intervaloFrequencia", "termos.intervalo_frequencia"]), 1),
-          dia_emissao_venda: normalizeContaAzulDueDay(pickFirstNested(contract, ["saleIssueDay", "diaEmissaoVenda", "termos.dia_emissao_venda"]), issueDate),
-          numero: contractNumber || undefined,
-        },
-        composicao_de_valor: {
-          frete: normalizeOptionalNumber(pickFirstNested(contract, ["freight", "frete"]), 0) || undefined,
-          desconto: pickFirstNested(contract, ["discount", "desconto"])
-            ? {
-                tipo: pickFirstText(pickFirstNested(contract, ["discountType", "tipoDesconto"])) || "VALOR",
-                valor: normalizeOptionalNumber(pickFirstNested(contract, ["discount", "desconto"]), 0),
-              }
-            : undefined,
-        },
-        condicao_pagamento: {
-          tipo_pagamento: paymentMethod,
-          id_conta_financeira: financialAccountId,
-          dia_vencimento: dueDay,
-          primeira_data_vencimento: firstDueDate || startDate,
-        },
-        itens: [
-          {
-            id: itemId,
-            quantidade: quantity,
-            descricao: itemDescription,
-            valor: amount,
-            valor_custo: normalizeOptionalNumber(pickFirstNested(contract, ["costValue", "valorCusto", "item.costValue"]), 0) || undefined,
-          },
-        ],
-      });
+  const baseContractPayload = {
+    id_cliente: customerId,
+    data_emissao: issueDate,
+    id_categoria: categoryId,
+    id_centro_custo: pickFirstNested(contract, ["costCenterId", "centroCustoId", "id_centro_custo"]),
+    id_vendedor: pickFirstNested(contract, ["sellerId", "vendedorId", "id_vendedor"]),
+    observacoes: pickFirstText(contract.notes, contract.observacoes, `Origem: Lovable | Contrato: ${externalId || "sem id"}`),
+    observacoes_pagamento: pickFirstText(contract.paymentNotes, contract.observacoes_pagamento),
+    termos: {
+      tipo_frequencia: frequency,
+      tipo_expiracao: expiration,
+      data_inicio: startDate,
+      data_fim: endDate,
+      intervalo_frequencia: normalizePositiveInteger(pickFirstNested(contract, ["frequencyInterval", "intervaloFrequencia", "termos.intervalo_frequencia"]), 1),
+      dia_emissao_venda: normalizeContaAzulDueDay(pickFirstNested(contract, ["saleIssueDay", "diaEmissaoVenda", "termos.dia_emissao_venda"]), issueDate),
+      numero: contractNumber || undefined,
+    },
+    composicao_de_valor: {
+      frete: normalizeOptionalNumber(pickFirstNested(contract, ["freight", "frete"]), 0) || undefined,
+      desconto: pickFirstNested(contract, ["discount", "desconto"])
+        ? {
+            tipo: pickFirstText(pickFirstNested(contract, ["discountType", "tipoDesconto"])) || "VALOR",
+            valor: normalizeOptionalNumber(pickFirstNested(contract, ["discount", "desconto"]), 0),
+          }
+        : undefined,
+    },
+    condicao_pagamento: {
+      tipo_pagamento: paymentMethod,
+      id_conta_financeira: resolvedFinancialAccountId,
+      dia_vencimento: dueDay,
+      primeira_data_vencimento: firstDueDate || startDate,
+    },
+    itens: [
+      {
+        id: resolvedItemId,
+        quantidade: quantity,
+        descricao: itemDescription,
+        valor: lineValor,
+        valor_custo: normalizeOptionalNumber(pickFirstNested(contract, ["costValue", "valorCusto", "item.costValue"]), 0) || undefined,
+      },
+    ],
+  };
+
+  const safeOverride = payloadOverride ? JSON.parse(JSON.stringify(payloadOverride)) : null;
+  if (safeOverride && safeOverride.termos) {
+    safeOverride.termos = {
+      ...safeOverride.termos,
+      numero: safeOverride.termos?.numero || contractNumber || baseContractPayload.termos?.numero,
+    };
+  }
+  const mergedContractPayload = mergeContaAzulLovableContractPayload(
+    baseContractPayload,
+    safeOverride
+  );
+  const payload = compactContaAzulPayload(mergedContractPayload);
 
   const missingRequiredFields = [];
+  const firstItem = payload.itens?.[0];
+  const payloadLineValor = firstItem == null ? NaN : Number(firstItem.valor);
+  const lineQty = firstItem == null ? NaN : Number(firstItem.quantidade);
   if (!payload.id_cliente) missingRequiredFields.push("id_cliente");
   if (!payload.termos?.tipo_frequencia) missingRequiredFields.push("termos.tipo_frequencia");
   if (!payload.termos?.tipo_expiracao) missingRequiredFields.push("termos.tipo_expiracao");
@@ -1400,18 +1635,19 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
   if (!payload.condicao_pagamento?.dia_vencimento) missingRequiredFields.push("condicao_pagamento.dia_vencimento");
   if (!payload.condicao_pagamento?.primeira_data_vencimento) missingRequiredFields.push("condicao_pagamento.primeira_data_vencimento");
   if (!Array.isArray(payload.itens) || !payload.itens.length) missingRequiredFields.push("itens");
-  if (!payload.itens?.[0]?.id) missingRequiredFields.push("itens[0].id");
-  if (!Number(payload.itens?.[0]?.quantidade)) missingRequiredFields.push("itens[0].quantidade");
-  if (!Number(payload.itens?.[0]?.valor)) missingRequiredFields.push("itens[0].valor");
+  if (!firstItem?.id) missingRequiredFields.push("itens[0].id");
+  if (!Number.isFinite(lineQty) || lineQty < 1) missingRequiredFields.push("itens[0].quantidade");
+  if (!Number.isFinite(payloadLineValor) || payloadLineValor < 0) missingRequiredFields.push("itens[0].valor");
 
+  const outAmountCents = Number.isFinite(payloadLineValor) ? Math.round(payloadLineValor * 100) : amountCents;
   return {
     source: "lovable",
     resource: CONTA_AZUL_LOVABLE_CONTRACTS_RESOURCE,
     action: "create_contract",
     externalId: externalId || null,
     endpointPath: safeSettings.lovableContracts.contractsCreatePath,
-    amountCents,
-    amountFormatted: amountCents ? formatMoneyBRL(amountCents) : "",
+    amountCents: outAmountCents,
+    amountFormatted: outAmountCents ? formatMoneyBRL(outAmountCents) : "",
     missingRequiredFields: Array.from(new Set(missingRequiredFields)),
     payload,
   };
@@ -1438,7 +1674,16 @@ function buildContaAzulAcquittanceRecord({ settings, source, installmentId } = {
     ["amount", "paidAmount", "valor", "valorPago", "valor_bruto"]
   );
   const paidAt = normalizeIsoDate(pickFirstNested(payment, ["paidAt", "paymentDate", "dataPagamento", "data_pagamento"])) || new Date().toISOString().slice(0, 10);
+  const rawPaymentKey = pickFirstNested(payment, [
+    "paymentMethod",
+    "metodoPagamento",
+    "metodo_pagamento",
+    "forma_pagamento",
+    "tipoPagamento",
+  ]);
+  const paymentMapping = resolveFinancePaymentMapping(rawPaymentKey, safeSettings.lovableContracts.financePaymentMappings);
   const financialAccountId = pickFirstText(
+    paymentMapping?.contaAzulFinancialAccountId,
     pickFirstNested(payment, ["financialAccountId", "contaAzulFinancialAccountId", "conta_financeira", "id_conta_financeira"]),
     safeSettings.fpaExport.defaultFinancialAccountId
   );
@@ -1455,7 +1700,10 @@ function buildContaAzulAcquittanceRecord({ settings, source, installmentId } = {
           taxa: normalizeDecimalMoney(pickFirstNested(payment, ["fee", "taxa"])),
         },
         conta_financeira: financialAccountId,
-        metodo_pagamento: normalizeContaAzulPaymentMethod(pickFirstNested(payment, ["paymentMethod", "metodoPagamento", "metodo_pagamento"]), "PIX"),
+        metodo_pagamento: normalizeContaAzulPaymentMethod(
+          paymentMapping?.contaAzulTipoPagamento || pickFirstNested(payment, ["paymentMethod", "metodoPagamento", "metodo_pagamento"]),
+          "PIX"
+        ),
         observacao: pickFirstText(payment.notes, payment.observacao, `Baixa automática via Lovable${externalId ? ` | Recebimento: ${externalId}` : ""}`),
         nsu: pickFirstText(payment.nsu, payment.transactionId, payment.tid, payment.authorizationCode),
       });
@@ -1681,6 +1929,7 @@ module.exports = {
   CONTA_AZUL_DEFAULT_SCOPE,
   CONTA_AZUL_FINANCIAL_ACCOUNTS_PATH,
   CONTA_AZUL_FINANCIAL_CATEGORIES_PATH,
+  CONTA_AZUL_PRODUCTS_PATH,
   CONTA_AZUL_FPA_EXPORT_RESOURCE,
   CONTA_AZUL_LOVABLE_CONTRACTS_RESOURCE,
   CONTA_AZUL_LOVABLE_RECEIPTS_RESOURCE,
@@ -1699,6 +1948,7 @@ module.exports = {
   buildContaAzulContractSearchPath,
   buildContaAzulFinancialAccountsPath,
   buildContaAzulFinancialCategoriesPath,
+  buildContaAzulProductsPath,
   buildContaAzulFinancialEventsSearchPath,
   buildContaAzulFpaExportPayload,
   buildContaAzulFpaFinancialEventRecord,
@@ -1722,9 +1972,11 @@ module.exports = {
   normalizeContaAzulListItems,
   normalizeContaAzulPerson,
   normalizeContaAzulPersonProfileType,
+  normalizeContaAzulProduct,
   normalizeContaAzulSettings,
   prependContaAzulSyncHistory,
   reconcileContaAzulFinancialRecords,
   resolveContaAzulEndpointUrl,
+  resolveFinancePaymentMapping,
   sanitizeContaAzulSettings,
 };

@@ -540,6 +540,7 @@
       <div class="sidebar-block">
         <div class="sidebar-label">Configurações</div>
         <nav class="sidebar-nav">
+          <a class="sidebar-link" href="/fpa/conta-azul-vinculos"><span class="sidebar-icon">⇢</span> Vínculos Finance → CA</a>
           <button class="sidebar-link" type="button" data-workflow-step="settings"><span class="sidebar-icon">⚙</span> Conta Azul, Lovable e DRE</button>
         </nav>
       </div>
@@ -948,6 +949,91 @@
           </div>
         </section>
 
+        <section class="card" style="margin-top:18px" id="conta-azul-lovable-mappings">
+          <div class="card-head">
+            <div class="card-title"><span class="card-icon">⇢</span> Contratos (Lovable → Conta Azul)</div>
+            <div class="inline-tools">
+              <span
+                style="padding:5px 12px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;background:rgba(58,160,255,.15);border:1px solid var(--brand-border);color:var(--brand)"
+                >Mapeamento</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <p class="field-hint" style="margin-bottom:14px">
+              Conta financeira padrão do contrato, unidade de valor (centavos vs reais) e tabelas entre o Finance e o Conta Azul
+              (<code>itens.id</code> e condição de pagamento). Para focar só nisso, use a página
+              <a href="/fpa/conta-azul-vinculos" style="color:var(--accent)">Vínculos Finance → CA</a>. Use <strong>Salvar Credenciais</strong> no card Conta Azul abaixo para gravar a partir deste painel. Linhas vazias são ignoradas.
+            </p>
+            <div class="form-grid g2">
+              <div class="field">
+                <label class="field-label" for="fpa-conta-azul-contract-financial-account-id">Conta financeira padrão (contrato)</label>
+                <input
+                  class="field-input"
+                  id="fpa-conta-azul-contract-financial-account-id"
+                  type="text"
+                  placeholder="34afb732-3947-4fc8-9cb6-f9fec508872b"
+                  autocomplete="off"
+                />
+                <div class="field-hint">UUID no Conta Azul para <code>id_conta_financeira</code> quando o contrato não trouxer outro.</div>
+              </div>
+              <div class="field">
+                <label class="field-label" for="fpa-conta-azul-contract-amount-unit">Valores do contrato (origem Lovable/Finance)</label>
+                <select class="field-select" id="fpa-conta-azul-contract-amount-unit">
+                  <option value="centavos">Centavos (visão moeda / inteiro)</option>
+                  <option value="reais">Reais (decimal, ex.: 99,90)</option>
+                </select>
+                <div class="field-hint">O Conta Azul recebe reais; o agente converte centavos → decimal antes de enviar.</div>
+              </div>
+            </div>
+
+            <div class="field" style="margin-top:12px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+                <label class="field-label" style="margin:0">Produto no Finance → UUID do item/serviço (Conta Azul)</label>
+                <button class="btn" id="btn-add-conta-azul-product-mapping" type="button">+ Linha</button>
+              </div>
+              <div class="table-wrap" style="max-height:220px;overflow:auto">
+                <table class="data-table" style="font-size:12px">
+                  <thead>
+                    <tr>
+                      <th>ID produto (Finance)</th>
+                      <th>Descrição (opcional)</th>
+                      <th>UUID item (Conta Azul)</th>
+                      <th style="width:72px"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="fpa-conta-azul-product-mappings-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="field" style="margin-top:12px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+                <label class="field-label" style="margin:0">Forma de pagamento (Finance) → condição no Conta Azul</label>
+                <button class="btn" id="btn-add-conta-azul-payment-mapping" type="button">+ Linha</button>
+              </div>
+              <div class="table-wrap" style="max-height:260px;overflow:auto">
+                <table class="data-table" style="font-size:12px">
+                  <thead>
+                    <tr>
+                      <th>Chave (Finance)</th>
+                      <th>Nota</th>
+                      <th><code>condicao_pagamento.tipo</code></th>
+                      <th><code>id_conta_financeira</code></th>
+                      <th><code>itens[0].id</code></th>
+                      <th><code>itens[0].valor</code> (R$, opc.)</th>
+                      <th style="width:72px"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="fpa-conta-azul-payment-mappings-tbody"></tbody>
+                </table>
+              </div>
+              <div class="field-hint">
+                A chave precisa bater (sem diferenciar maiúsculas) com <code>paymentMethod</code>, <code>forma_pagamento</code>, etc. Preencha pelo menos um campo do Conta Azul por linha; campos vazios usam o padrão do contrato ou do FP&A.
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section class="card" style="margin-top:18px" id="learning">
           <div class="card-head">
             <div class="card-title"><span class="card-icon">◈</span> Aprendizado do Bot</div>
@@ -975,6 +1061,7 @@
             <div class="card-title"><span class="card-icon">⇄</span> Conta Azul · Integração API</div>
             <div class="inline-tools">
               <span id="fpa-conta-azul-badge" style="padding:5px 12px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;background:var(--panel-3);border:1px solid var(--border);color:var(--muted)">● Desconectado</span>
+              <button class="btn" id="btn-jump-lovable-contract-mappings" type="button" title="Abrir página dedicada de vínculos Finance → Conta Azul">Vínculos Finance → CA</button>
               <button class="btn" id="btn-preview-conta-azul-fpa" type="button">Prévia</button>
               <button class="btn btn-primary" id="btn-push-conta-azul-fpa" type="button">Enviar Lançamentos</button>
             </div>
@@ -983,7 +1070,13 @@
 
             <div id="fpa-conta-azul-alert" class="alert" style="margin-bottom:18px">
               <span id="fpa-conta-azul-status">Configure as credenciais OAuth abaixo e conecte o Conta Azul para começar a exportar lançamentos.</span>
+              <div style="margin-top:10px;font-size:12px;line-height:1.6;color:var(--muted)">
+                O mapeamento de <strong style="color:var(--text)">contratos (Lovable → Conta Azul)</strong> fica no card logo
+                <strong style="color:var(--text)">abaixo do Plano de Contas DRE</strong>. Use o botão
+                <strong style="color:var(--text)">Mapear contratos Lovable</strong> no título deste card para rolar até lá.
+              </div>
             </div>
+
             <div id="fpa-storage-alert" class="alert" style="display:none;margin-bottom:18px">
               <span id="fpa-storage-status">Verificando persistência dos dados de conexão.</span>
             </div>
@@ -1166,6 +1259,18 @@
           <div class="card-body">
             <div id="fpa-lovable-alert" class="alert" style="margin-bottom:18px">
               <span id="fpa-lovable-status">Configure o segredo e copie as URLs abaixo para conectar os webhooks do Lovable ao Analista FP&amp;A.</span>
+            </div>
+
+            <div
+              class="alert"
+              style="margin-bottom:18px;border-color:var(--brand-border);background:rgba(58,160,255,.1);color:var(--text)"
+            >
+              <strong style="color:var(--brand)">Contratos → Conta Azul:</strong>
+              o envio exige mapear produto (UUID do item) e a conta do contrato. Abra a página
+              <button type="button" class="btn" id="btn-go-conta-azul-lovable-mappings" style="margin:0 6px;vertical-align:middle">
+                Vínculos Finance → CA
+              </button>
+              (menu lateral <em>Configurações</em>) ou o card <em>Contratos (Lovable → Conta Azul)</em> abaixo; em ambos os casos use <strong>Salvar</strong> no destino escolhido.
             </div>
 
             <div class="form-grid g2">
@@ -1480,6 +1585,7 @@
       const integerFormat = new Intl.NumberFormat("pt-BR");
       const CONTA_AZUL_DEFAULT_REDIRECT_URI = "https://www.contaazul.com";
       const CONTA_AZUL_DEFAULT_SCOPE = "openid profile aws.cognito.signin.user.admin";
+      const CONTA_AZUL_DEFAULT_CONTRACT_FINANCIAL_ACCOUNT_PLACEHOLDER = "34afb732-3947-4fc8-9cb6-f9fec508872b";
       const LOVABLE_CONTRACTS_WEBHOOK_PATH = "/api/integrations/lovable/contracts";
       const LOVABLE_RECEIPTS_WEBHOOK_PATH = "/api/integrations/lovable/receipts";
 
@@ -1599,7 +1705,15 @@
           key: "settings",
           title: "Configurações e cadastros",
           copy: "Ajuste Conta Azul, Lovable, categorias padrão, plano DRE, aprendizado e teste manual da API.",
-          sections: ["conta-azul", "lovable-integration", "finance-payment-links", "dre-plan", "learning", "conta-azul-test"],
+          sections: [
+            "conta-azul",
+            "lovable-integration",
+            "finance-payment-links",
+            "conta-azul-lovable-mappings",
+            "dre-plan",
+            "learning",
+            "conta-azul-test",
+          ],
         },
       ];
 
@@ -2188,6 +2302,16 @@
         setInputValueIfIdle("fpa-conta-azul-receivable-category-id", fpaExport.defaultReceivableCategoryId || "");
         setInputValueIfIdle("fpa-conta-azul-payable-category-id", fpaExport.defaultPayableCategoryId || "");
         setInputValueIfIdle("fpa-conta-azul-max-records", fpaExport.maxRecordsPerRun || 50);
+        const lc = settings.lovableContracts && typeof settings.lovableContracts === "object" ? settings.lovableContracts : {};
+        setInputValueIfIdle(
+          "fpa-conta-azul-contract-financial-account-id",
+          lc.defaultContractFinancialAccountId || CONTA_AZUL_DEFAULT_CONTRACT_FINANCIAL_ACCOUNT_PLACEHOLDER
+        );
+        const amountUnitNode = el("fpa-conta-azul-contract-amount-unit");
+        if (amountUnitNode && document.activeElement !== amountUnitNode) {
+          amountUnitNode.value = lc.contractAmountInputUnit === "reais" ? "reais" : "centavos";
+        }
+        renderContaAzulLovableContractMappings(settings.lovableContracts);
         el("fpa-conta-azul-only-unsent").classList.toggle("active", fpaExport.exportOnlyUnsent !== false);
         el("fpa-conta-azul-include-transfers").classList.toggle("active", fpaExport.includeInternalTransfers === true);
         el("fpa-conta-azul-secret-hint").textContent = settings.hasClientSecret
@@ -3094,6 +3218,88 @@
         };
       }
 
+      function readContaAzulLovableContractsForm() {
+        const readRows = (tbodyId, fields) => {
+          const tbody = el(tbodyId);
+          if (!tbody) return [];
+          return Array.from(tbody.querySelectorAll("tr"))
+            .map((row, index) => {
+              const o = { id: row.dataset.mappingId || `row_${index}` };
+              for (const f of fields) {
+                const input = row.querySelector(`[data-mapping-field="${f}"]`);
+                o[f] = input ? String(input.value || "").trim() : "";
+              }
+              return o;
+            })
+            .filter((row) => fields.some((f) => row[f]));
+        };
+        const amountUnit = el("fpa-conta-azul-contract-amount-unit")?.value === "reais" ? "reais" : "centavos";
+        const financeProductMappings = readRows("fpa-conta-azul-product-mappings-tbody", [
+          "financeProductId",
+          "financeProductLabel",
+          "contaAzulItemId",
+        ]).filter((m) => m.financeProductId && m.contaAzulItemId);
+        const financePaymentMappings = readRows("fpa-conta-azul-payment-mappings-tbody", [
+          "financePaymentKey",
+          "financePaymentLabel",
+          "contaAzulTipoPagamento",
+          "contaAzulFinancialAccountId",
+          "contaAzulItemId",
+          "contaAzulItemValor",
+        ]).filter(
+          (m) =>
+            m.financePaymentKey &&
+            (m.contaAzulTipoPagamento ||
+              m.contaAzulFinancialAccountId ||
+              m.contaAzulItemId ||
+              m.contaAzulItemValor)
+        );
+        return {
+          defaultContractFinancialAccountId: el("fpa-conta-azul-contract-financial-account-id")?.value.trim() || "",
+          contractAmountInputUnit: amountUnit,
+          financeProductMappings,
+          financePaymentMappings,
+        };
+      }
+
+      function buildContaAzulProductMappingRow(m) {
+        const rowId = m.id || `fpm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        return `<tr data-mapping-id="${escapeHtml(rowId)}">
+          <td><input class="field-input" data-mapping-field="financeProductId" type="text" value="${escapeHtml(m.financeProductId || "")}" style="min-width:120px;font-size:12px" /></td>
+          <td><input class="field-input" data-mapping-field="financeProductLabel" type="text" value="${escapeHtml(m.financeProductLabel || "")}" style="min-width:120px;font-size:12px" /></td>
+          <td><input class="field-input" data-mapping-field="contaAzulItemId" type="text" value="${escapeHtml(m.contaAzulItemId || "")}" style="min-width:160px;font-size:12px" placeholder="UUID no Conta Azul" /></td>
+          <td><button type="button" class="btn fpa-conta-azul-remove-product-mapping" style="padding:4px 8px">✕</button></td>
+        </tr>`;
+      }
+
+      function buildContaAzulPaymentMappingRow(m) {
+        const rowId = m.id || `fpay_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        return `<tr data-mapping-id="${escapeHtml(rowId)}">
+          <td><input class="field-input" data-mapping-field="financePaymentKey" type="text" value="${escapeHtml(m.financePaymentKey || "")}" style="min-width:100px;font-size:12px" placeholder="ex.: pix" /></td>
+          <td><input class="field-input" data-mapping-field="financePaymentLabel" type="text" value="${escapeHtml(m.financePaymentLabel || "")}" style="min-width:88px;font-size:12px" /></td>
+          <td><input class="field-input" data-mapping-field="contaAzulTipoPagamento" type="text" value="${escapeHtml(m.contaAzulTipoPagamento || "")}" style="min-width:100px;font-size:12px" placeholder="PIX" /></td>
+          <td><input class="field-input" data-mapping-field="contaAzulFinancialAccountId" type="text" value="${escapeHtml(m.contaAzulFinancialAccountId || "")}" style="min-width:120px;font-size:12px" placeholder="UUID conta" /></td>
+          <td><input class="field-input" data-mapping-field="contaAzulItemId" type="text" value="${escapeHtml(m.contaAzulItemId || "")}" style="min-width:120px;font-size:12px" placeholder="UUID item" /></td>
+          <td><input class="field-input" data-mapping-field="contaAzulItemValor" type="text" value="${escapeHtml(m.contaAzulItemValor != null && m.contaAzulItemValor !== "" ? String(m.contaAzulItemValor) : "")}" style="min-width:72px;font-size:12px" placeholder="—" /></td>
+          <td><button type="button" class="btn fpa-conta-azul-remove-payment-mapping" style="padding:4px 8px">✕</button></td>
+        </tr>`;
+      }
+
+      function renderContaAzulLovableContractMappings(lovableContracts) {
+        const lc = lovableContracts && typeof lovableContracts === "object" ? lovableContracts : {};
+        const productTbody = el("fpa-conta-azul-product-mappings-tbody");
+        const payTbody = el("fpa-conta-azul-payment-mappings-tbody");
+        if (!productTbody || !payTbody) return;
+        const products = Array.isArray(lc.financeProductMappings) ? lc.financeProductMappings : [];
+        const payments = Array.isArray(lc.financePaymentMappings) ? lc.financePaymentMappings : [];
+        const editingMapping =
+          (document.activeElement && productTbody.contains(document.activeElement)) ||
+          (document.activeElement && payTbody.contains(document.activeElement));
+        if (editingMapping) return;
+        productTbody.innerHTML = products.length ? products.map((m) => buildContaAzulProductMappingRow(m)).join("") : "";
+        payTbody.innerHTML = payments.length ? payments.map((m) => buildContaAzulPaymentMappingRow(m)).join("") : "";
+      }
+
       function readContaAzulOAuthForm() {
         const clientSecret = el("fpa-conta-azul-client-secret").value.trim();
         const patch = {
@@ -3310,6 +3516,7 @@
           body: JSON.stringify({
             contaAzul: readContaAzulOAuthForm(),
             fpaExport: readContaAzulFpaForm(),
+            lovableContracts: readContaAzulLovableContractsForm(),
           }),
         });
         state.fpa.contaAzul = result.contaAzul;
@@ -3742,6 +3949,23 @@
       el("btn-save-dre-account").addEventListener("click", () => saveDreAccount().catch((error) => toast(error.message)));
       el("btn-seed-dre-accounts").addEventListener("click", () => seedDreAccounts().catch((error) => toast(error.message)));
       el("btn-save-conta-azul-fpa").addEventListener("click", () => saveContaAzulFpaSettings().catch((error) => toast(error.message)));
+      function goToContaAzulLovableContractMappings() {
+        window.location.href = "/fpa/conta-azul-vinculos";
+      }
+      el("btn-jump-lovable-contract-mappings")?.addEventListener("click", goToContaAzulLovableContractMappings);
+      el("btn-go-conta-azul-lovable-mappings")?.addEventListener("click", goToContaAzulLovableContractMappings);
+      el("btn-add-conta-azul-product-mapping")?.addEventListener("click", () => {
+        el("fpa-conta-azul-product-mappings-tbody")?.insertAdjacentHTML("beforeend", buildContaAzulProductMappingRow({}));
+      });
+      el("btn-add-conta-azul-payment-mapping")?.addEventListener("click", () => {
+        el("fpa-conta-azul-payment-mappings-tbody")?.insertAdjacentHTML("beforeend", buildContaAzulPaymentMappingRow({}));
+      });
+      el("fpa-conta-azul-product-mappings-tbody")?.addEventListener("click", (e) => {
+        if (e.target.closest(".fpa-conta-azul-remove-product-mapping")) e.target.closest("tr")?.remove();
+      });
+      el("fpa-conta-azul-payment-mappings-tbody")?.addEventListener("click", (e) => {
+        if (e.target.closest(".fpa-conta-azul-remove-payment-mapping")) e.target.closest("tr")?.remove();
+      });
       el("btn-preview-conta-azul-fpa").addEventListener("click", () => previewContaAzulFpa().catch((error) => toast(error.message)));
       el("btn-push-conta-azul-fpa").addEventListener("click", () => pushContaAzulFpa().catch((error) => toast(error.message)));
       el("btn-run-conta-azul-reconciliation").addEventListener("click", () => reconcileContaAzulFpa().catch((error) => toast(error.message)));
@@ -3867,6 +4091,12 @@
 
       (async function boot() {
         await refreshFpa();
+        if (location.hash === "#conta-azul-lovable-mappings" || location.hash === "#lovable-mappings") {
+          setWorkflowStep("settings", { scroll: false });
+          requestAnimationFrame(() => {
+            document.getElementById("conta-azul-lovable-mappings")?.scrollIntoView({ block: "start" });
+          });
+        }
         loadLovableSyncs().catch(() => {});
         loadReceivablesOrchestrator().catch(() => {});
         bootstrapContaAzulLookups().catch(() => {});

@@ -12,6 +12,7 @@ const {
   buildContaAzulContractRecord,
   buildContaAzulFinancialAccountsPath,
   buildContaAzulFinancialCategoriesPath,
+  buildContaAzulProductsPath,
   buildContaAzulFinancialEventsSearchPath,
   buildContaAzulFpaExportPayload,
   buildContaAzulPeoplePath,
@@ -26,6 +27,7 @@ const {
   normalizeContaAzulFinancialInstallment,
   normalizeContaAzulListItems,
   normalizeContaAzulPerson,
+  normalizeContaAzulProduct,
   reconcileContaAzulFinancialRecords,
   sanitizeContaAzulSettings,
 } = require("../src/lib/conta-azul");
@@ -239,6 +241,12 @@ test("monta consultas e normaliza listas de pessoas, contas e categorias do Cont
     to: "2026-04-30",
     financialAccountId: "account_123",
   });
+  const productsPath = buildContaAzulProductsPath({
+    search: "Assessoria",
+    pageSize: 200,
+    status: "ATIVO",
+  });
+  const productsPathNoStatus = buildContaAzulProductsPath({ page: 2, pageSize: 50 });
   const person = normalizeContaAzulPerson({
     id: "person_123",
     nome: "Fornecedor Acme",
@@ -284,7 +292,23 @@ test("monta consultas e normaliza listas de pessoas, contas e categorias do Cont
   assert.match(receivableSearchPath, /data_vencimento_de=2026-04-01/);
   assert.match(receivableSearchPath, /data_vencimento_ate=2026-04-30/);
   assert.match(receivableSearchPath, /ids_contas_financeiras=account_123/);
+  assert.match(productsPath, /^\/v1\/produtos\?/);
+  assert.match(productsPath, /busca=Assessoria/);
+  assert.match(productsPath, /tamanho_pagina=200/);
+  assert.match(productsPath, /status=ATIVO/);
+  assert.match(productsPathNoStatus, /pagina=2/);
+  assert.doesNotMatch(productsPathNoStatus, /status=/);
+  const catalogItem = normalizeContaAzulProduct({
+    id: "uuid-serv-1",
+    nome: "Serviço recorrente",
+    sku: "SKU-9",
+    tipo: "SERVICO",
+  });
+  assert.equal(catalogItem.id, "uuid-serv-1");
+  assert.match(catalogItem.label, /Serviço recorrente/);
+  assert.match(catalogItem.label, /SKU-9/);
   assert.deepEqual(normalizeContaAzulListItems({ itens: [{ id: "x" }] }), [{ id: "x" }]);
+  assert.deepEqual(normalizeContaAzulListItems({ produtos: [{ id: "p1" }] }), [{ id: "p1" }]);
   assert.equal(person.id, "person_123");
   assert.equal(person.label, "Fornecedor Acme · 12.345.678/0001-99");
   assert.equal(account.id, "account_123");
@@ -381,7 +405,7 @@ test("monta payload de contrato recorrente do Lovable para o Conta Azul", () => 
   assert.equal(record.payload.id_categoria, "categoria_receita");
   assert.equal(record.payload.termos.numero, 4512645);
   assert.equal(record.payload.termos.tipo_frequencia, "MENSAL");
-  assert.equal(record.payload.condicao_pagamento.id_conta_financeira, "conta_default");
+  assert.equal(record.payload.condicao_pagamento.id_conta_financeira, "34afb732-3947-4fc8-9cb6-f9fec508872b");
   assert.equal(record.payload.condicao_pagamento.primeira_data_vencimento, "2026-05-10");
   assert.equal(record.payload.itens[0].id, "servico_123");
   assert.equal(record.payload.itens[0].valor, 990);
@@ -389,6 +413,132 @@ test("monta payload de contrato recorrente do Lovable para o Conta Azul", () => 
   assert.equal(response.id, "contrato_123");
   assert.equal(response.legacyId, 42);
   assert.equal(response.saleId, "venda_123");
+});
+
+test("lovableContracts.defaultContractFinancialAccountId tem precedencia sobre fpaExport para contrato", () => {
+  const settings = {
+    fpaExport: {
+      defaultFinancialAccountId: "fpa_conta",
+    },
+    lovableContracts: {
+      defaultContractFinancialAccountId: "conta_somente_contrato",
+    },
+  };
+  const record = buildContaAzulContractRecord({
+    settings,
+    nextContractNumber: 1,
+    source: { customerId: "c1", productId: "p1", amountCents: 1000, startDate: "2026-01-01", firstDueDate: "2026-01-10" },
+  });
+  assert.equal(record.payload.condicao_pagamento.id_conta_financeira, "conta_somente_contrato");
+});
+
+test("financePaymentMappings aplica condicao_pagamento, id_conta_financeira, itens[0] conforme forma de pagamento", () => {
+  const settings = mergeContaAzulSettings(
+    {
+      fpaExport: {
+        defaultReceivableCategoryId: "cat_r",
+        defaultFinancialAccountId: "conta_padrao",
+      },
+    },
+    {
+      lovableContracts: {
+        financePaymentMappings: [
+          {
+            financePaymentKey: "boleto",
+            contaAzulTipoPagamento: "BOLETO_BANCARIO",
+            contaAzulFinancialAccountId: "conta_boleto_uuid",
+            contaAzulItemId: "item_servico_boleto",
+            contaAzulItemValor: "150,50",
+          },
+        ],
+      },
+    }
+  );
+  const record = buildContaAzulContractRecord({
+    settings,
+    nextContractNumber: 50,
+    source: {
+      customerId: "c1",
+      productId: "prod_ignored",
+      amountCents: 10000,
+      startDate: "2026-01-01",
+      firstDueDate: "2026-01-10",
+      paymentMethod: "boleto",
+    },
+  });
+  assert.equal(record.payload.condicao_pagamento.tipo_pagamento, "BOLETO_BANCARIO");
+  assert.equal(record.payload.condicao_pagamento.id_conta_financeira, "conta_boleto_uuid");
+  assert.equal(record.payload.itens[0].id, "item_servico_boleto");
+  assert.equal(record.payload.itens[0].valor, 150.5);
+  assert.equal(record.amountCents, 15050);
+});
+
+test("baixa Lovable usa conta e metodo do financePaymentMappings quando a chave bate", () => {
+  const settings = mergeContaAzulSettings(
+    { fpaExport: { defaultFinancialAccountId: "conta_default" } },
+    {
+      lovableContracts: {
+        financePaymentMappings: [
+          {
+            financePaymentKey: "pix",
+            contaAzulFinancialAccountId: "conta_pix_mapeada",
+            contaAzulTipoPagamento: "PIX",
+          },
+        ],
+      },
+    }
+  );
+  const record = buildContaAzulAcquittanceRecord({
+    settings,
+    installmentId: "parc1",
+    source: { paymentMethod: "pix", amountCents: 10000 },
+  });
+  assert.equal(record.payload.conta_financeira, "conta_pix_mapeada");
+  assert.equal(record.payload.metodo_pagamento, "PIX");
+});
+
+test("contaAzulContractPayload vazio nao descarta o payload calculado (merge com base)", () => {
+  const record = buildContaAzulContractRecord({
+    settings: { fpaExport: { defaultReceivableCategoryId: "categoria_receita" } },
+    nextContractNumber: 100,
+    source: {
+      contractId: "c_webhook",
+      customerId: "pessoa-1",
+      productId: "prod-map-1",
+      amountCents: 0,
+      startDate: "2026-01-01",
+      firstDueDate: "2026-01-10",
+      contaAzulContractPayload: {},
+    },
+  });
+  assert.equal(record.payload.itens[0].valor, 0);
+  assert.equal(record.payload.itens[0].id, "prod-map-1");
+  assert.equal(record.payload.condicao_pagamento.id_conta_financeira, "34afb732-3947-4fc8-9cb6-f9fec508872b");
+  assert.equal(record.missingRequiredFields.filter((f) => f === "itens[0].valor").length, 0);
+  assert.deepEqual(record.missingRequiredFields, []);
+});
+
+test("contaAzulContractPayload com strings vazias nao apaga id_conta_financeira nem itens[0] da base", () => {
+  const record = buildContaAzulContractRecord({
+    settings: { fpaExport: { defaultReceivableCategoryId: "categoria_receita" } },
+    nextContractNumber: 200,
+    source: {
+      contractId: "c_finance",
+      customerId: "pessoa-2",
+      productId: "prod-x",
+      amountCents: 5000,
+      startDate: "2026-02-01",
+      firstDueDate: "2026-02-10",
+      contaAzulContractPayload: {
+        condicao_pagamento: { id_conta_financeira: "" },
+        itens: [{ id: "", descricao: "Sobrescreve descricao" }],
+      },
+    },
+  });
+  assert.equal(record.payload.condicao_pagamento.id_conta_financeira, "34afb732-3947-4fc8-9cb6-f9fec508872b");
+  assert.equal(record.payload.itens[0].id, "prod-x");
+  assert.equal(record.payload.itens[0].valor, 50);
+  assert.deepEqual(record.missingRequiredFields, []);
 });
 
 test("mapeia contrato vindo do Finance com billing_clients em lista e campos em snake_case", () => {

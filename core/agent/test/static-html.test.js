@@ -10,7 +10,7 @@ test("pagina inicial Colli Finance OS aponta para os modulos principais", async 
   assert.match(html, /href="\/fpa"/);
   assert.match(html, /href="\/cobrancas"/);
   assert.match(html, /href="\/extrator"/);
-  assert.match(html, /href="\/fpa#lovable-integration"/);
+  assert.match(html, /href="\/fpa\/conta-azul-vinculos"/);
   assert.match(html, /@media \(max-width: 760px\)/);
   assert.doesNotMatch(html, /href="#fpsa"/);
 });
@@ -178,4 +178,25 @@ test("pagina FP&A alerta quando persistencia duravel nao esta configurada", asyn
   assert.match(html, /Configure DATABASE_URL/);
   assert.match(html, /Secret salvo no servidor/);
   assert.match(html, /Segredo salvo no servidor/);
+});
+
+test("pagina dedicada de vínculos Finance Conta Azul e rota no servidor", async () => {
+  const html = await fs.readFile(path.join(__dirname, "..", "src", "static", "conta-azul-vinculos.html"), "utf8");
+  const server = await fs.readFile(path.join(__dirname, "..", "src", "server.js"), "utf8");
+
+  assert.equal(/[\u201c\u201d]/.test(html), false);
+  assert.match(html, /href="\/fpa\/conta-azul-vinculos"/);
+  assert.match(html, /\/api\/fpa\/conta-azul\/settings/);
+  assert.match(html, /fetch\(path,\s*\{\s*credentials:\s*"same-origin",\s*\.\.\.options\s*\}\)/);
+  assert.match(server, /conta-azul-vinculos\.html/);
+  assert.match(server, /\/fpa\/conta-azul-vinculos/);
+  assert.match(html, /\/api\/conta-azul\/products/);
+  assert.match(server, /\/api\/conta-azul\/products/);
+});
+
+test("menu lateral FP&A aponta para página de vínculos Conta Azul", async () => {
+  const html = await fs.readFile(path.join(__dirname, "..", "src", "static", "fpa.html"), "utf8");
+
+  assert.match(html, /href="\/fpa\/conta-azul-vinculos"/);
+  assert.match(html, /Vínculos Finance → CA/);
 });
