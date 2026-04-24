@@ -114,6 +114,20 @@ function readNestedValue(source, path) {
   return current;
 }
 
+/** Like readNestedValue but returns an array as-is (no unwrap of first element). */
+function readNestedArray(source, path) {
+  const parts = String(path || "")
+    .split(".")
+    .filter(Boolean);
+  let current = source;
+  for (const part of parts) {
+    if (current == null || typeof current !== "object") return undefined;
+    if (!(part in current)) return undefined;
+    current = current[part];
+  }
+  return Array.isArray(current) ? current : undefined;
+}
+
 function pickFirstNested(source, paths = []) {
   for (const path of paths) {
     const value = readNestedValue(source, path);
@@ -252,18 +266,30 @@ function normalizeContaAzulConnectedAccount(account) {
 function normalizeContaAzulListItems(payload) {
   if (Array.isArray(payload)) return payload;
   const safePayload = payload && typeof payload === "object" ? payload : {};
-  return [
-    safePayload.itens,
-    safePayload.items,
-    safePayload.produtos,
-    safePayload.data,
-    safePayload.pessoas,
-    safePayload.contas,
-    safePayload.contas_financeiras,
-    safePayload.categorias,
-    safePayload.results,
-    safePayload.content,
-  ].find(Array.isArray) || [];
+  const nestedArrays = [
+    readNestedArray(safePayload, "data.itens"),
+    readNestedArray(safePayload, "data.items"),
+    readNestedArray(safePayload, "data.produtos"),
+    readNestedArray(safePayload, "resultado.itens"),
+    readNestedArray(safePayload, "result.itens"),
+  ];
+  return (
+    [
+      safePayload.itens,
+      safePayload.items,
+      safePayload.produtos,
+      safePayload.lista,
+      safePayload.registros,
+      ...nestedArrays,
+      safePayload.data,
+      safePayload.pessoas,
+      safePayload.contas,
+      safePayload.contas_financeiras,
+      safePayload.categorias,
+      safePayload.results,
+      safePayload.content,
+    ].find(Array.isArray) || []
+  );
 }
 
 function normalizeContaAzulPersonProfileType(value) {
@@ -360,12 +386,33 @@ function normalizeContaAzulFinancialCategory(category) {
   };
 }
 
+function formatContaAzulProductKind(raw) {
+  const u = String(raw || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+  if (!u) return "";
+  if (u.includes("SERV") || u === "SERVICE") return "Serviço";
+  if (u.includes("PROD") && !u.includes("PRODUC")) return "Produto";
+  if (u === "PRODUCT") return "Produto";
+  return normalizeOptionalText(raw, 40) || "";
+}
+
 function normalizeContaAzulProduct(product) {
   const safe = product && typeof product === "object" ? product : {};
   const id = normalizeOptionalText(safe.id || safe.uuid || safe.produto_id || safe.id_produto, 120);
   const name = normalizeOptionalText(safe.nome || safe.name || safe.descricao || safe.description, 200);
   const sku = normalizeOptionalText(safe.sku || safe.codigo || safe.codigo_sku, 80);
-  const kind = normalizeOptionalText(safe.tipo || safe.type || safe.tipo_item, 40);
+  const kindRaw =
+    safe.tipo ||
+    safe.type ||
+    safe.tipo_item ||
+    safe.tipoItem ||
+    safe.tipo_produto ||
+    safe.tipoProduto ||
+    safe.natureza ||
+    safe.classificacao;
+  const kind = formatContaAzulProductKind(kindRaw) || normalizeOptionalText(kindRaw, 40) || "";
   const label = [name || id || "Item sem nome", sku || null, kind || null].filter(Boolean).join(" · ");
 
   return {
@@ -1983,6 +2030,7 @@ module.exports = {
   normalizeContaAzulPerson,
   normalizeContaAzulPersonProfileType,
   normalizeContaAzulProduct,
+  normalizeContaAzulProductsPageSize,
   normalizeContaAzulSettings,
   prependContaAzulSyncHistory,
   reconcileContaAzulFinancialRecords,

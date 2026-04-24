@@ -192,6 +192,8 @@ test("pagina dedicada de vínculos Finance Conta Azul e rota no servidor", async
   assert.match(server, /\/fpa\/conta-azul-vinculos/);
   assert.match(html, /\/api\/conta-azul\/products/);
   assert.match(server, /\/api\/conta-azul\/products/);
+  assert.match(html, /\/api\/finance\/products/);
+  assert.match(server, /\/api\/finance\/products/);
 });
 
 test("menu lateral FP&A aponta para página de vínculos Conta Azul", async () => {

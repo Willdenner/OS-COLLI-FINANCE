@@ -308,8 +308,12 @@ test("monta consultas e normaliza listas de pessoas, contas e categorias do Cont
   assert.equal(catalogItem.id, "uuid-serv-1");
   assert.match(catalogItem.label, /Serviço recorrente/);
   assert.match(catalogItem.label, /SKU-9/);
+  assert.match(catalogItem.label, /Serviço/);
   assert.deepEqual(normalizeContaAzulListItems({ itens: [{ id: "x" }] }), [{ id: "x" }]);
   assert.deepEqual(normalizeContaAzulListItems({ produtos: [{ id: "p1" }] }), [{ id: "p1" }]);
+  assert.deepEqual(normalizeContaAzulListItems({ data: { itens: [{ id: "nested" }] } }), [{ id: "nested" }]);
+  const prodKind = normalizeContaAzulProduct({ id: "p2", nome: "Mesa", tipo: "PRODUTO" });
+  assert.match(prodKind.label, /Produto/);
   assert.equal(person.id, "person_123");
   assert.equal(person.label, "Fornecedor Acme · 12.345.678/0001-99");
   assert.equal(account.id, "account_123");

@@ -390,14 +390,26 @@
             </div>
           </div>
           <div class="card-body">
+            <div class="inline-tools" style="margin-bottom: 12px; gap: 10px; flex-wrap: wrap; align-items: center">
+              <input
+                class="field-input"
+                id="cazv-finance-products-search"
+                type="search"
+                placeholder="Filtrar produtos Finance (opcional)"
+                autocomplete="off"
+                style="max-width: 220px; font-size: 11px"
+              />
+              <button class="btn btn-primary" id="cazv-btn-load-finance-products" type="button">Carregar produtos do Finance</button>
+              <span class="field-hint" id="cazv-finance-products-status" style="flex: 1; min-width: 180px"></span>
+            </div>
             <p class="field-hint" style="margin-bottom: 12px">
-              Na coluna à direita, escolha o item na lista (carregada acima) ou cole o UUID manualmente.
+              À esquerda, use a lista do Colli Finance (variável <code>COLLI_FINANCE_PRODUCTS_URL</code>) ou digite o ID. À direita, escolha o item no Conta Azul (lista do catálogo acima) ou cole o UUID.
             </p>
             <div class="table-wrap" style="max-height: 320px; overflow: auto">
               <table class="data-table" style="font-size: 12px">
                 <thead>
                   <tr>
-                    <th>ID produto (Finance)</th>
+                    <th>Produto Finance (lista + ID)</th>
                     <th>Descrição (opcional)</th>
                     <th>Item Conta Azul (lista + UUID)</th>
                     <th style="width: 72px"></th>
@@ -444,7 +456,7 @@
     <div class="toast" id="toast"></div>
 
     <script>
-      const cazvState = { catalogItems: [] };
+      const cazvState = { catalogItems: [], financeProducts: [] };
 
       function el(id) {
         return document.getElementById(id);
@@ -531,6 +543,33 @@
         };
       }
 
+      function financeProductOptionsHtml(selectedId) {
+        const sel = selectedId ? String(selectedId).trim() : "";
+        const emptyHint = cazvState.financeProducts.length
+          ? "— Escolher produto do Finance —"
+          : "— Carregue produtos do Finance —";
+        const opts = [`<option value="">${emptyHint}</option>`];
+        for (const it of cazvState.financeProducts) {
+          const id = it.id;
+          if (!id) continue;
+          const label = it.label || it.name || id;
+          opts.push(`<option value="${escapeHtml(id)}"${id === sel ? " selected" : ""}>${escapeHtml(label)}</option>`);
+        }
+        return opts.join("");
+      }
+
+      function syncFinanceProductPickers() {
+        document.querySelectorAll("#cazv-product-tbody tr").forEach((row) => {
+          const pick = row.querySelector(".cazv-pick-finance-product");
+          const idInp = row.querySelector('[data-mapping-field="financeProductId"]');
+          if (!pick || !idInp) return;
+          const v = idInp.value.trim();
+          pick.innerHTML = financeProductOptionsHtml(v);
+          if (v && cazvState.financeProducts.some((x) => x.id === v)) pick.value = v;
+          else pick.value = "";
+        });
+      }
+
       function catalogOptionsHtml(selectedId) {
         const sel = selectedId ? String(selectedId).trim() : "";
         const hint = cazvState.catalogItems.length
@@ -570,9 +609,15 @@
 
       function buildProductRow(m) {
         const rowId = m.id || `fpm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const fid = escapeHtml(m.financeProductId || "");
+        const flabel = escapeHtml(m.financeProductLabel || "");
         return `<tr data-mapping-id="${escapeHtml(rowId)}">
-          <td><input class="field-input" data-mapping-field="financeProductId" type="text" value="${escapeHtml(m.financeProductId || "")}" style="min-width:120px;font-size:12px" /></td>
-          <td><input class="field-input" data-mapping-field="financeProductLabel" type="text" value="${escapeHtml(m.financeProductLabel || "")}" style="min-width:120px;font-size:12px" /></td>
+          <td><div class="cazv-finance-prod-cell" style="min-width: 210px">
+            <select class="field-select cazv-pick-finance-product" aria-label="Produto no Finance" style="font-size:11px;margin-bottom:6px;max-width:100%"></select>
+            <input class="field-input" data-mapping-field="financeProductId" type="text" value="${fid}" style="min-width:120px;font-size:11px" placeholder="ID (lista ou manual)" />
+            <div class="field-hint" style="margin:4px 0 0;font-size:10px">Sem URL no ambiente? Digite só o ID.</div>
+          </div></td>
+          <td><input class="field-input" data-mapping-field="financeProductLabel" type="text" value="${flabel}" style="min-width:120px;font-size:12px" /></td>
           <td>${itemPickerCellHtml(m)}</td>
           <td><button type="button" class="btn cazv-remove-product" style="padding:4px 8px">✕</button></td>
         </tr>`;
@@ -601,9 +646,43 @@
         const payBody = el("cazv-payment-tbody");
         pBody.innerHTML = products.length ? products.map((m) => buildProductRow(m)).join("") : "";
         payBody.innerHTML = payments.length ? payments.map((m) => buildPaymentRow(m)).join("") : "";
+        syncFinanceProductPickers();
         syncItemPickersWithInputs();
         el("cazv-alert").textContent =
           "Revise as linhas e clique em Salvar vínculos. Alterações passam a valer para contratos e baixas enviados pelo Lovable.";
+      }
+
+      async function loadFinanceProducts(opts) {
+        const silent = opts && opts.silent === true;
+        const btn = el("cazv-btn-load-finance-products");
+        const statusEl = el("cazv-finance-products-status");
+        const searchInp = el("cazv-finance-products-search");
+        const search = searchInp ? searchInp.value.trim() : "";
+        const original = btn ? btn.textContent : "";
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = "Carregando…";
+        }
+        try {
+          const result = await api(`/api/finance/products${buildQueryString({ search })}`);
+          cazvState.financeProducts = Array.isArray(result.items) ? result.items : [];
+          if (!result.configured) {
+            statusEl.textContent =
+              "Defina COLLI_FINANCE_PRODUCTS_URL no Render para listar produtos do Finance aqui.";
+          } else {
+            statusEl.textContent = `${cazvState.financeProducts.length} produto(s) · ${result.message || "ok"}`;
+          }
+          syncFinanceProductPickers();
+          if (!silent && result.configured) toast(`Finance: ${cazvState.financeProducts.length} produto(s).`);
+        } catch (e) {
+          statusEl.textContent = e.message || "Falha ao buscar produtos do Finance.";
+          if (!silent) toast(e.message || "Falha ao buscar Finance.");
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = original || "Carregar produtos do Finance";
+          }
+        }
       }
 
       async function loadCatalog(opts) {
@@ -695,10 +774,35 @@
         else pick.value = "";
       }
 
+      function onFinanceProductPickerChange(ev) {
+        const t = ev.target;
+        if (!t.classList.contains("cazv-pick-finance-product")) return;
+        const row = t.closest("tr");
+        const idInp = row && row.querySelector('[data-mapping-field="financeProductId"]');
+        const labelInp = row && row.querySelector('[data-mapping-field="financeProductLabel"]');
+        if (!idInp || !t.value) return;
+        const item = cazvState.financeProducts.find((x) => x.id === t.value);
+        idInp.value = t.value;
+        if (labelInp && item && item.name) labelInp.value = item.name;
+      }
+
+      function onFinanceProductIdInput(ev) {
+        const t = ev.target;
+        if (t.getAttribute("data-mapping-field") !== "financeProductId") return;
+        const row = t.closest("tr");
+        const pick = row && row.querySelector(".cazv-pick-finance-product");
+        if (!pick) return;
+        const v = t.value.trim();
+        if (v && cazvState.financeProducts.some((x) => x.id === v)) pick.value = v;
+        else pick.value = "";
+      }
+
       el("cazv-btn-save").addEventListener("click", () => saveVinculos().catch((e) => toast(e.message)));
       el("cazv-btn-load-catalog").addEventListener("click", () => loadCatalog({}).catch((e) => toast(e.message)));
+      el("cazv-btn-load-finance-products").addEventListener("click", () => loadFinanceProducts({}).catch((e) => toast(e.message)));
       el("cazv-btn-add-product").addEventListener("click", () => {
         el("cazv-product-tbody").insertAdjacentHTML("beforeend", buildProductRow({}));
+        syncFinanceProductPickers();
         syncItemPickersWithInputs();
       });
       el("cazv-btn-add-payment").addEventListener("click", () => {
@@ -711,13 +815,15 @@
       el("cazv-payment-tbody").addEventListener("click", (e) => {
         if (e.target.closest(".cazv-remove-payment")) e.target.closest("tr")?.remove();
       });
+      el("cazv-product-tbody").addEventListener("change", onFinanceProductPickerChange);
       el("cazv-product-tbody").addEventListener("change", onItemPickerChange);
       el("cazv-payment-tbody").addEventListener("change", onItemPickerChange);
+      el("cazv-product-tbody").addEventListener("input", onFinanceProductIdInput);
       el("cazv-product-tbody").addEventListener("input", onItemIdInput);
       el("cazv-payment-tbody").addEventListener("input", onItemIdInput);
 
       loadSettings()
-        .then(() => loadCatalog({ silent: true }))
+        .then(() => Promise.all([loadCatalog({ silent: true }), loadFinanceProducts({ silent: true })]))
         .catch(() => {});
     </script>
   </body>

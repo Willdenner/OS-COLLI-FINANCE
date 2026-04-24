@@ -84,6 +84,7 @@ const {
   normalizeContaAzulProduct,
   normalizeContaAzulListItems,
   normalizeContaAzulPerson,
+  normalizeContaAzulProductsPageSize,
   normalizeContaAzulSettings,
   reconcileContaAzulFinancialRecords,
   resolveContaAzulEndpointUrl,
@@ -537,6 +538,32 @@ async function fetchContaAzulJson(contaAzulSettings, endpointPath) {
   }
 
   return { endpoint, response, parsed };
+}
+
+async function fetchContaAzulProductsAggregated(contaAzulSettings, { search, status, pageSize: requestedSize } = {}) {
+  const pageSize = normalizeContaAzulProductsPageSize(requestedSize ?? 500);
+  const maxPages = 30;
+  const all = [];
+  const seen = new Set();
+  let page = 1;
+  let lastEndpoint = "";
+  while (page <= maxPages) {
+    const endpointPath = buildContaAzulProductsPath({ search, page, pageSize, status });
+    const result = await fetchContaAzulJson(contaAzulSettings, endpointPath);
+    lastEndpoint = result.endpoint;
+    const batch = normalizeContaAzulListItems(result.parsed.json).map(normalizeContaAzulProduct).filter((item) => item.id);
+    for (const item of batch) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      all.push(item);
+    }
+    const reported = Number(result.parsed.json?.total_itens ?? result.parsed.json?.totalItems ?? 0);
+    if (batch.length === 0) break;
+    if (batch.length < pageSize) break;
+    if (Number.isFinite(reported) && reported > 0 && all.length >= reported) break;
+    page += 1;
+  }
+  return { items: all, total: all.length, endpoint: lastEndpoint };
 }
 
 async function postContaAzulJson(contaAzulSettings, endpointPath, payload) {
@@ -1164,6 +1191,20 @@ function extractFinanceResponseItems(body, keys) {
   return Array.isArray(items) ? items : [];
 }
 
+function normalizeFinanceProduct(raw) {
+  const o = raw && typeof raw === "object" ? raw : {};
+  const id = truncateText(String(o.id ?? o.product_id ?? o.productId ?? o.uuid ?? o.code ?? "").trim(), 120);
+  const name = truncateText(String(o.name ?? o.title ?? o.nome ?? o.description ?? o.descricao ?? "").trim(), 200);
+  const kind = truncateText(String(o.kind ?? o.type ?? o.tipo ?? o.category ?? "").trim(), 80);
+  const label = [name || id || "Produto", kind || null].filter(Boolean).join(" · ");
+  return {
+    id: id || null,
+    name: name || null,
+    kind: kind || null,
+    label: label || id || null,
+  };
+}
+
 function readFinanceBearerToken() {
   return readFirstEnvValue(["COLLI_FINANCE_API_TOKEN", "FINANCE_API_TOKEN", "LOVABLE_API_TOKEN"]);
 }
@@ -1208,6 +1249,15 @@ const FINANCE_RESOURCES = {
     bodyKeys: ["payments", "receipts", "paidCards", "data.payments"],
     responseKeys: ["payments", "receipts", "paidCards", "data.payments", "data.receipts", "data", "items", "records"],
     queryForDate: (businessDate) => ({ businessDate, paymentDate: businessDate, status: "paid" }),
+  },
+  products: {
+    key: "products",
+    title: "Produtos",
+    resourceLabel: "produtos cadastrados no Finance",
+    envKeys: ["COLLI_FINANCE_PRODUCTS_URL", "FINANCE_PRODUCTS_URL"],
+    bodyKeys: ["products", "data.products", "produtos", "items"],
+    responseKeys: ["products", "data.products", "produtos", "items", "records", "data", "results"],
+    queryForDate: () => ({}),
   },
 };
 
@@ -2867,11 +2917,31 @@ app.get(
     const currentSettings = await getSettings();
     const contaAzulSettings = await ensureContaAzulAccessToken(currentSettings, { allowRefresh: true });
     const statusRaw = req.query?.status;
+    const status = statusRaw === undefined || statusRaw === "" ? undefined : String(statusRaw).trim();
+    const search = req.query?.search || req.query?.busca || "";
+    const explicitPage = req.query?.page || req.query?.pagina;
+    const pageSize = req.query?.pageSize || req.query?.tamanho_pagina;
+    const wantAllPages = !explicitPage && String(req.query?.allPages ?? "true").toLowerCase() !== "false";
+
+    if (wantAllPages) {
+      const aggregated = await fetchContaAzulProductsAggregated(contaAzulSettings, { search, status, pageSize });
+      res.json({
+        ok: true,
+        endpoint: aggregated.endpoint,
+        responseCode: 200,
+        search,
+        allPages: true,
+        total: aggregated.total,
+        items: aggregated.items,
+      });
+      return;
+    }
+
     const endpointPath = buildContaAzulProductsPath({
-      search: req.query?.search || req.query?.busca,
-      page: req.query?.page || req.query?.pagina,
-      pageSize: req.query?.pageSize || req.query?.tamanho_pagina,
-      status: statusRaw === undefined || statusRaw === "" ? undefined : String(statusRaw).trim(),
+      search,
+      page: explicitPage,
+      pageSize,
+      status,
     });
     const result = await fetchContaAzulJson(contaAzulSettings, endpointPath);
     const items = normalizeContaAzulListItems(result.parsed.json).map(normalizeContaAzulProduct).filter((item) => item.id);
@@ -2880,8 +2950,42 @@ app.get(
       ok: true,
       endpoint: result.endpoint,
       responseCode: result.response.status,
-      search: req.query?.search || req.query?.busca || "",
+      search,
+      allPages: false,
       total: Number(result.parsed.json?.total_itens || result.parsed.json?.totalItems || items.length) || items.length,
+      items,
+    });
+  })
+);
+
+app.get(
+  "/api/finance/products",
+  asyncHandler(async (req, res) => {
+    const resource = FINANCE_RESOURCES.products;
+    const search = String(req.query?.search || req.query?.q || "").trim();
+    const query = { ...resource.queryForDate(getBusinessDate()) };
+    if (search) {
+      query.search = search;
+      query.q = search;
+      query.busca = search;
+    }
+    const pull = await fetchFinanceCollection({
+      body: {},
+      bodyKeys: resource.bodyKeys,
+      envKeys: resource.envKeys,
+      responseKeys: resource.responseKeys,
+      query,
+      resourceLabel: resource.resourceLabel,
+    });
+    const items = pull.items.map(normalizeFinanceProduct).filter((item) => item.id);
+    res.json({
+      ok: true,
+      configured: pull.configured,
+      source: pull.source,
+      configuredEnvKey: pull.configuredEnvKey || null,
+      expectedEnvKey: pull.expectedEnvKey,
+      message: pull.message,
+      search,
       items,
     });
   })
