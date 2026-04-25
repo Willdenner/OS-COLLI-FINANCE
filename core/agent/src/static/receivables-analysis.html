@@ -895,6 +895,11 @@
       return Array.isArray(run?.financePayload?.products) ? run.financePayload.products : [];
     }
 
+    function financeCategoriesForRun() {
+      const run = selectedRun();
+      return Array.isArray(run?.financePayload?.categories) ? run.financePayload.categories : [];
+    }
+
     function buildFinanceProductsLookup() {
       const map = new Map();
       for (const product of financeProductsForRun()) {
@@ -923,6 +928,37 @@
           firstValue(product, ["categoryName"]),
           firstValue(product, ["product_category"]),
           firstValue(product, ["productCategory"]),
+        ]) {
+          const key = normalizeFinanceLookupKey(raw);
+          if (key && !map.has(key)) map.set(key, label);
+        }
+      }
+      return map;
+    }
+
+    function buildFinanceCategoriesLookup() {
+      const map = new Map();
+      for (const category of financeCategoriesForRun()) {
+        if (!category || typeof category !== "object") continue;
+        const label = firstText(category, ["name", "nome", "title", "label", "category_name", "categoryName", "description", "descricao"], 220) ||
+          firstText(category, ["id", "category_id", "categoryId", "uuid", "code", "codigo", "slug"], 120);
+        if (!label) continue;
+        for (const raw of [
+          firstValue(category, ["id"]),
+          firstValue(category, ["category_id"]),
+          firstValue(category, ["categoryId"]),
+          firstValue(category, ["uuid"]),
+          firstValue(category, ["code"]),
+          firstValue(category, ["codigo"]),
+          firstValue(category, ["slug"]),
+          firstValue(category, ["name"]),
+          firstValue(category, ["nome"]),
+          firstValue(category, ["title"]),
+          firstValue(category, ["label"]),
+          firstValue(category, ["category_name"]),
+          firstValue(category, ["categoryName"]),
+          firstValue(category, ["description"]),
+          firstValue(category, ["descricao"]),
         ]) {
           const key = normalizeFinanceLookupKey(raw);
           if (key && !map.has(key)) map.set(key, label);
@@ -1200,6 +1236,7 @@
           name: saved,
           sourcePath: firstText(item, ["financeCategorySourcePath"], 220),
           rawValue: firstText(item, ["financeCategoryRawValue"], 180),
+          method: firstText(item, ["financeCategoryResolution"], 80),
         };
       }
       const paths = [
@@ -1271,13 +1308,25 @@
           });
         });
       });
+      const lookup = buildFinanceCategoriesLookup();
+      if (lookup.size) {
+        for (const entry of candidates) {
+          const key = normalizeFinanceLookupKey(entry.value);
+          const exact = lookup.get(key);
+          if (exact) return { name: exact, sourcePath: entry.path, rawValue: entry.value, method: "category_catalog" };
+          for (const [catalogKey, catalogLabel] of lookup.entries()) {
+            if (key.length >= 4 && catalogKey.includes(key)) return { name: catalogLabel, sourcePath: entry.path, rawValue: entry.value, method: "category_catalog_contains" };
+            if (catalogKey.length >= 4 && key.includes(catalogKey)) return { name: catalogLabel, sourcePath: entry.path, rawValue: entry.value, method: "category_catalog_contains" };
+          }
+        }
+      }
       const best = candidates
         .filter((entry) => {
           const value = String(entry.value || "").trim();
           return value.length >= 2 && value.length <= 180 && !/^\d{4}-\d{2}-\d{2}/.test(value) && !/^[\d\s.,/-]+$/.test(value);
         })
         .sort((a, b) => b.score - a.score)[0];
-      return best ? { name: best.value, sourcePath: best.path, rawValue: best.value } : { name: "", sourcePath: "", rawValue: "" };
+      return best ? { name: best.value, sourcePath: best.path, rawValue: best.value, method: "payload_field" } : { name: "", sourcePath: "", rawValue: "", method: "" };
     }
 
     function buildStatusClass(status, fallback = "") {
@@ -1343,6 +1392,7 @@
         financeCategory: categoryInfo.name || "",
         financeCategorySource: categoryInfo.sourcePath || "",
         financeCategoryRawValue: categoryInfo.rawValue || "",
+        financeCategoryResolution: categoryInfo.method || "",
         apiFields: apiDebug.fields,
         rawJson: apiDebug.json,
         statusLabel: status,
@@ -1404,7 +1454,7 @@
               </div>
               ${item.secondary ? `<div class="kc-card-sub">${escapeHtml(item.secondary)}</div>` : ""}
               ${item.service ? `<div class="kc-card-service"><span class="kc-card-service-label">Servico contratado${item.serviceSource ? ` · ${escapeHtml(item.serviceSource)}` : ""}</span>${escapeHtml(item.service)}${item.serviceRawValue && item.serviceRawValue !== item.service ? `<div class="kc-card-sub">Valor bruto: ${escapeHtml(item.serviceRawValue)}</div>` : ""}</div>` : ""}
-              ${item.financeCategory ? `<div class="kc-card-service"><span class="kc-card-service-label">Categoria no Finance${item.financeCategorySource ? ` · ${escapeHtml(item.financeCategorySource)}` : ""}</span>${escapeHtml(item.financeCategory)}${item.financeCategoryRawValue && item.financeCategoryRawValue !== item.financeCategory ? `<div class="kc-card-sub">Valor bruto: ${escapeHtml(item.financeCategoryRawValue)}</div>` : ""}</div>` : ""}
+              ${item.financeCategory ? `<div class="kc-card-service"><span class="kc-card-service-label">Categoria no Finance${item.financeCategorySource ? ` · ${escapeHtml(item.financeCategorySource)}` : ""}</span>${escapeHtml(item.financeCategory)}${item.financeCategoryRawValue && item.financeCategoryRawValue !== item.financeCategory ? `<div class="kc-card-sub">Valor bruto: ${escapeHtml(item.financeCategoryRawValue)}</div>` : ""}${item.financeCategoryResolution ? `<div class="kc-card-sub">Resolucao: ${escapeHtml(item.financeCategoryResolution)}</div>` : ""}</div>` : ""}
               ${(item.apiFields && item.apiFields.length) || item.rawJson ? `
                 <details class="kc-api-debug">
                   <summary>Campos recebidos do Finance</summary>

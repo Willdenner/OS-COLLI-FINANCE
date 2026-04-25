@@ -62,10 +62,13 @@ test("pagina de analise do orquestrador detalha payloads, exportacoes e motivos 
   assert.match(html, /Servico contratado/);
   assert.match(html, /Categoria no Finance/);
   assert.match(html, /extractFinanceCategoryInfo/);
+  assert.match(html, /financeCategoriesForRun/);
   assert.match(html, /Campos recebidos do Finance/);
   assert.match(html, /summarizeFinanceContractApiFields/);
   assert.match(html, /extractContractedService/);
   assert.match(server, /enrichFinanceContractForReceivables/);
+  assert.match(server, /COLLI_FINANCE_CATEGORIES_URL/);
+  assert.match(server, /\/api\/finance\/categories/);
   assert.match(server, /RECEIVABLES_ANALYSIS_INDEX/);
   assert.match(server, /sendReceivablesAnalysisPage/);
   assert.match(server, /app\.get\("\/fpa\/receivables-analysis", sendReceivablesAnalysisPage\)/);

@@ -509,7 +509,64 @@ function extractFinanceContractServiceName(contract = {}, products = []) {
   return extractFinanceContractServiceInfo(contract, products)?.name || "";
 }
 
-function extractFinanceContractCategoryInfo(contract = {}) {
+function buildFinanceCategoryCatalogLookup(categories = []) {
+  const map = new Map();
+  for (const raw of Array.isArray(categories) ? categories : []) {
+    const normalized = normalizeFinanceCategory(raw);
+    const label = normalized.name || normalized.label || normalized.id || "";
+    if (!label) continue;
+    const source = raw && typeof raw === "object" ? raw : {};
+    for (const candidate of [
+      normalized.id,
+      normalized.name,
+      normalized.label,
+      source.id,
+      source.category_id,
+      source.categoryId,
+      source.uuid,
+      source.code,
+      source.codigo,
+      source.slug,
+      source.nome,
+      source.name,
+      source.title,
+      source.label,
+      source.description,
+      source.descricao,
+      source.category_name,
+      source.categoryName,
+    ]) {
+      const key = normalizeFinanceLookupKey(candidate);
+      if (key && !map.has(key)) map.set(key, label);
+    }
+  }
+  return map;
+}
+
+function resolveFinanceContractCategoryFromCatalogInfo(contract = {}, categories = []) {
+  const lookup = buildFinanceCategoryCatalogLookup(categories);
+  if (!lookup.size) return null;
+  const entries = collectFinanceContractProductEntries(
+    contract,
+    FINANCE_CONTRACT_CATEGORY_PATHS,
+    FINANCE_CONTRACT_CATEGORY_ROW_PATHS
+  );
+  for (const entry of entries) {
+    const key = normalizeFinanceLookupKey(entry.value);
+    const exact = lookup.get(key);
+    if (exact) return { name: exact, sourcePath: entry.path, rawValue: entry.value, method: "category_catalog" };
+    for (const [catalogKey, catalogLabel] of lookup.entries()) {
+      if (key.length >= 4 && catalogKey.includes(key)) return { name: catalogLabel, sourcePath: entry.path, rawValue: entry.value, method: "category_catalog_contains" };
+      if (catalogKey.length >= 4 && key.includes(catalogKey)) return { name: catalogLabel, sourcePath: entry.path, rawValue: entry.value, method: "category_catalog_contains" };
+    }
+  }
+  return null;
+}
+
+function extractFinanceContractCategoryInfo(contract = {}, categories = []) {
+  const fromCatalog = resolveFinanceContractCategoryFromCatalogInfo(contract, categories);
+  if (fromCatalog) return fromCatalog;
+
   const entries = collectFinanceContractProductEntries(
     contract,
     FINANCE_CONTRACT_CATEGORY_PATHS,
@@ -525,14 +582,14 @@ function extractFinanceContractCategoryInfo(contract = {}) {
     })
     .sort((a, b) => scoreFinanceServiceCandidate(b.path, b.value) - scoreFinanceServiceCandidate(a.path, a.value));
   const best = valid[0];
-  return best ? { name: best.value, sourcePath: best.path, rawValue: best.value } : null;
+  return best ? { name: best.value, sourcePath: best.path, rawValue: best.value, method: "payload_field" } : null;
 }
 
-function enrichFinanceContractForReceivables(contract = {}, products = []) {
+function enrichFinanceContractForReceivables(contract = {}, products = [], categories = []) {
   if (!contract || typeof contract !== "object") return contract;
   const serviceInfo = extractFinanceContractServiceInfo(contract, products);
   const serviceName = serviceInfo?.name || "";
-  const categoryInfo = extractFinanceContractCategoryInfo(contract);
+  const categoryInfo = extractFinanceContractCategoryInfo(contract, categories);
   if (!serviceName && !categoryInfo?.name) return contract;
   return {
     ...contract,
@@ -550,6 +607,7 @@ function enrichFinanceContractForReceivables(contract = {}, products = []) {
           financeCategory: categoryInfo.name,
           financeCategorySourcePath: categoryInfo.sourcePath || "",
           financeCategoryRawValue: categoryInfo.rawValue || categoryInfo.name,
+          financeCategoryResolution: categoryInfo.method || "",
         }
       : {}),
   };
@@ -1666,6 +1724,20 @@ function normalizeFinanceProduct(raw) {
   };
 }
 
+function normalizeFinanceCategory(raw) {
+  const o = raw && typeof raw === "object" ? raw : {};
+  const id = truncateText(String(o.id ?? o.category_id ?? o.categoryId ?? o.uuid ?? o.code ?? o.codigo ?? o.slug ?? "").trim(), 120);
+  const name = truncateText(String(o.name ?? o.nome ?? o.title ?? o.label ?? o.category_name ?? o.categoryName ?? o.description ?? o.descricao ?? "").trim(), 200);
+  const kind = truncateText(String(o.kind ?? o.type ?? o.tipo ?? o.group ?? o.grupo ?? "").trim(), 80);
+  const label = [name || id || "Categoria", kind || null].filter(Boolean).join(" · ");
+  return {
+    id: id || null,
+    name: name || null,
+    kind: kind || null,
+    label: label || id || null,
+  };
+}
+
 function readFinanceBearerToken() {
   return readFirstEnvValue([
     "COLLI_FINANCE_API_TOKEN",
@@ -1731,6 +1803,27 @@ const FINANCE_RESOURCES = {
       "data.productCategories",
       "data.categories",
       "produtos",
+      "items",
+      "records",
+      "data",
+      "results",
+    ],
+    queryForDate: () => ({}),
+  },
+  categories: {
+    key: "categories",
+    title: "Categorias",
+    resourceLabel: "categorias cadastradas no Finance",
+    envKeys: ["COLLI_FINANCE_CATEGORIES_URL", "FINANCE_CATEGORIES_URL"],
+    bodyKeys: ["categories", "productCategories", "contractCategories", "data.categories", "data.productCategories", "data.contractCategories", "categorias", "items"],
+    responseKeys: [
+      "categories",
+      "productCategories",
+      "contractCategories",
+      "data.categories",
+      "data.productCategories",
+      "data.contractCategories",
+      "categorias",
       "items",
       "records",
       "data",
@@ -2493,14 +2586,28 @@ async function runReceivablesOrchestrator({ businessDate, body = {}, startSendin
       items: [],
       message: error?.message || "Produtos do Finance indisponíveis.",
     }));
+    const categoriesResource = FINANCE_RESOURCES.categories;
+    const categoriesPull = await fetchFinanceCollection({
+      body,
+      bodyKeys: categoriesResource.bodyKeys,
+      envKeys: categoriesResource.envKeys,
+      responseKeys: categoriesResource.responseKeys,
+      query: categoriesResource.queryForDate(run.businessDate),
+      resourceLabel: categoriesResource.resourceLabel,
+    }).catch((error) => ({
+      configured: false,
+      items: [],
+      message: error?.message || "Categorias do Finance indisponíveis.",
+    }));
     const financeContracts = contractsPull.items.map((contract) =>
-      enrichFinanceContractForReceivables(contract, productsPull.items)
+      enrichFinanceContractForReceivables(contract, productsPull.items, categoriesPull.items)
     );
     run = await saveReceivablesRun(run, {
       financePayload: {
         ...(run.financePayload || {}),
         contracts: trimReceivablesPayloadItems(financeContracts),
         products: trimReceivablesPayloadItems(productsPull.items, 500),
+        categories: trimReceivablesPayloadItems(categoriesPull.items, 500),
       },
     });
     run = await appendReceivablesStep(run, {
@@ -2515,6 +2622,9 @@ async function runReceivablesOrchestrator({ businessDate, body = {}, startSendin
         productsCount: productsPull.items.length,
         productsConfigured: productsPull.configured === true,
         productsMessage: productsPull.message,
+        categoriesCount: categoriesPull.items.length,
+        categoriesConfigured: categoriesPull.configured === true,
+        categoriesMessage: categoriesPull.message,
       },
     });
     if (contractsPull.configured) {
@@ -3577,6 +3687,39 @@ app.get(
       resourceLabel: resource.resourceLabel,
     });
     const items = pull.items.map(normalizeFinanceProduct).filter((item) => item.id);
+    res.json({
+      ok: true,
+      configured: pull.configured,
+      source: pull.source,
+      configuredEnvKey: pull.configuredEnvKey || null,
+      expectedEnvKey: pull.expectedEnvKey,
+      message: pull.message,
+      search,
+      items,
+    });
+  })
+);
+
+app.get(
+  "/api/finance/categories",
+  asyncHandler(async (req, res) => {
+    const resource = FINANCE_RESOURCES.categories;
+    const search = String(req.query?.search || req.query?.q || "").trim();
+    const query = { ...resource.queryForDate(getBusinessDate()) };
+    if (search) {
+      query.search = search;
+      query.q = search;
+      query.busca = search;
+    }
+    const pull = await fetchFinanceCollection({
+      body: {},
+      bodyKeys: resource.bodyKeys,
+      envKeys: resource.envKeys,
+      responseKeys: resource.responseKeys,
+      query,
+      resourceLabel: resource.resourceLabel,
+    });
+    const items = pull.items.map(normalizeFinanceCategory).filter((item) => item.id || item.name);
     res.json({
       ok: true,
       configured: pull.configured,
