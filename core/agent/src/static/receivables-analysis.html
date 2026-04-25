@@ -339,6 +339,78 @@
       color: var(--kc-text-muted);
       line-height: 1.55;
     }
+    .kc-card-service {
+      margin-top: 8px;
+      padding: 7px 8px;
+      border: 1px solid rgba(24, 191, 204, .22);
+      border-radius: var(--kc-radius);
+      background: rgba(24, 191, 204, .08);
+      color: var(--kc-text);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .kc-card-service-label {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--kc-teal);
+      font-family: "IBM Plex Mono", "Fira Code", monospace;
+      font-size: 9px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .kc-api-debug {
+      margin-top: 8px;
+      border: 1px solid var(--kc-border);
+      border-radius: var(--kc-radius);
+      background: rgba(0, 0, 0, .12);
+      overflow: hidden;
+    }
+    .kc-api-debug summary {
+      cursor: pointer;
+      padding: 7px 8px;
+      color: var(--kc-text-muted);
+      font-family: "IBM Plex Mono", "Fira Code", monospace;
+      font-size: 9px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      user-select: none;
+    }
+    .kc-api-debug-body {
+      border-top: 1px solid var(--kc-border);
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .kc-field-signal {
+      display: grid;
+      grid-template-columns: minmax(80px, 150px) minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      font-size: 10px;
+      line-height: 1.45;
+    }
+    .kc-field-path {
+      color: var(--kc-teal);
+      font-family: "IBM Plex Mono", "Fira Code", monospace;
+      overflow-wrap: anywhere;
+    }
+    .kc-field-value {
+      color: var(--kc-text);
+      overflow-wrap: anywhere;
+    }
+    .kc-api-json {
+      max-height: 180px;
+      overflow: auto;
+      padding: 8px;
+      border-radius: var(--kc-radius);
+      background: #0c0d10;
+      color: var(--kc-text-muted);
+      font-family: "IBM Plex Mono", "Fira Code", monospace;
+      font-size: 10px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
     .kc-card-row {
       display: flex;
       flex-wrap: wrap;
@@ -685,6 +757,19 @@
       return normalized.slice(0, maxLength);
     }
 
+    function firstTextFromRows(source, arrayPaths = [], rowPaths = [], maxLength = 180) {
+      for (const arrayPath of arrayPaths) {
+        const rows = readPathValue(source, arrayPath);
+        if (!Array.isArray(rows)) continue;
+        for (const row of rows.slice(0, 12)) {
+          if (!row || typeof row !== "object") continue;
+          const text = firstText(row, rowPaths, maxLength);
+          if (text) return text;
+        }
+      }
+      return "";
+    }
+
     function api(path, options) {
       return fetch(path, { credentials: "same-origin", ...options })
         .then(async (response) => {
@@ -794,6 +879,320 @@
       return firstText(item, ["status", "externalStatus"], 80);
     }
 
+    function normalizeFinanceLookupKey(value) {
+      let s = String(value == null ? "" : value).trim().toLowerCase().replace(/\s+/g, " ");
+      if (!s) return "";
+      try {
+        s = s.normalize("NFD").replace(/\p{M}/gu, "");
+      } catch (_) {
+        s = s.replace(/[\u0300-\u036f]/g, "");
+      }
+      return s;
+    }
+
+    function financeProductsForRun() {
+      const run = selectedRun();
+      return Array.isArray(run?.financePayload?.products) ? run.financePayload.products : [];
+    }
+
+    function buildFinanceProductsLookup() {
+      const map = new Map();
+      for (const product of financeProductsForRun()) {
+        if (!product || typeof product !== "object") continue;
+        const label = firstText(product, ["name", "nome", "title", "label", "description", "descricao", "productName", "category_name", "categoryName", "product_category", "productCategory"], 220) ||
+          firstText(product, ["id", "product_id", "productId", "category_id", "categoryId", "uuid", "code", "codigo", "sku", "slug"], 120);
+        if (!label) continue;
+        for (const raw of [
+          firstValue(product, ["id"]),
+          firstValue(product, ["product_id"]),
+          firstValue(product, ["productId"]),
+          firstValue(product, ["category_id"]),
+          firstValue(product, ["categoryId"]),
+          firstValue(product, ["uuid"]),
+          firstValue(product, ["code"]),
+          firstValue(product, ["codigo"]),
+          firstValue(product, ["sku"]),
+          firstValue(product, ["slug"]),
+          firstValue(product, ["name"]),
+          firstValue(product, ["nome"]),
+          firstValue(product, ["title"]),
+          firstValue(product, ["label"]),
+          firstValue(product, ["description"]),
+          firstValue(product, ["descricao"]),
+          firstValue(product, ["category_name"]),
+          firstValue(product, ["categoryName"]),
+          firstValue(product, ["product_category"]),
+          firstValue(product, ["productCategory"]),
+        ]) {
+          const key = normalizeFinanceLookupKey(raw);
+          if (key && !map.has(key)) map.set(key, label);
+        }
+      }
+      return map;
+    }
+
+    function collectContractProductValues(item, directPaths, rowPaths) {
+      const values = [];
+      directPaths.forEach((path) => {
+        const text = firstText(item, [path], 220);
+        if (text) values.push(text);
+      });
+      [
+        "items",
+        "line_items",
+        "lines",
+        "products",
+        "services",
+        "contract_items",
+        "billing.items",
+        "billing.line_items",
+        "subscription.items",
+      ].forEach((arrayPath) => {
+        const rows = readPathValue(item, arrayPath);
+        if (!Array.isArray(rows)) return;
+        rows.slice(0, 12).forEach((row) => {
+          if (!row || typeof row !== "object") return;
+          rowPaths.forEach((path) => {
+            const text = firstText(row, [path], 220);
+            if (text) values.push(text);
+          });
+        });
+      });
+      return [...new Set(values.map((v) => String(v).trim()).filter(Boolean))];
+    }
+
+    function resolveContractedServiceFromFinanceProducts(item) {
+      const lookup = buildFinanceProductsLookup();
+      if (!lookup.size) return "";
+      const ids = collectContractProductValues(
+        item,
+        ["productId", "product_id", "financeProductId", "sku", "codigo_produto", "product_code", "serviceId", "service_id", "servico_id", "plano_id", "planoId", "product.id", "product.sku", "service.id", "item.id"],
+        ["productId", "product_id", "financeProductId", "sku", "id_produto", "product_code", "service_id", "serviceId", "servico_id", "id", "product.id", "product.sku", "service.id", "item.id"]
+      );
+      for (const id of ids) {
+        const hit = lookup.get(normalizeFinanceLookupKey(id));
+        if (hit) return hit;
+      }
+      const labels = collectContractProductValues(
+        item,
+        ["product_description", "productDescription", "productName", "product_name", "serviceName", "service_name", "nomeServico", "nome_servico", "itemName", "item_name"],
+        ["productName", "product_name", "serviceName", "service_name", "nomeServico", "nome_servico", "name", "nome", "title", "label", "description", "descricao", "product.name", "product.nome", "service.name", "service.nome"]
+      );
+      for (const label of labels) {
+        const key = normalizeFinanceLookupKey(label);
+        const exact = lookup.get(key);
+        if (exact) return exact;
+        for (const [catalogKey, catalogLabel] of lookup.entries()) {
+          if (key.length >= 4 && catalogKey.includes(key)) return catalogLabel;
+          if (catalogKey.length >= 4 && key.includes(catalogKey)) return catalogLabel;
+        }
+      }
+      return "";
+    }
+
+    function scoreFinanceServiceCandidate(path, value) {
+      const key = normalizeFinanceLookupKey(path);
+      const val = String(value || "").trim();
+      const norm = normalizeFinanceLookupKey(val);
+      if (!val || val.length < 3 || val.length > 220) return -100;
+      if (/^https?:\/\//i.test(val)) return -100;
+      if (/^\d{4}-\d{2}-\d{2}/.test(val)) return -80;
+      if (/^[\d\s.,/-]+$/.test(val)) return -80;
+      let score = 0;
+      if (/(servico|service|produto|product|plano|plan|item|contrat|contract|description|descricao|nome|name|title|label)/i.test(key)) score += 35;
+      if (/(items?|line_items?|products?|services?|contract_items?|\[\d+\])/i.test(path)) score += 20;
+      if (/(client|cliente|billing_clients|status|payment|pagamento|valor|amount|date|data|document|cnpj|cpf|phone|email)/i.test(key)) score -= 45;
+      if (/\b(executar|loyalt|loyalty|assessoria|recorrente|consultoria|servico|serviço)\b/i.test(norm)) score += 80;
+      if (/[a-zA-ZÀ-ÿ]{4,}/.test(val)) score += 10;
+      if (val === val.toUpperCase() && /[A-ZÀ-Ý]{4,}/.test(val)) score += 8;
+      return score;
+    }
+
+    function collectDeepFinanceServiceCandidates(node, path = "", out = [], depth = 0, seen = null) {
+      if (node == null || depth > 8 || out.length > 120) return out;
+      if (typeof node === "string" || typeof node === "number") {
+        const value = String(node).trim();
+        const score = scoreFinanceServiceCandidate(path, value);
+        if (score >= 30) out.push({ path, value: value.slice(0, 220), score });
+        return out;
+      }
+      if (typeof node !== "object" || node instanceof Date) return out;
+      if (!seen) seen = new WeakSet();
+      if (seen.has(node)) return out;
+      seen.add(node);
+      if (Array.isArray(node)) {
+        node.slice(0, 30).forEach((entry, index) => collectDeepFinanceServiceCandidates(entry, `${path}[${index}]`, out, depth + 1, seen));
+        return out;
+      }
+      Object.entries(node).slice(0, 80).forEach(([key, value]) => {
+        const nextPath = path ? `${path}.${key}` : key;
+        collectDeepFinanceServiceCandidates(value, nextPath, out, depth + 1, seen);
+      });
+      return out;
+    }
+
+    function collectFinanceApiStringFields(node, path = "", out = [], depth = 0, seen = null) {
+      if (node == null || depth > 7 || out.length > 180) return out;
+      if (typeof node === "string" || typeof node === "number") {
+        const value = String(node).trim();
+        if (!value || value.length > 260) return out;
+        if (/^https?:\/\//i.test(value)) return out;
+        const pathKey = normalizeFinanceLookupKey(path);
+        const valueKey = normalizeFinanceLookupKey(value);
+        let score = 0;
+        if (/(produto|product|servico|service|plano|plan|item|category|categoria|name|nome|title|label|description|descricao)/i.test(pathKey)) score += 40;
+        if (/(executar|loyalt|loyalty|assessoria|recorrente|consultoria|mensalidade|servico|serviço)/i.test(valueKey)) score += 80;
+        if (/(client|cliente|status|payment|pagamento|amount|valor|date|data|document|cnpj|cpf|email|phone|telefone)/i.test(pathKey)) score -= 35;
+        if (/^[\d\s.,/-]+$/.test(value)) score -= 40;
+        if (/[a-zA-ZÀ-ÿ]{4,}/.test(value)) score += 10;
+        if (score >= 10) out.push({ path: path || "(root)", value: value.slice(0, 220), score });
+        return out;
+      }
+      if (typeof node !== "object" || node instanceof Date) return out;
+      if (!seen) seen = new WeakSet();
+      if (seen.has(node)) return out;
+      seen.add(node);
+      if (Array.isArray(node)) {
+        node.slice(0, 30).forEach((entry, index) => collectFinanceApiStringFields(entry, `${path}[${index}]`, out, depth + 1, seen));
+        return out;
+      }
+      Object.entries(node).slice(0, 90).forEach(([key, value]) => {
+        const nextPath = path ? `${path}.${key}` : key;
+        collectFinanceApiStringFields(value, nextPath, out, depth + 1, seen);
+      });
+      return out;
+    }
+
+    function summarizeFinanceContractApiFields(item) {
+      if (!item || typeof item !== "object") return { fields: [], json: "" };
+      const ranked = [...collectDeepFinanceServiceCandidates(item), ...collectFinanceApiStringFields(item)]
+        .sort((a, b) => b.score - a.score);
+      const seen = new Set();
+      const fields = [];
+      for (const entry of ranked) {
+        const key = `${entry.path}=${entry.value}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        fields.push(entry);
+        if (fields.length >= 12) break;
+      }
+      let json = "";
+      try {
+        json = JSON.stringify(item, null, 2);
+        if (json.length > 2400) json = `${json.slice(0, 2400)}\n...`;
+      } catch (_) {
+        json = "";
+      }
+      return { fields, json };
+    }
+
+    function extractContractedServiceInfo(item) {
+      if (firstText(item, ["contractedService", "financeServiceName"], 220)) {
+        return {
+          name: firstText(item, ["contractedService", "financeServiceName"], 220),
+          sourcePath: firstText(item, ["financeServiceSourcePath"], 220),
+          rawValue: firstText(item, ["financeServiceRawValue"], 220),
+          method: firstText(item, ["financeServiceResolution"], 80),
+        };
+      }
+      const fromCatalog = resolveContractedServiceFromFinanceProducts(item);
+      if (fromCatalog) return { name: fromCatalog, sourcePath: "catalogo Finance", rawValue: "", method: "catalog" };
+      const directPaths = [
+        "serviceName", "service_name", "servicoNome", "servico_nome", "nomeServico", "nome_servico",
+        "productName", "product_name", "productTitle", "planName", "plan_name", "planoNome",
+        "itemName", "item_name", "product_description", "productDescription", "service.name",
+        "service.nome", "product.name", "product.nome", "product.description", "product.descricao",
+        "item.name", "item.nome", "item.description", "item.descricao", "billing.serviceName",
+        "billing.service_name", "billing.productName", "billing.product_name",
+      ];
+      const directEntries = directPaths
+        .map((path) => ({ path, value: firstText(item, [path], 220), score: scoreFinanceServiceCandidate(path, firstText(item, [path], 220)) + 10 }))
+        .filter((entry) => entry.value && entry.score >= 30);
+      const ranked = [...directEntries, ...collectDeepFinanceServiceCandidates(item)].sort((a, b) => b.score - a.score);
+      const best = ranked[0];
+      return best ? { name: best.value, sourcePath: best.path, rawValue: best.value, method: "payload_field" } : { name: "", sourcePath: "", rawValue: "", method: "" };
+    }
+
+    function extractContractedService(item) {
+      const info = extractContractedServiceInfo(item);
+      if (info.name) return info.name;
+      const fromCatalog = resolveContractedServiceFromFinanceProducts(item);
+      if (fromCatalog) return fromCatalog;
+      const direct = firstText(item, [
+        "contractedService",
+        "financeServiceName",
+        "serviceName",
+        "service_name",
+        "servicoNome",
+        "servico_nome",
+        "nomeServico",
+        "nome_servico",
+        "productName",
+        "product_name",
+        "productTitle",
+        "planName",
+        "plan_name",
+        "planoNome",
+        "itemName",
+        "item_name",
+        "product_description",
+        "productDescription",
+        "service.description",
+        "service.descricao",
+        "service.name",
+        "service.nome",
+        "product.name",
+        "product.nome",
+        "product.description",
+        "product.descricao",
+        "item.name",
+        "item.nome",
+        "item.description",
+        "item.descricao",
+        "billing.serviceName",
+        "billing.service_name",
+        "billing.productName",
+        "billing.product_name",
+      ], 220);
+      if (direct) return direct;
+      return firstTextFromRows(
+        item,
+        [
+          "items",
+          "line_items",
+          "lines",
+          "products",
+          "services",
+          "contract_items",
+          "billing.items",
+          "billing.line_items",
+          "subscription.items",
+        ],
+        [
+          "contractedService",
+          "serviceName",
+          "service_name",
+          "nomeServico",
+          "nome_servico",
+          "productName",
+          "product_name",
+          "name",
+          "nome",
+          "title",
+          "label",
+          "description",
+          "descricao",
+          "service.name",
+          "service.nome",
+          "product.name",
+          "product.nome",
+          "item.name",
+          "item.nome",
+        ],
+        220
+      );
+    }
+
     function buildStatusClass(status, fallback = "") {
       const normalized = String(status || "").toLowerCase();
       if (["completed", "success", "idempotent", "billing_started", "paid", "pago", "active", "ativo", "new", "novo"].includes(normalized)) {
@@ -839,7 +1238,9 @@
       const clientName = extractClientName(item) || firstText(item, ["primary"], 160) || identifier;
       const clientDocument = extractClientDocument(item) || firstText(item, ["clientDocument"], 60);
       const status = extractStatus(item) || firstText(item, ["secondary"], 80);
-      const product = firstText(item, ["product_description", "productDescription", "secondary"], 180);
+      const serviceInfo = extractContractedServiceInfo(item);
+      const contractedService = serviceInfo.name || extractContractedService(item);
+      const apiDebug = summarizeFinanceContractApiFields(item);
       const paymentMethod = firstText(item, ["payment_method", "paymentMethod"], 80);
       const startDate = firstText(item, ["first_charge_date", "firstChargeDate", "firstDueDate", "contract_start_date"], 40) || firstText(item, ["tertiary"], 120);
       const totalValue = formatCurrency(firstValue(item, ["total_value", "totalValue", "monthly_value", "monthlyValue"]));
@@ -848,7 +1249,11 @@
         primary: clientName,
         secondary: [clientDocument, status].filter(Boolean).join(" · "),
         tertiary: [formatShortDate(startDate), paymentMethod, totalValue].filter(Boolean).join(" · "),
-        meta: product && product !== clientName ? product : "",
+        service: contractedService && contractedService !== clientName ? contractedService : "",
+        serviceSource: serviceInfo.sourcePath || "",
+        serviceRawValue: serviceInfo.rawValue || "",
+        apiFields: apiDebug.fields,
+        rawJson: apiDebug.json,
         statusLabel: status,
         statusClass: buildStatusClass(status),
       };
@@ -907,6 +1312,21 @@
                 ${item.statusLabel ? `<span class="status-chip ${escapeHtml(item.statusClass || "")}">${escapeHtml(item.statusLabel)}</span>` : ""}
               </div>
               ${item.secondary ? `<div class="kc-card-sub">${escapeHtml(item.secondary)}</div>` : ""}
+              ${item.service ? `<div class="kc-card-service"><span class="kc-card-service-label">Servico contratado${item.serviceSource ? ` · ${escapeHtml(item.serviceSource)}` : ""}</span>${escapeHtml(item.service)}${item.serviceRawValue && item.serviceRawValue !== item.service ? `<div class="kc-card-sub">Valor bruto: ${escapeHtml(item.serviceRawValue)}</div>` : ""}</div>` : ""}
+              ${(item.apiFields && item.apiFields.length) || item.rawJson ? `
+                <details class="kc-api-debug">
+                  <summary>Campos recebidos do Finance</summary>
+                  <div class="kc-api-debug-body">
+                    ${(item.apiFields || []).map((field) => `
+                      <div class="kc-field-signal">
+                        <span class="kc-field-path">${escapeHtml(field.path)}</span>
+                        <span class="kc-field-value">${escapeHtml(field.value)}</span>
+                      </div>
+                    `).join("")}
+                    ${item.rawJson ? `<pre class="kc-api-json">${escapeHtml(item.rawJson)}</pre>` : ""}
+                  </div>
+                </details>
+              ` : ""}
               ${item.meta ? `<div class="kc-card-sub">${escapeHtml(item.meta)}</div>` : ""}
               ${item.tertiary ? `<div class="kc-card-row"><span class="kc-method">${escapeHtml(item.tertiary)}</span></div>` : ""}
             </div>
@@ -1138,37 +1558,49 @@
       const errors = Array.isArray(step?.details?.errors) ? step.details.errors : [];
       const contractLookup = financeContractLookup(run);
       const rows = results.map((entry) => `
+        ${(() => {
+          const financeContract = contractLookup.get(entry.externalId) || contractLookup.get(entry.contractNumber) || {};
+          return `
         <tr>
           <td><span class="status-chip ${statusChipClass(entry.status)}">${escapeHtml(formatStatusLabel(entry.status))}</span></td>
           <td>${buildIdentityCell(
-            extractClientName(contractLookup.get(entry.externalId) || contractLookup.get(entry.contractNumber) || {}),
-            extractClientDocument(contractLookup.get(entry.externalId) || contractLookup.get(entry.contractNumber) || {}),
+            extractClientName(financeContract),
+            extractClientDocument(financeContract),
             "Cliente nao identificado"
           )}</td>
+          <td>${escapeHtml(extractContractedService(financeContract) || "—")}</td>
           <td>${escapeHtml(entry.externalId || "—")}</td>
           <td>${escapeHtml(entry.contractNumber || "—")}</td>
           <td>${escapeHtml(entry.contaAzulContractId || "—")}</td>
           <td>${escapeHtml(entry.error || "—")}</td>
         </tr>
+          `;
+        })()}
       `).join("");
       const errorRows = errors.map((entry) => `
+        ${(() => {
+          const financeContract = contractLookup.get(entry.externalId) || {};
+          return `
         <tr>
           <td><span class="status-chip danger">Falha</span></td>
           <td>${buildIdentityCell(
-            extractClientName(contractLookup.get(entry.externalId) || {}),
-            extractClientDocument(contractLookup.get(entry.externalId) || {}),
+            extractClientName(financeContract),
+            extractClientDocument(financeContract),
             "Cliente nao identificado"
           )}</td>
+          <td>${escapeHtml(extractContractedService(financeContract) || "—")}</td>
           <td>${escapeHtml(entry.externalId || "—")}</td>
           <td>—</td>
           <td>—</td>
           <td>${escapeHtml(entry.error || "Falha sem detalhe")}</td>
         </tr>
+          `;
+        })()}
       `).join("");
 
       el("contracts-export-table").innerHTML = rows || errorRows
         ? `<table>
-            <thead><tr><th>Status</th><th>Cliente</th><th>External ID</th><th>Contrato</th><th>Conta Azul</th><th>Erro</th></tr></thead>
+            <thead><tr><th>Status</th><th>Cliente</th><th>Servico</th><th>External ID</th><th>Contrato</th><th>Conta Azul</th><th>Erro</th></tr></thead>
             <tbody>${rows}${errorRows}</tbody>
           </table>`
         : `<div class="empty"><div class="empty-title">Sem detalhamento salvo</div><div class="empty-meta">Esta execucao ainda nao gravou resultados por contrato. Rode o ciclo novamente com esta versao.</div></div>`;

@@ -166,6 +166,320 @@ function readFirstText(source, paths = [], maxLength = 160) {
   return truncateText(readFirstValue(source, paths), maxLength);
 }
 
+function readFirstTextFromRows(source, arrayPaths = [], rowPaths = [], maxLength = 160) {
+  for (const arrayPath of arrayPaths) {
+    const rows = readNestedValue(source, arrayPath);
+    if (!Array.isArray(rows)) continue;
+    for (const row of rows.slice(0, 12)) {
+      if (!row || typeof row !== "object") continue;
+      const text = readFirstText(row, rowPaths, maxLength);
+      if (text) return text;
+    }
+  }
+  return "";
+}
+
+function normalizeFinanceLookupKey(value) {
+  let s = String(value == null ? "" : value).trim().toLowerCase().replace(/\s+/g, " ");
+  if (!s) return "";
+  try {
+    s = s.normalize("NFD").replace(/\p{M}/gu, "");
+  } catch {
+    s = s.replace(/[\u0300-\u036f]/g, "");
+  }
+  return s;
+}
+
+const FINANCE_CONTRACT_PRODUCT_ID_PATHS = [
+  "productId",
+  "product_id",
+  "financeProductId",
+  "sku",
+  "codigo_produto",
+  "product_code",
+  "serviceId",
+  "service_id",
+  "servico_id",
+  "servico_codigo",
+  "plano_id",
+  "planoId",
+  "id_produto_finance",
+  "produto_id",
+  "billing.productId",
+  "billing.product_id",
+  "billing.sku",
+  "billing.financeProductId",
+  "billing.serviceId",
+  "product.id",
+  "product.productId",
+  "product.product_id",
+  "product.sku",
+  "service.id",
+  "service.serviceId",
+  "item.id",
+  "item.productId",
+];
+
+const FINANCE_CONTRACT_PRODUCT_LABEL_PATHS = [
+  "contractedService",
+  "financeServiceName",
+  "serviceName",
+  "service_name",
+  "servicoNome",
+  "servico_nome",
+  "nomeServico",
+  "nome_servico",
+  "productName",
+  "product_name",
+  "productTitle",
+  "planName",
+  "plan_name",
+  "planoNome",
+  "itemName",
+  "item_name",
+  "product_description",
+  "productDescription",
+  "service.description",
+  "service.descricao",
+  "service.name",
+  "service.nome",
+  "product.name",
+  "product.nome",
+  "product.description",
+  "product.descricao",
+  "item.name",
+  "item.nome",
+  "item.description",
+  "item.descricao",
+  "billing.serviceName",
+  "billing.service_name",
+  "billing.productName",
+  "billing.product_name",
+];
+
+const FINANCE_CONTRACT_PRODUCT_ARRAY_PATHS = [
+  "items",
+  "line_items",
+  "lines",
+  "products",
+  "services",
+  "contract_items",
+  "billing.items",
+  "billing.line_items",
+  "subscription.items",
+];
+
+const FINANCE_CONTRACT_PRODUCT_ROW_ID_PATHS = [
+  "productId",
+  "product_id",
+  "financeProductId",
+  "sku",
+  "id_produto",
+  "product_code",
+  "service_id",
+  "serviceId",
+  "servico_id",
+  "id",
+  "product.id",
+  "product.productId",
+  "product.product_id",
+  "product.sku",
+  "service.id",
+  "item.id",
+];
+
+const FINANCE_CONTRACT_PRODUCT_ROW_LABEL_PATHS = [
+  "contractedService",
+  "serviceName",
+  "service_name",
+  "nomeServico",
+  "nome_servico",
+  "productName",
+  "product_name",
+  "name",
+  "nome",
+  "title",
+  "label",
+  "description",
+  "descricao",
+  "service.name",
+  "service.nome",
+  "product.name",
+  "product.nome",
+  "item.name",
+  "item.nome",
+];
+
+function collectFinanceContractProductValues(contract = {}, directPaths = [], rowPaths = []) {
+  const values = [];
+  for (const path of directPaths) {
+    const text = readFirstText(contract, [path], 220);
+    if (text) values.push(text);
+  }
+  for (const arrayPath of FINANCE_CONTRACT_PRODUCT_ARRAY_PATHS) {
+    const rows = readNestedValue(contract, arrayPath);
+    if (!Array.isArray(rows)) continue;
+    for (const row of rows.slice(0, 12)) {
+      if (!row || typeof row !== "object") continue;
+      for (const path of rowPaths) {
+        const text = readFirstText(row, [path], 220);
+        if (text) values.push(text);
+      }
+    }
+  }
+  return [...new Set(values.map((v) => String(v).trim()).filter(Boolean))];
+}
+
+function collectFinanceContractProductEntries(contract = {}, directPaths = [], rowPaths = []) {
+  const entries = [];
+  for (const path of directPaths) {
+    const text = readFirstText(contract, [path], 220);
+    if (text) entries.push({ path, value: text });
+  }
+  for (const arrayPath of FINANCE_CONTRACT_PRODUCT_ARRAY_PATHS) {
+    const rows = readNestedValue(contract, arrayPath);
+    if (!Array.isArray(rows)) continue;
+    rows.slice(0, 12).forEach((row, index) => {
+      if (!row || typeof row !== "object") return;
+      for (const path of rowPaths) {
+        const text = readFirstText(row, [path], 220);
+        if (text) entries.push({ path: `${arrayPath}[${index}].${path}`, value: text });
+      }
+    });
+  }
+  return entries;
+}
+
+function scoreFinanceServiceCandidate(path, value) {
+  const key = normalizeFinanceLookupKey(path);
+  const val = String(value || "").trim();
+  const norm = normalizeFinanceLookupKey(val);
+  if (!val || val.length < 3 || val.length > 220) return -100;
+  if (/^https?:\/\//i.test(val)) return -100;
+  if (/^\d{4}-\d{2}-\d{2}/.test(val)) return -80;
+  if (/^[\d\s.,/-]+$/.test(val)) return -80;
+  let score = 0;
+  if (/(servico|service|produto|product|plano|plan|item|contrat|contract|description|descricao|nome|name|title|label)/i.test(key)) score += 35;
+  if (/(items?|line_items?|products?|services?|contract_items?|\[\d+\])/i.test(path)) score += 20;
+  if (/(client|cliente|billing_clients|status|payment|pagamento|valor|amount|date|data|document|cnpj|cpf|phone|email)/i.test(key)) score -= 45;
+  if (/\b(executar|loyalt|loyalty|assessoria|recorrente|consultoria|servico|serviço)\b/i.test(norm)) score += 80;
+  if (/[a-zA-ZÀ-ÿ]{4,}/.test(val)) score += 10;
+  if (val === val.toUpperCase() && /[A-ZÀ-Ý]{4,}/.test(val)) score += 8;
+  return score;
+}
+
+function collectDeepFinanceServiceCandidates(node, path = "", out = [], depth = 0, seen = null) {
+  if (node == null || depth > 8 || out.length > 120) return out;
+  if (typeof node === "string" || typeof node === "number") {
+    const value = String(node).trim();
+    const score = scoreFinanceServiceCandidate(path, value);
+    if (score >= 30) out.push({ path, value: truncateText(value, 220), score });
+    return out;
+  }
+  if (typeof node !== "object" || node instanceof Date) return out;
+  if (!seen) seen = new WeakSet();
+  if (seen.has(node)) return out;
+  seen.add(node);
+  if (Array.isArray(node)) {
+    node.slice(0, 30).forEach((entry, index) => collectDeepFinanceServiceCandidates(entry, `${path}[${index}]`, out, depth + 1, seen));
+    return out;
+  }
+  Object.entries(node).slice(0, 80).forEach(([key, value]) => {
+    const nextPath = path ? `${path}.${key}` : key;
+    collectDeepFinanceServiceCandidates(value, nextPath, out, depth + 1, seen);
+  });
+  return out;
+}
+
+function buildFinanceProductCatalogLookup(products = []) {
+  const map = new Map();
+  for (const raw of Array.isArray(products) ? products : []) {
+    const normalized = normalizeFinanceProduct(raw);
+    const label = normalized.name || normalized.label || normalized.id || "";
+    if (!label) continue;
+    for (const candidate of [
+      normalized.id,
+      normalized.name,
+      normalized.label,
+      raw?.product_id,
+      raw?.productId,
+      raw?.uuid,
+      raw?.code,
+      raw?.codigo,
+      raw?.sku,
+      raw?.nome,
+      raw?.description,
+      raw?.descricao,
+      raw?.title,
+    ]) {
+      const key = normalizeFinanceLookupKey(candidate);
+      if (key && !map.has(key)) map.set(key, label);
+    }
+  }
+  return map;
+}
+
+function resolveFinanceContractServiceFromCatalogInfo(contract = {}, products = []) {
+  const lookup = buildFinanceProductCatalogLookup(products);
+  if (!lookup.size) return null;
+  const ids = collectFinanceContractProductEntries(contract, FINANCE_CONTRACT_PRODUCT_ID_PATHS, FINANCE_CONTRACT_PRODUCT_ROW_ID_PATHS);
+  for (const entry of ids) {
+    const hit = lookup.get(normalizeFinanceLookupKey(entry.value));
+    if (hit) return { name: hit, sourcePath: entry.path, rawValue: entry.value, method: "catalog_id" };
+  }
+  const labels = collectFinanceContractProductEntries(contract, FINANCE_CONTRACT_PRODUCT_LABEL_PATHS, FINANCE_CONTRACT_PRODUCT_ROW_LABEL_PATHS);
+  for (const entry of labels) {
+    const key = normalizeFinanceLookupKey(entry.value);
+    const exact = lookup.get(key);
+    if (exact) return { name: exact, sourcePath: entry.path, rawValue: entry.value, method: "catalog_label" };
+    for (const [catalogKey, catalogLabel] of lookup.entries()) {
+      if (key.length >= 4 && catalogKey.includes(key)) return { name: catalogLabel, sourcePath: entry.path, rawValue: entry.value, method: "catalog_label_contains" };
+      if (catalogKey.length >= 4 && key.includes(catalogKey)) return { name: catalogLabel, sourcePath: entry.path, rawValue: entry.value, method: "catalog_label_contains" };
+    }
+  }
+  return null;
+}
+
+function resolveFinanceContractServiceFromCatalog(contract = {}, products = []) {
+  return resolveFinanceContractServiceFromCatalogInfo(contract, products)?.name || "";
+}
+
+function extractFinanceContractServiceInfo(contract = {}, products = []) {
+  const fromCatalog = resolveFinanceContractServiceFromCatalogInfo(contract, products);
+  if (fromCatalog) return fromCatalog;
+
+  const entries = collectFinanceContractProductEntries(
+    contract,
+    FINANCE_CONTRACT_PRODUCT_LABEL_PATHS,
+    FINANCE_CONTRACT_PRODUCT_ROW_LABEL_PATHS
+  );
+  const deep = collectDeepFinanceServiceCandidates(contract);
+  const ranked = [...entries.map((entry) => ({ ...entry, score: scoreFinanceServiceCandidate(entry.path, entry.value) + 10 })), ...deep]
+    .filter((entry) => entry.value && entry.score >= 30)
+    .sort((a, b) => b.score - a.score);
+  const best = ranked[0];
+  return best ? { name: best.value, sourcePath: best.path, rawValue: best.value, method: "payload_field" } : null;
+}
+
+function extractFinanceContractServiceName(contract = {}, products = []) {
+  return extractFinanceContractServiceInfo(contract, products)?.name || "";
+}
+
+function enrichFinanceContractForReceivables(contract = {}, products = []) {
+  if (!contract || typeof contract !== "object") return contract;
+  const serviceInfo = extractFinanceContractServiceInfo(contract, products);
+  const serviceName = serviceInfo?.name || "";
+  if (!serviceName || contract.contractedService || contract.financeServiceName) return contract;
+  return {
+    ...contract,
+    contractedService: serviceName,
+    financeServiceName: serviceName,
+    financeServiceSourcePath: serviceInfo.sourcePath || "",
+    financeServiceRawValue: serviceInfo.rawValue || serviceName,
+    financeServiceResolution: serviceInfo.method || "",
+  };
+}
+
 function readLovableAmountCents(source = {}) {
   const centsValue = readFirstValue(source, [
     "amountCents",
@@ -1058,7 +1372,7 @@ async function syncLovableContractToContaAzul(source = {}, { dryRun = false, for
     const mapDbg = record.productMappingDebug;
     const mapHint =
       mapDbg && record.missingRequiredFields.includes("itens[0].id")
-        ? ` No payload foram detectados estes ids de produto: ${mapDbg.payloadProductKeys.length ? mapDbg.payloadProductKeys.join(", ") : "nenhum"}. No mapa (financeProductId): ${mapDbg.configuredFinanceProductIds.length ? mapDbg.configuredFinanceProductIds.join(", ") : "nenhum"}.`
+        ? ` No payload foram detectados estes ids de produto: ${mapDbg.payloadProductKeys.length ? mapDbg.payloadProductKeys.join(", ") : "nenhum"}. Textos de serviço/nome no payload: ${mapDbg.payloadProductLabels?.length ? mapDbg.payloadProductLabels.join(", ") : "nenhum"}. No mapa (financeProductId): ${mapDbg.configuredFinanceProductIds.length ? mapDbg.configuredFinanceProductIds.join(", ") : "nenhum"}. No mapa (nome/descrição Finance): ${mapDbg.configuredFinanceProductLabels?.length ? mapDbg.configuredFinanceProductLabels.join(", ") : "nenhum"}.${mapDbg.uuidLikeInWebhook?.length ? ` Amostra de UUIDs no corpo recebido: ${mapDbg.uuidLikeInWebhook.join(", ")}.` : ""}`
         : "";
     const errText = `Campos obrigatórios ausentes: ${record.missingRequiredFields.join(", ")}.${mapHint}`;
     await upsertLovableContractSync({
@@ -1265,9 +1579,9 @@ function extractFinanceResponseItems(body, keys) {
 
 function normalizeFinanceProduct(raw) {
   const o = raw && typeof raw === "object" ? raw : {};
-  const id = truncateText(String(o.id ?? o.product_id ?? o.productId ?? o.uuid ?? o.code ?? "").trim(), 120);
-  const name = truncateText(String(o.name ?? o.title ?? o.nome ?? o.description ?? o.descricao ?? "").trim(), 200);
-  const kind = truncateText(String(o.kind ?? o.type ?? o.tipo ?? o.category ?? "").trim(), 80);
+  const id = truncateText(String(o.id ?? o.product_id ?? o.productId ?? o.category_id ?? o.categoryId ?? o.uuid ?? o.code ?? o.codigo ?? o.slug ?? "").trim(), 120);
+  const name = truncateText(String(o.name ?? o.title ?? o.nome ?? o.category_name ?? o.categoryName ?? o.product_category ?? o.productCategory ?? o.description ?? o.descricao ?? o.label ?? "").trim(), 200);
+  const kind = truncateText(String(o.kind ?? o.type ?? o.tipo ?? o.category ?? o.categoria ?? "").trim(), 80);
   const label = [name || id || "Produto", kind || null].filter(Boolean).join(" · ");
   return {
     id: id || null,
@@ -1278,7 +1592,13 @@ function normalizeFinanceProduct(raw) {
 }
 
 function readFinanceBearerToken() {
-  return readFirstEnvValue(["COLLI_FINANCE_API_TOKEN", "FINANCE_API_TOKEN", "LOVABLE_API_TOKEN"]);
+  return readFirstEnvValue([
+    "COLLI_FINANCE_API_TOKEN",
+    "FINANCE_API_TOKEN",
+    "LOVABLE_API_TOKEN",
+    "COLLI_FINANCE_SUPABASE_ANON_KEY",
+    "SUPABASE_ANON_KEY",
+  ]);
 }
 
 const FINANCE_RESOURCES = {
@@ -1327,8 +1647,20 @@ const FINANCE_RESOURCES = {
     title: "Produtos",
     resourceLabel: "produtos cadastrados no Finance",
     envKeys: ["COLLI_FINANCE_PRODUCTS_URL", "FINANCE_PRODUCTS_URL"],
-    bodyKeys: ["products", "data.products", "produtos", "items"],
-    responseKeys: ["products", "data.products", "produtos", "items", "records", "data", "results"],
+    bodyKeys: ["products", "productCategories", "categories", "data.products", "data.productCategories", "data.categories", "produtos", "items"],
+    responseKeys: [
+      "products",
+      "productCategories",
+      "categories",
+      "data.products",
+      "data.productCategories",
+      "data.categories",
+      "produtos",
+      "items",
+      "records",
+      "data",
+      "results",
+    ],
     queryForDate: () => ({}),
   },
 };
@@ -1382,6 +1714,7 @@ function summarizeFinancePreviewItem(resource, item = {}) {
     const status = readFirstText(item, ["status"], 80);
     const firstChargeDate = readFirstText(item, ["first_charge_date", "firstDueDate", "contract_start_date"], 40);
     const paymentMethod = readFirstText(item, ["payment_method"], 60);
+    const contractedService = extractFinanceContractServiceName(item);
     const clientName = readFirstText(item, [
       "client_name",
       "clientName",
@@ -1397,7 +1730,6 @@ function summarizeFinancePreviewItem(resource, item = {}) {
       "company_name",
       "companyName",
       "seller_name",
-      "product_description",
     ], 120);
     const clientDocument = readFirstText(item, [
       "cnpj",
@@ -1427,6 +1759,7 @@ function summarizeFinancePreviewItem(resource, item = {}) {
       ].filter(Boolean).join(" · "),
       contractNumber,
       status,
+      contractedService,
       firstChargeDate,
       paymentMethod,
       clientName,
@@ -1541,7 +1874,10 @@ async function fetchFinanceCollection({ body, bodyKeys, envKeys, responseKeys, q
   const url = buildFinanceUrl(envEntry.value, query);
   const headers = { accept: "application/json" };
   const token = readFinanceBearerToken();
-  if (token) headers.authorization = `Bearer ${token}`;
+  if (token) {
+    headers.authorization = `Bearer ${token}`;
+    headers.apikey = token;
+  }
 
   const response = await fetch(url, { headers });
   const json = await response.json().catch(() => ({}));
@@ -1598,7 +1934,10 @@ async function diagnoseFinanceResource(resource, businessDate) {
 
   const headers = { accept: "application/json" };
   const token = readFinanceBearerToken();
-  if (token) headers.authorization = `Bearer ${token}`;
+  if (token) {
+    headers.authorization = `Bearer ${token}`;
+    headers.apikey = token;
+  }
 
   const startedAt = Date.now();
   try {
@@ -2066,10 +2405,27 @@ async function runReceivablesOrchestrator({ businessDate, body = {}, startSendin
       query: contractsResource.queryForDate(run.businessDate),
       resourceLabel: contractsResource.resourceLabel,
     });
+    const productsResource = FINANCE_RESOURCES.products;
+    const productsPull = await fetchFinanceCollection({
+      body,
+      bodyKeys: productsResource.bodyKeys,
+      envKeys: productsResource.envKeys,
+      responseKeys: productsResource.responseKeys,
+      query: productsResource.queryForDate(run.businessDate),
+      resourceLabel: productsResource.resourceLabel,
+    }).catch((error) => ({
+      configured: false,
+      items: [],
+      message: error?.message || "Produtos do Finance indisponíveis.",
+    }));
+    const financeContracts = contractsPull.items.map((contract) =>
+      enrichFinanceContractForReceivables(contract, productsPull.items)
+    );
     run = await saveReceivablesRun(run, {
       financePayload: {
         ...(run.financePayload || {}),
-        contracts: trimReceivablesPayloadItems(contractsPull.items),
+        contracts: trimReceivablesPayloadItems(financeContracts),
+        products: trimReceivablesPayloadItems(productsPull.items, 500),
       },
     });
     run = await appendReceivablesStep(run, {
@@ -2077,10 +2433,17 @@ async function runReceivablesOrchestrator({ businessDate, body = {}, startSendin
       title: "Buscar contratos no Finance",
       status: contractsPull.configured ? "success" : "warning",
       summary: contractsPull.message,
-      details: { source: contractsPull.source, count: contractsPull.items.length, envKey: contractsPull.configuredEnvKey || contractsPull.expectedEnvKey },
+      details: {
+        source: contractsPull.source,
+        count: financeContracts.length,
+        envKey: contractsPull.configuredEnvKey || contractsPull.expectedEnvKey,
+        productsCount: productsPull.items.length,
+        productsConfigured: productsPull.configured === true,
+        productsMessage: productsPull.message,
+      },
     });
     if (contractsPull.configured) {
-      run = await syncContractsForReceivablesRun(run, contractsPull.items);
+      run = await syncContractsForReceivablesRun(run, financeContracts);
     } else {
       missingFinanceResources.push({
         key: contractsResource.key,

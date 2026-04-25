@@ -59,6 +59,11 @@ test("pagina de analise do orquestrador detalha payloads, exportacoes e motivos 
   assert.match(html, /cobranca_ja_enviada_no_origem/);
   assert.match(html, /billing_cards_to_cobranca/);
   assert.match(html, /contracts_to_conta_azul/);
+  assert.match(html, /Servico contratado/);
+  assert.match(html, /Campos recebidos do Finance/);
+  assert.match(html, /summarizeFinanceContractApiFields/);
+  assert.match(html, /extractContractedService/);
+  assert.match(server, /enrichFinanceContractForReceivables/);
   assert.match(server, /RECEIVABLES_ANALYSIS_INDEX/);
   assert.match(server, /sendReceivablesAnalysisPage/);
   assert.match(server, /app\.get\("\/fpa\/receivables-analysis", sendReceivablesAnalysisPage\)/);
@@ -194,6 +199,8 @@ test("pagina dedicada de vínculos Finance Conta Azul e rota no servidor", async
   assert.match(server, /\/api\/conta-azul\/products/);
   assert.match(html, /\/api\/finance\/products/);
   assert.match(server, /\/api\/finance\/products/);
+  assert.match(html, /cazv-embed/);
+  assert.match(html, /fpa-cazv-vinculos-saved/);
 });
 
 test("menu lateral FP&A aponta para página de vínculos Conta Azul", async () => {
@@ -201,4 +208,6 @@ test("menu lateral FP&A aponta para página de vínculos Conta Azul", async () =
 
   assert.match(html, /href="\/fpa\/conta-azul-vinculos"/);
   assert.match(html, /Vínculos Finance → CA/);
+  assert.match(html, /fpa-cazv-modal/);
+  assert.match(html, /embed=1/);
 });

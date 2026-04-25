@@ -506,6 +506,73 @@
       .toast.show { opacity: 1; transform: translateY(0); }
       .empty { color: var(--muted); font-size: 12px; line-height: 1.8; }
       .hidden { display: none !important; }
+      .fpa-cazv-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px;
+      }
+      .fpa-cazv-modal.hidden {
+        display: none !important;
+      }
+      .fpa-cazv-modal__backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.68);
+      }
+      .fpa-cazv-modal__panel {
+        position: relative;
+        z-index: 1;
+        width: min(1100px, 100%);
+        height: min(90vh, 900px);
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 28px 90px rgba(0, 0, 0, 0.55);
+      }
+      .fpa-cazv-modal__head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+        background: var(--panel-2);
+      }
+      .fpa-cazv-modal__title {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 22px;
+        letter-spacing: 0.8px;
+        font-weight: 400;
+        margin: 0;
+      }
+      .fpa-cazv-modal__actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .fpa-cazv-modal__hint {
+        font-size: 12px;
+        color: var(--muted);
+        padding: 10px 16px;
+        line-height: 1.55;
+        border-bottom: 1px solid var(--border);
+        margin: 0;
+      }
+      .fpa-cazv-modal__frame {
+        flex: 1;
+        width: 100%;
+        min-height: 0;
+        border: 0;
+        background: var(--bg);
+      }
       @media (max-width: 1260px) {
         .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .workflow-rail { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -995,8 +1062,8 @@
                 <table class="data-table" style="font-size:12px">
                   <thead>
                     <tr>
-                      <th>ID produto (Finance)</th>
-                      <th>Descrição (opcional)</th>
+                      <th>ID produto (Finance, se houver)</th>
+                      <th>Nome / texto no Finance (cruzamento)</th>
                       <th>UUID item (Conta Azul)</th>
                       <th style="width:72px"></th>
                     </tr>
@@ -1061,7 +1128,8 @@
             <div class="card-title"><span class="card-icon">⇄</span> Conta Azul · Integração API</div>
             <div class="inline-tools">
               <span id="fpa-conta-azul-badge" style="padding:5px 12px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;background:var(--panel-3);border:1px solid var(--border);color:var(--muted)">● Desconectado</span>
-              <button class="btn" id="btn-jump-lovable-contract-mappings" type="button" title="Abrir página dedicada de vínculos Finance → Conta Azul">Vínculos Finance → CA</button>
+              <button class="btn btn-primary" id="btn-open-fpa-cazv-vinculos-modal" type="button" title="Abrir painel de vínculos (mesma tabela da página dedicada)">Vínculos Finance → CA</button>
+              <a class="btn" href="/fpa/conta-azul-vinculos" id="link-fpa-cazv-vinculos-page" style="text-decoration:none" title="Abrir em página completa">Página</a>
               <button class="btn" id="btn-preview-conta-azul-fpa" type="button">Prévia</button>
               <button class="btn btn-primary" id="btn-push-conta-azul-fpa" type="button">Enviar Lançamentos</button>
             </div>
@@ -1333,7 +1401,7 @@
           </div>
           <div class="card-body">
             <div class="alert" style="margin-bottom:18px">
-              <strong>Como funciona:</strong> o <code>itens[0].id</code> do contrato vem <strong>só</strong> do mapa <strong>Produto Finance → Item</strong> em <em>Configurações → Contratos (Lovable)</em> / página de vínculos — não desta tabela. Aqui, <strong>CATEGORIA</strong> e <strong>FORMA DE PAGAMENTO</strong> ajudam em conta, tipo e descrição quando batem com o contrato; a conta padrão do contrato continua nas configurações do Conta Azul acima.
+              <strong>Como funciona:</strong> o <code>itens[0].id</code> do contrato vem <strong>só</strong> do mapa <strong>Produto Finance → Item</strong> em <em>Configurações → Contratos (Lovable)</em> / página de vínculos — não desta tabela. Use coluna <strong>Nome / texto no Finance</strong> quando o Colli Finance não envia UUID (cruza nome do serviço no contrato com o item no Conta Azul). Aqui, <strong>CATEGORIA</strong> e <strong>FORMA DE PAGAMENTO</strong> ajudam em conta, tipo e descrição quando batem com o contrato; a conta padrão do contrato continua nas configurações do Conta Azul acima.
             </div>
 
             <div id="fpa-finance-payment-links-table" style="margin-bottom:24px"></div>
@@ -1513,6 +1581,30 @@
     </main>
 
     <div class="toast" id="toast"></div>
+
+    <div
+      id="fpa-cazv-modal"
+      class="fpa-cazv-modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-hidden="true"
+      aria-labelledby="fpa-cazv-modal-title"
+    >
+      <div class="fpa-cazv-modal__backdrop" data-fpa-cazv-modal-close tabindex="-1"></div>
+      <div class="fpa-cazv-modal__panel">
+        <div class="fpa-cazv-modal__head">
+          <h2 id="fpa-cazv-modal-title" class="fpa-cazv-modal__title">Vincular Finance → Conta Azul</h2>
+          <div class="fpa-cazv-modal__actions">
+            <a class="btn" href="/fpa/conta-azul-vinculos" target="_blank" rel="noopener noreferrer">Página completa</a>
+            <button type="button" class="btn" data-fpa-cazv-modal-close>Fechar</button>
+          </div>
+        </div>
+        <p class="fpa-cazv-modal__hint">
+          Mesmo fluxo da página de vínculos: carregue o catálogo no Conta Azul, escolha o item (UUID) para cada produto ou nome de serviço do Finance e salve. Abre automaticamente após conectar o Conta Azul (trocar o código OAuth).
+        </p>
+        <iframe id="fpa-cazv-modal-frame" class="fpa-cazv-modal__frame" title="Vínculos Finance e Conta Azul" src="about:blank"></iframe>
+      </div>
+    </div>
 
     <script>
       const state = {
@@ -3238,7 +3330,7 @@
           "financeProductId",
           "financeProductLabel",
           "contaAzulItemId",
-        ]).filter((m) => m.financeProductId && m.contaAzulItemId);
+        ]).filter((m) => (m.financeProductId || m.financeProductLabel) && m.contaAzulItemId);
         const financePaymentMappings = readRows("fpa-conta-azul-payment-mappings-tbody", [
           "financePaymentKey",
           "financePaymentLabel",
@@ -3266,7 +3358,7 @@
         const rowId = m.id || `fpm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         return `<tr data-mapping-id="${escapeHtml(rowId)}">
           <td><input class="field-input" data-mapping-field="financeProductId" type="text" value="${escapeHtml(m.financeProductId || "")}" style="min-width:120px;font-size:12px" /></td>
-          <td><input class="field-input" data-mapping-field="financeProductLabel" type="text" value="${escapeHtml(m.financeProductLabel || "")}" style="min-width:120px;font-size:12px" /></td>
+          <td><input class="field-input" data-mapping-field="financeProductLabel" type="text" value="${escapeHtml(m.financeProductLabel || "")}" style="min-width:120px;font-size:12px" placeholder="Nome do serviço no contrato" /></td>
           <td><input class="field-input" data-mapping-field="contaAzulItemId" type="text" value="${escapeHtml(m.contaAzulItemId || "")}" style="min-width:160px;font-size:12px" placeholder="UUID no Conta Azul" /></td>
           <td><button type="button" class="btn fpa-conta-azul-remove-product-mapping" style="padding:4px 8px">✕</button></td>
         </tr>`;
@@ -3554,6 +3646,28 @@
         state.fpa.contaAzulLookups.bootstrapped = false;
         bootstrapContaAzulLookups().catch(() => {});
         toast(result.connectedAccount?.companyName ? `Conta Azul conectada: ${result.connectedAccount.companyName}.` : "Conta Azul conectado.");
+        openFpaContaAzulVinculosModal();
+      }
+
+      function openFpaContaAzulVinculosModal() {
+        const shell = el("fpa-cazv-modal");
+        const frame = el("fpa-cazv-modal-frame");
+        if (!shell || !frame) return;
+        frame.src = `/fpa/conta-azul-vinculos?embed=1&t=${Date.now()}`;
+        shell.classList.remove("hidden");
+        shell.setAttribute("aria-hidden", "false");
+        document.body.style.overflow = "hidden";
+      }
+
+      function closeFpaContaAzulVinculosModal() {
+        const shell = el("fpa-cazv-modal");
+        const frame = el("fpa-cazv-modal-frame");
+        if (!shell || !frame) return;
+        if (shell.classList.contains("hidden")) return;
+        shell.classList.add("hidden");
+        shell.setAttribute("aria-hidden", "true");
+        frame.src = "about:blank";
+        document.body.style.overflow = "";
       }
 
       async function testContaAzulConnection() {
@@ -3950,10 +4064,23 @@
       el("btn-seed-dre-accounts").addEventListener("click", () => seedDreAccounts().catch((error) => toast(error.message)));
       el("btn-save-conta-azul-fpa").addEventListener("click", () => saveContaAzulFpaSettings().catch((error) => toast(error.message)));
       function goToContaAzulLovableContractMappings() {
-        window.location.href = "/fpa/conta-azul-vinculos";
+        openFpaContaAzulVinculosModal();
       }
-      el("btn-jump-lovable-contract-mappings")?.addEventListener("click", goToContaAzulLovableContractMappings);
+      el("btn-open-fpa-cazv-vinculos-modal")?.addEventListener("click", goToContaAzulLovableContractMappings);
       el("btn-go-conta-azul-lovable-mappings")?.addEventListener("click", goToContaAzulLovableContractMappings);
+      el("fpa-cazv-modal")?.addEventListener("click", (e) => {
+        if (e.target.closest("[data-fpa-cazv-modal-close]")) closeFpaContaAzulVinculosModal();
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+        const m = el("fpa-cazv-modal");
+        if (m && !m.classList.contains("hidden")) closeFpaContaAzulVinculosModal();
+      });
+      window.addEventListener("message", (ev) => {
+        if (!ev.data || ev.data.type !== "fpa-cazv-vinculos-saved") return;
+        toast("Vínculos salvos. FP&A atualizado.");
+        loadFpaBootstrap().then(() => renderFpa()).catch(() => {});
+      });
       el("btn-add-conta-azul-product-mapping")?.addEventListener("click", () => {
         el("fpa-conta-azul-product-mappings-tbody")?.insertAdjacentHTML("beforeend", buildContaAzulProductMappingRow({}));
       });

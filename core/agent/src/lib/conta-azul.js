@@ -928,7 +928,9 @@ function normalizeContaAzulLovableContractSettings(rawSettings, fallback) {
   const base = fallback && typeof fallback === "object" ? fallback : getBaseLovableContractDefaults();
   const amountUnit = normalizeEnum(safe.contractAmountInputUnit, ["centavos", "reais"], base.contractAmountInputUnit);
   const productRows = Array.isArray(safe.financeProductMappings)
-    ? safe.financeProductMappings.map(normalizeFinanceProductMappingEntry).filter((m) => m.financeProductId && m.contaAzulItemId)
+    ? safe.financeProductMappings
+        .map(normalizeFinanceProductMappingEntry)
+        .filter((m) => (m.financeProductId || m.financeProductLabel) && m.contaAzulItemId)
     : base.financeProductMappings;
   const paymentRows = Array.isArray(safe.financePaymentMappings)
     ? safe.financePaymentMappings
@@ -1591,6 +1593,28 @@ function addFinanceProductMappingCandidateKey(set, value) {
   if (s) set.add(s);
 }
 
+/** Normaliza texto para cruzar nome de serviço no Finance com `financeProductLabel` (minúsculas, espaços, sem acento). */
+function normalizeFinanceProductMatchKey(value) {
+  let s = String(value == null ? "" : value)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+  if (!s) return "";
+  try {
+    s = s.normalize("NFD").replace(/\p{M}/gu, "");
+  } catch {
+    s = s.replace(/[\u0300-\u036f]/g, "");
+  }
+  return s;
+}
+
+function addFinanceProductLabelCandidate(set, value) {
+  if (value == null || value === "") return;
+  const s = String(value).trim();
+  if (!s || s.length > 260) return;
+  set.add(s);
+}
+
 /**
  * Coleta identificadores de produto/serviço do Finance no payload do contrato (webhook Lovable, API, etc.).
  * Inclui linhas em arrays (items, line_items, …) — caminhos do tipo items.0.x falham com readNestedValue.
@@ -1658,18 +1682,275 @@ function collectFinanceProductMappingCandidateKeys(contract) {
   return keys;
 }
 
-function resolveContaAzulItemFromProductMapping(contract, mappings) {
-  if (!Array.isArray(mappings) || !mappings.length) return "";
-  const candidateKeys = collectFinanceProductMappingCandidateKeys(contract);
-  for (const m of mappings) {
-    if (!m?.financeProductId || !m?.contaAzulItemId) continue;
-    const fid = String(m.financeProductId).trim();
-    if (!fid) continue;
-    if (candidateKeys.has(fid)) return m.contaAzulItemId;
-    const fidLower = fid.toLowerCase();
-    for (const k of candidateKeys) {
-      if (String(k).toLowerCase() === fidLower) return m.contaAzulItemId;
+/**
+ * Nomes / descrições de serviço no contrato (Colli Finance manda texto, não UUID).
+ */
+function collectFinanceProductMappingCandidateLabels(contract) {
+  const labels = new Set();
+  if (!contract || typeof contract !== "object") return labels;
+  for (const path of [
+    "serviceName",
+    "service_name",
+    "servicoNome",
+    "servico_nome",
+    "nomeServico",
+    "nome_servico",
+    "productName",
+    "product_name",
+    "productTitle",
+    "planName",
+    "plan_name",
+    "planoNome",
+    "title",
+    "itemName",
+    "item_name",
+    "serviceLabel",
+    "itemDescription",
+    "descricao",
+    "description",
+    "name",
+    "nome",
+    "label",
+    "billing.serviceName",
+    "billing.productName",
+    "billing.nome",
+    "billing.descricao",
+    "item.name",
+    "item.nome",
+    "item.title",
+    "item.description",
+    "item.descricao",
+    "termos.descricao",
+    "notes",
+    "observacoes",
+  ]) {
+    addFinanceProductLabelCandidate(labels, readNestedValue(contract, path));
+  }
+  const lineArrays = [
+    readNestedArray(contract, "items"),
+    readNestedArray(contract, "line_items"),
+    readNestedArray(contract, "lines"),
+    readNestedArray(contract, "products"),
+    readNestedArray(contract, "contract_items"),
+    readNestedArray(contract, "billing.items"),
+    readNestedArray(contract, "billing.line_items"),
+    readNestedArray(contract, "subscription.items"),
+    readNestedArray(contract, "services"),
+  ];
+  for (const arr of lineArrays) {
+    if (!Array.isArray(arr)) continue;
+    for (const row of arr.slice(0, 12)) {
+      if (!row || typeof row !== "object") continue;
+      addFinanceProductLabelCandidate(labels, row.name);
+      addFinanceProductLabelCandidate(labels, row.nome);
+      addFinanceProductLabelCandidate(labels, row.title);
+      addFinanceProductLabelCandidate(labels, row.label);
+      addFinanceProductLabelCandidate(labels, row.serviceName);
+      addFinanceProductLabelCandidate(labels, row.service_name);
+      addFinanceProductLabelCandidate(labels, row.productName);
+      addFinanceProductLabelCandidate(labels, row.description);
+      addFinanceProductLabelCandidate(labels, row.descricao);
+      const rp = row.product;
+      if (rp && typeof rp === "object") {
+        addFinanceProductLabelCandidate(labels, rp.name);
+        addFinanceProductLabelCandidate(labels, rp.nome);
+      }
     }
+  }
+  return labels;
+}
+
+/** Objetos onde o Finance/Lovable pode aninhar o id do produto (além do merge plano em `contract`). */
+function gatherWebhookRootsForProductMapping(baseSource, contract) {
+  const roots = [];
+  const seen = new Set();
+  const add = (o) => {
+    if (!o || typeof o !== "object") return;
+    if (seen.has(o)) return;
+    seen.add(o);
+    roots.push(o);
+  };
+  add(baseSource);
+  add(contract);
+  if (baseSource?.contract && typeof baseSource.contract === "object") add(baseSource.contract);
+  const nestedKeys = ["data", "payload", "body", "record", "resource", "attributes", "meta", "event", "message", "details"];
+  for (const key of nestedKeys) {
+    const v = baseSource?.[key];
+    if (v && typeof v === "object") add(v);
+  }
+  const nc = baseSource?.contract;
+  if (nc && typeof nc === "object") {
+    for (const key of nestedKeys) {
+      const v = nc[key];
+      if (v && typeof v === "object") add(v);
+    }
+  }
+  return roots;
+}
+
+/** Primeira linha que definir cada chave vence (ID em minúsculas ou label normalizado). */
+function buildFinanceProductMatchLookup(mappings) {
+  const map = new Map();
+  for (const m of mappings) {
+    if (!m?.contaAzulItemId) continue;
+    const itemId = String(m.contaAzulItemId).trim();
+    if (!itemId) continue;
+    const fid = String(m.financeProductId || "").trim();
+    if (fid) {
+      const k = fid.toLowerCase();
+      if (!map.has(k)) map.set(k, itemId);
+    }
+    const flab = normalizeFinanceProductMatchKey(m.financeProductLabel);
+    if (flab && !map.has(flab)) map.set(flab, itemId);
+  }
+  return map;
+}
+
+function lookupFinanceProductMatch(map, rawValue) {
+  if (!map.size || rawValue == null || rawValue === "") return "";
+  const t = String(rawValue).trim();
+  if (!t) return "";
+  const byLower = map.get(t.toLowerCase());
+  if (byLower) return byLower;
+  const norm = normalizeFinanceProductMatchKey(t);
+  if (norm && map.has(norm)) return map.get(norm);
+  return "";
+}
+
+/** Qualquer string/número no JSON que case com chave do mapa (id ou label). */
+function deepWalkMatchFinanceProduct(map, node, depth = 0, seen = null) {
+  if (!map.size || depth > 22 || node == null) return "";
+  if (typeof node === "string" || typeof node === "number") {
+    return lookupFinanceProductMatch(map, node);
+  }
+  if (typeof node !== "object") return "";
+  if (node instanceof Date) return "";
+  if (!seen) seen = new WeakSet();
+  if (seen.has(node)) return "";
+  seen.add(node);
+  if (Array.isArray(node)) {
+    for (const el of node) {
+      const hit = deepWalkMatchFinanceProduct(map, el, depth + 1, seen);
+      if (hit) return hit;
+    }
+    return "";
+  }
+  for (const v of Object.values(node)) {
+    const hit = deepWalkMatchFinanceProduct(map, v, depth + 1, seen);
+    if (hit) return hit;
+  }
+  return "";
+}
+
+function collectNormalizedTextChunksFromTree(node, acc, depth = 0, seen = null) {
+  if (!node || depth > 22 || acc.length > 800) return;
+  if (typeof node === "string" || typeof node === "number") {
+    const norm = normalizeFinanceProductMatchKey(node);
+    if (norm.length >= 2) acc.push(norm);
+    return;
+  }
+  if (typeof node !== "object") return;
+  if (node instanceof Date) return;
+  if (!seen) seen = new WeakSet();
+  if (seen.has(node)) return;
+  seen.add(node);
+  if (Array.isArray(node)) {
+    for (const el of node) collectNormalizedTextChunksFromTree(el, acc, depth + 1, seen);
+    return;
+  }
+  for (const v of Object.values(node)) collectNormalizedTextChunksFromTree(v, acc, depth + 1, seen);
+}
+
+/** Quando o contrato traz o nome em campo longo (ex.: observação) contendo o label cadastrado. */
+function matchFinanceProductByLabelContains(roots, mappings) {
+  const rows = [];
+  for (const m of mappings) {
+    const itemId = normalizeOptionalText(m?.contaAzulItemId, 160);
+    const lab = normalizeFinanceProductMatchKey(m?.financeProductLabel);
+    if (!itemId || lab.length < 4) continue;
+    rows.push({ lab, itemId });
+  }
+  if (!rows.length) return "";
+  const chunks = [];
+  for (const root of roots) collectNormalizedTextChunksFromTree(root, chunks, 0, null);
+  const uniq = [...new Set(chunks)];
+  for (const { lab, itemId } of rows) {
+    for (const chunk of uniq) {
+      if (lab.length >= 5 && chunk.includes(lab)) return itemId;
+      if (chunk.length >= 5 && lab.includes(chunk)) return itemId;
+    }
+  }
+  return "";
+}
+
+function collectUuidLikeStringsFromTree(node, acc, depth = 0, seen = null) {
+  if (!node || depth > 18 || acc.length >= 48) return;
+  if (typeof node === "string" || typeof node === "number") {
+    const s = String(node).trim();
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)) acc.push(s);
+    return;
+  }
+  if (typeof node !== "object") return;
+  if (node instanceof Date) return;
+  if (!seen) seen = new WeakSet();
+  if (seen.has(node)) return;
+  seen.add(node);
+  if (Array.isArray(node)) {
+    for (const el of node) collectUuidLikeStringsFromTree(el, acc, depth + 1, seen);
+    return;
+  }
+  for (const v of Object.values(node)) collectUuidLikeStringsFromTree(v, acc, depth + 1, seen);
+}
+
+function unionStructuredProductKeysFromRoots(baseSource, contract) {
+  const u = new Set();
+  for (const root of gatherWebhookRootsForProductMapping(baseSource, contract)) {
+    for (const k of collectFinanceProductMappingCandidateKeys(root)) u.add(k);
+  }
+  return u;
+}
+
+function unionStructuredProductLabelsFromRoots(baseSource, contract) {
+  const u = new Set();
+  for (const root of gatherWebhookRootsForProductMapping(baseSource, contract)) {
+    for (const k of collectFinanceProductMappingCandidateLabels(root)) u.add(k);
+  }
+  return u;
+}
+
+function resolveContaAzulItemFromProductMapping(contract, mappings, baseSource = null) {
+  if (!Array.isArray(mappings) || !mappings.length) return "";
+  const mapByKey = buildFinanceProductMatchLookup(mappings);
+  if (!mapByKey.size) return "";
+
+  const roots = gatherWebhookRootsForProductMapping(baseSource || {}, contract);
+  for (const root of roots) {
+    const candidateKeys = collectFinanceProductMappingCandidateKeys(root);
+    for (const k of candidateKeys) {
+      const hit = lookupFinanceProductMatch(mapByKey, k);
+      if (hit) return hit;
+    }
+  }
+  for (const root of roots) {
+    for (const lbl of collectFinanceProductMappingCandidateLabels(root)) {
+      const hit = lookupFinanceProductMatch(mapByKey, lbl);
+      if (hit) return hit;
+    }
+  }
+  for (const root of roots) {
+    const hit = deepWalkMatchFinanceProduct(mapByKey, root, 0, null);
+    if (hit) return hit;
+  }
+  const byContains = matchFinanceProductByLabelContains(roots, mappings);
+  if (byContains) return byContains;
+
+  // Pull do orquestrador sem nome/id no JSON: uma linha na tabela define o item sem ambiguidade.
+  if (mappings.length === 1) {
+    const only = mappings[0];
+    const itemId = normalizeOptionalText(only?.contaAzulItemId, 160);
+    const fid = normalizeOptionalText(only?.financeProductId, 160);
+    const flab = normalizeOptionalText(only?.financeProductLabel, 240);
+    if (itemId && (fid || flab)) return itemId;
   }
   return "";
 }
@@ -1765,7 +2046,7 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
       : pickContractAmountInCentavosFromFinance(contract);
   const amount = moneyCentsToDecimal(amountCents) || 0;
   /** itens[0].id vem exclusivamente da tabela Produto Finance → Item (lovableContracts.financeProductMappings). */
-  const mappedItemId = resolveContaAzulItemFromProductMapping(contract, lc.financeProductMappings);
+  const mappedItemId = resolveContaAzulItemFromProductMapping(contract, lc.financeProductMappings, baseSource);
   const itemId = normalizeOptionalText(mappedItemId, 160) || "";
   const itemDescription = pickFirstText(
     pickFirstNested(contract, ["itemDescription", "description", "descricao", "name", "nome", "item.description", "item.descricao"]),
@@ -1954,13 +2235,23 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
 
   const productMappingDebug =
     missingRequiredFields.includes("itens[0].id") && Array.isArray(lc.financeProductMappings)
-      ? {
-          payloadProductKeys: [...collectFinanceProductMappingCandidateKeys(contract)].slice(0, 24),
-          configuredFinanceProductIds: lc.financeProductMappings
-            .map((m) => normalizeOptionalText(m.financeProductId, 160))
-            .filter(Boolean)
-            .slice(0, 24),
-        }
+      ? (() => {
+          const uuidLike = [];
+          collectUuidLikeStringsFromTree(baseSource, uuidLike);
+          return {
+            payloadProductKeys: [...unionStructuredProductKeysFromRoots(baseSource, contract)].slice(0, 24),
+            payloadProductLabels: [...unionStructuredProductLabelsFromRoots(baseSource, contract)].slice(0, 24),
+            uuidLikeInWebhook: [...new Set(uuidLike)].slice(0, 24),
+            configuredFinanceProductIds: lc.financeProductMappings
+              .map((m) => normalizeOptionalText(m.financeProductId, 160))
+              .filter(Boolean)
+              .slice(0, 24),
+            configuredFinanceProductLabels: lc.financeProductMappings
+              .map((m) => normalizeOptionalText(m.financeProductLabel, 200))
+              .filter(Boolean)
+              .slice(0, 24),
+          };
+        })()
       : null;
 
   const outAmountCents = Number.isFinite(payloadLineValor) ? Math.round(payloadLineValor * 100) : amountCents;

@@ -675,6 +675,151 @@ test("mapa de produto casa com items[0].productId no payload (webhook em linhas)
   assert.deepEqual(record.missingRequiredFields, []);
 });
 
+test("mapa de produto encontra financeProductId em campo profundo sem items/productId conhecidos", () => {
+  const fid = "79415434-968f-439d-a362-5c686716b2fe";
+  const settings = mergeContaAzulSettings(
+    { fpaExport: { defaultReceivableCategoryId: "cat_r", defaultFinancialAccountId: "conta_padrao" } },
+    {
+      lovableContracts: {
+        financeProductMappings: [{ financeProductId: fid, contaAzulItemId: "ca-item-deep" }],
+      },
+    }
+  );
+  const record = buildContaAzulContractRecord({
+    settings,
+    nextContractNumber: 12,
+    source: {
+      contractId: "094711fb-968a-4f4f-9403-f0eafeee0c9a",
+      customerId: "c1",
+      data: {
+        nested: {
+          line: [{ ref: fid, label: "Serviço" }],
+        },
+      },
+      amountCents: 100000,
+      startDate: "2026-01-01",
+      firstDueDate: "2026-01-10",
+    },
+  });
+  assert.equal(record.payload.itens[0].id, "ca-item-deep");
+  assert.deepEqual(record.missingRequiredFields, []);
+});
+
+test("cruza financeProductLabel com nome do servico nas linhas do contrato (sem UUID no Finance)", () => {
+  const settings = mergeContaAzulSettings(
+    { fpaExport: { defaultReceivableCategoryId: "cat_r", defaultFinancialAccountId: "conta_padrao" } },
+    {
+      lovableContracts: {
+        financeProductMappings: [
+          {
+            financeProductId: "",
+            financeProductLabel: "EXECUTAR LOYALT",
+            contaAzulItemId: "ffdef8af-0d45-4737-af0c-b7a84dcf98a2",
+          },
+        ],
+      },
+    }
+  );
+  const record = buildContaAzulContractRecord({
+    settings,
+    nextContractNumber: 12,
+    source: {
+      contractId: "c_loyalt",
+      customerId: "c1",
+      items: [{ nome: "EXECUTAR LOYALT", valor: 100 }],
+      amountCents: 100000,
+      startDate: "2026-01-01",
+      firstDueDate: "2026-01-10",
+    },
+  });
+  assert.equal(record.payload.itens[0].id, "ffdef8af-0d45-4737-af0c-b7a84dcf98a2");
+  assert.deepEqual(record.missingRequiredFields, []);
+});
+
+test("cruza financeProductLabel quando o texto aparece dentro de observacao/notas do contrato", () => {
+  const settings = mergeContaAzulSettings(
+    { fpaExport: { defaultReceivableCategoryId: "cat_r", defaultFinancialAccountId: "conta_padrao" } },
+    {
+      lovableContracts: {
+        financeProductMappings: [
+          {
+            financeProductId: "",
+            financeProductLabel: "Assessoria Recorrente",
+            contaAzulItemId: "uuid-assessoria-ca",
+          },
+        ],
+      },
+    }
+  );
+  const record = buildContaAzulContractRecord({
+    settings,
+    nextContractNumber: 3,
+    source: {
+      contractId: "c_notes",
+      customerId: "c1",
+      notes: "Contrato mensal — pacote Assessoria Recorrente para o cliente",
+      amountCents: 50000,
+      startDate: "2026-01-01",
+      firstDueDate: "2026-01-10",
+    },
+  });
+  assert.equal(record.payload.itens[0].id, "uuid-assessoria-ca");
+  assert.deepEqual(record.missingRequiredFields, []);
+});
+
+test("com um unico mapa de produto, contrato minimal do Finance (sem id de produto no JSON) ainda recebe itens[0].id", () => {
+  const settings = mergeContaAzulSettings(
+    { fpaExport: { defaultReceivableCategoryId: "cat_r", defaultFinancialAccountId: "conta_padrao" } },
+    {
+      lovableContracts: {
+        financeProductMappings: [
+          { financeProductId: "79415434-968f-439d-a362-5c686716b2fe", contaAzulItemId: "ffdef8af-0d45-4737-af0c-b7a84dcf98a2" },
+        ],
+      },
+    }
+  );
+  const record = buildContaAzulContractRecord({
+    settings,
+    nextContractNumber: 12,
+    source: {
+      contractId: "094711fb-968a-4f4f-9403-f0eafeee0c9a",
+      customerId: "c1",
+      amountCents: 100000,
+      startDate: "2026-01-01",
+      firstDueDate: "2026-01-10",
+    },
+  });
+  assert.equal(record.payload.itens[0].id, "ffdef8af-0d45-4737-af0c-b7a84dcf98a2");
+  assert.deepEqual(record.missingRequiredFields, []);
+});
+
+test("com dois mapas de produto, contrato sem id de produto no JSON continua sem itens[0].id", () => {
+  const settings = mergeContaAzulSettings(
+    { fpaExport: { defaultReceivableCategoryId: "cat_r", defaultFinancialAccountId: "conta_padrao" } },
+    {
+      lovableContracts: {
+        financeProductMappings: [
+          { financeProductId: "79415434-968f-439d-a362-5c686716b2fe", contaAzulItemId: "item-a" },
+          { financeProductId: "11111111-1111-1111-1111-111111111111", contaAzulItemId: "item-b" },
+        ],
+      },
+    }
+  );
+  const record = buildContaAzulContractRecord({
+    settings,
+    nextContractNumber: 1,
+    source: {
+      contractId: "x",
+      customerId: "c",
+      amountCents: 1000,
+      startDate: "2026-01-01",
+      firstDueDate: "2026-01-10",
+    },
+  });
+  assert.ok(!record.payload.itens[0]?.id);
+  assert.ok(record.missingRequiredFields.includes("itens[0].id"));
+});
+
 test("mapa de produto aceita UUID com casing diferente entre payload e mapa", () => {
   const settings = mergeContaAzulSettings(
     { fpaExport: { defaultReceivableCategoryId: "cat_r", defaultFinancialAccountId: "conta_padrao" } },
