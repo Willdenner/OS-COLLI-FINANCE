@@ -310,6 +310,50 @@ const FINANCE_CONTRACT_PRODUCT_ROW_LABEL_PATHS = [
   "item.nome",
 ];
 
+const FINANCE_CONTRACT_CATEGORY_PATHS = [
+  "financeCategory",
+  "category",
+  "categoria",
+  "categoria_produto",
+  "product_category",
+  "productCategory",
+  "categoryName",
+  "category_name",
+  "categoria_nome",
+  "nome_categoria",
+  "billing.category",
+  "billing.categoria",
+  "billing.product_category",
+  "billing.productCategory",
+  "product.category",
+  "product.categoria",
+  "product.categoryName",
+  "product.category_name",
+  "service.category",
+  "service.categoria",
+  "item.category",
+  "item.categoria",
+];
+
+const FINANCE_CONTRACT_CATEGORY_ROW_PATHS = [
+  "financeCategory",
+  "category",
+  "categoria",
+  "categoria_produto",
+  "product_category",
+  "productCategory",
+  "categoryName",
+  "category_name",
+  "categoria_nome",
+  "nome_categoria",
+  "product.category",
+  "product.categoria",
+  "service.category",
+  "service.categoria",
+  "item.category",
+  "item.categoria",
+];
+
 function collectFinanceContractProductValues(contract = {}, directPaths = [], rowPaths = []) {
   const values = [];
   for (const path of directPaths) {
@@ -465,18 +509,49 @@ function extractFinanceContractServiceName(contract = {}, products = []) {
   return extractFinanceContractServiceInfo(contract, products)?.name || "";
 }
 
+function extractFinanceContractCategoryInfo(contract = {}) {
+  const entries = collectFinanceContractProductEntries(
+    contract,
+    FINANCE_CONTRACT_CATEGORY_PATHS,
+    FINANCE_CONTRACT_CATEGORY_ROW_PATHS
+  );
+  const valid = entries
+    .filter((entry) => {
+      const value = String(entry.value || "").trim();
+      if (!value || value.length < 2 || value.length > 180) return false;
+      if (/^\d{4}-\d{2}-\d{2}/.test(value)) return false;
+      if (/^[\d\s.,/-]+$/.test(value)) return false;
+      return true;
+    })
+    .sort((a, b) => scoreFinanceServiceCandidate(b.path, b.value) - scoreFinanceServiceCandidate(a.path, a.value));
+  const best = valid[0];
+  return best ? { name: best.value, sourcePath: best.path, rawValue: best.value } : null;
+}
+
 function enrichFinanceContractForReceivables(contract = {}, products = []) {
   if (!contract || typeof contract !== "object") return contract;
   const serviceInfo = extractFinanceContractServiceInfo(contract, products);
   const serviceName = serviceInfo?.name || "";
-  if (!serviceName || contract.contractedService || contract.financeServiceName) return contract;
+  const categoryInfo = extractFinanceContractCategoryInfo(contract);
+  if (!serviceName && !categoryInfo?.name) return contract;
   return {
     ...contract,
-    contractedService: serviceName,
-    financeServiceName: serviceName,
-    financeServiceSourcePath: serviceInfo.sourcePath || "",
-    financeServiceRawValue: serviceInfo.rawValue || serviceName,
-    financeServiceResolution: serviceInfo.method || "",
+    ...(serviceName && !contract.contractedService && !contract.financeServiceName
+      ? {
+          contractedService: serviceName,
+          financeServiceName: serviceName,
+          financeServiceSourcePath: serviceInfo.sourcePath || "",
+          financeServiceRawValue: serviceInfo.rawValue || serviceName,
+          financeServiceResolution: serviceInfo.method || "",
+        }
+      : {}),
+    ...(categoryInfo?.name && !contract.financeCategory
+      ? {
+          financeCategory: categoryInfo.name,
+          financeCategorySourcePath: categoryInfo.sourcePath || "",
+          financeCategoryRawValue: categoryInfo.rawValue || categoryInfo.name,
+        }
+      : {}),
   };
 }
 

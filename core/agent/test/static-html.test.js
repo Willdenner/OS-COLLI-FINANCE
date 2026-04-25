@@ -60,6 +60,8 @@ test("pagina de analise do orquestrador detalha payloads, exportacoes e motivos 
   assert.match(html, /billing_cards_to_cobranca/);
   assert.match(html, /contracts_to_conta_azul/);
   assert.match(html, /Servico contratado/);
+  assert.match(html, /Categoria no Finance/);
+  assert.match(html, /extractFinanceCategoryInfo/);
   assert.match(html, /Campos recebidos do Finance/);
   assert.match(html, /summarizeFinanceContractApiFields/);
   assert.match(html, /extractContractedService/);

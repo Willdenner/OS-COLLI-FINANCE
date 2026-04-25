@@ -1193,6 +1193,93 @@
       );
     }
 
+    function extractFinanceCategoryInfo(item) {
+      const saved = firstText(item, ["financeCategory"], 180);
+      if (saved) {
+        return {
+          name: saved,
+          sourcePath: firstText(item, ["financeCategorySourcePath"], 220),
+          rawValue: firstText(item, ["financeCategoryRawValue"], 180),
+        };
+      }
+      const paths = [
+        "financeCategory",
+        "category",
+        "categoria",
+        "categoria_produto",
+        "product_category",
+        "productCategory",
+        "categoryName",
+        "category_name",
+        "categoria_nome",
+        "nome_categoria",
+        "billing.category",
+        "billing.categoria",
+        "billing.product_category",
+        "billing.productCategory",
+        "product.category",
+        "product.categoria",
+        "product.categoryName",
+        "product.category_name",
+        "service.category",
+        "service.categoria",
+        "item.category",
+        "item.categoria",
+      ];
+      const rows = [
+        "items",
+        "line_items",
+        "lines",
+        "products",
+        "services",
+        "contract_items",
+        "billing.items",
+        "billing.line_items",
+        "subscription.items",
+      ];
+      const rowPaths = [
+        "financeCategory",
+        "category",
+        "categoria",
+        "categoria_produto",
+        "product_category",
+        "productCategory",
+        "categoryName",
+        "category_name",
+        "categoria_nome",
+        "nome_categoria",
+        "product.category",
+        "product.categoria",
+        "service.category",
+        "service.categoria",
+        "item.category",
+        "item.categoria",
+      ];
+      const candidates = [];
+      paths.forEach((path) => {
+        const value = firstText(item, [path], 180);
+        if (value) candidates.push({ path, value, score: scoreFinanceServiceCandidate(path, value) });
+      });
+      rows.forEach((arrayPath) => {
+        const arr = readPathValue(item, arrayPath);
+        if (!Array.isArray(arr)) return;
+        arr.slice(0, 12).forEach((row, index) => {
+          if (!row || typeof row !== "object") return;
+          rowPaths.forEach((path) => {
+            const value = firstText(row, [path], 180);
+            if (value) candidates.push({ path: `${arrayPath}[${index}].${path}`, value, score: scoreFinanceServiceCandidate(path, value) });
+          });
+        });
+      });
+      const best = candidates
+        .filter((entry) => {
+          const value = String(entry.value || "").trim();
+          return value.length >= 2 && value.length <= 180 && !/^\d{4}-\d{2}-\d{2}/.test(value) && !/^[\d\s.,/-]+$/.test(value);
+        })
+        .sort((a, b) => b.score - a.score)[0];
+      return best ? { name: best.value, sourcePath: best.path, rawValue: best.value } : { name: "", sourcePath: "", rawValue: "" };
+    }
+
     function buildStatusClass(status, fallback = "") {
       const normalized = String(status || "").toLowerCase();
       if (["completed", "success", "idempotent", "billing_started", "paid", "pago", "active", "ativo", "new", "novo"].includes(normalized)) {
@@ -1240,6 +1327,7 @@
       const status = extractStatus(item) || firstText(item, ["secondary"], 80);
       const serviceInfo = extractContractedServiceInfo(item);
       const contractedService = serviceInfo.name || extractContractedService(item);
+      const categoryInfo = extractFinanceCategoryInfo(item);
       const apiDebug = summarizeFinanceContractApiFields(item);
       const paymentMethod = firstText(item, ["payment_method", "paymentMethod"], 80);
       const startDate = firstText(item, ["first_charge_date", "firstChargeDate", "firstDueDate", "contract_start_date"], 40) || firstText(item, ["tertiary"], 120);
@@ -1252,6 +1340,9 @@
         service: contractedService && contractedService !== clientName ? contractedService : "",
         serviceSource: serviceInfo.sourcePath || "",
         serviceRawValue: serviceInfo.rawValue || "",
+        financeCategory: categoryInfo.name || "",
+        financeCategorySource: categoryInfo.sourcePath || "",
+        financeCategoryRawValue: categoryInfo.rawValue || "",
         apiFields: apiDebug.fields,
         rawJson: apiDebug.json,
         statusLabel: status,
@@ -1313,6 +1404,7 @@
               </div>
               ${item.secondary ? `<div class="kc-card-sub">${escapeHtml(item.secondary)}</div>` : ""}
               ${item.service ? `<div class="kc-card-service"><span class="kc-card-service-label">Servico contratado${item.serviceSource ? ` · ${escapeHtml(item.serviceSource)}` : ""}</span>${escapeHtml(item.service)}${item.serviceRawValue && item.serviceRawValue !== item.service ? `<div class="kc-card-sub">Valor bruto: ${escapeHtml(item.serviceRawValue)}</div>` : ""}</div>` : ""}
+              ${item.financeCategory ? `<div class="kc-card-service"><span class="kc-card-service-label">Categoria no Finance${item.financeCategorySource ? ` · ${escapeHtml(item.financeCategorySource)}` : ""}</span>${escapeHtml(item.financeCategory)}${item.financeCategoryRawValue && item.financeCategoryRawValue !== item.financeCategory ? `<div class="kc-card-sub">Valor bruto: ${escapeHtml(item.financeCategoryRawValue)}</div>` : ""}</div>` : ""}
               ${(item.apiFields && item.apiFields.length) || item.rawJson ? `
                 <details class="kc-api-debug">
                   <summary>Campos recebidos do Finance</summary>
