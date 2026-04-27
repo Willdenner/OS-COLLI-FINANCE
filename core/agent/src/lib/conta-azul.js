@@ -1403,7 +1403,14 @@ function buildContaAzulTestFinancialEventRecord({
 
 function compactContaAzulPayload(value) {
   if (Array.isArray(value)) {
-    return value.map(compactContaAzulPayload).filter((entry) => entry !== undefined);
+    return value
+      .map(compactContaAzulPayload)
+      .filter((entry) => {
+        if (entry === undefined || entry === null || entry === "") return false;
+        if (Array.isArray(entry) && !entry.length) return false;
+        if (typeof entry === "object" && !Array.isArray(entry) && !Object.keys(entry).length) return false;
+        return true;
+      });
   }
   if (!value || typeof value !== "object") return value;
 
@@ -1416,6 +1423,14 @@ function compactContaAzulPayload(value) {
     compacted[key] = nextValue;
   });
   return compacted;
+}
+
+function isContaAzulNullishText(value) {
+  return /^(null|undefined|nan)$/i.test(String(value ?? "").trim());
+}
+
+function isContaAzulContractDateLikeKey(key) {
+  return /(^|_)(data|date)(_|$)|vencimento|emissao|inicio|fim|competencia/i.test(String(key || ""));
 }
 
 function normalizeContaAzulContractDateInPlace(target, key, fallbackValue) {
@@ -1433,6 +1448,49 @@ function normalizeContaAzulContractDateInPlace(target, key, fallbackValue) {
   delete target[key];
 }
 
+function sanitizeContaAzulContractDatesDeep(node, depth = 0, seen = null) {
+  if (!node || typeof node !== "object" || node instanceof Date || depth > 16) return node;
+  if (!seen) seen = new WeakSet();
+  if (seen.has(node)) return node;
+  seen.add(node);
+
+  if (Array.isArray(node)) {
+    for (let index = node.length - 1; index >= 0; index -= 1) {
+      const value = node[index];
+      if (value === undefined || value === null || value === "" || isContaAzulNullishText(value)) {
+        node.splice(index, 1);
+      } else {
+        sanitizeContaAzulContractDatesDeep(value, depth + 1, seen);
+      }
+    }
+    return node;
+  }
+
+  Object.entries(node).forEach(([key, value]) => {
+    if (value && typeof value === "object") {
+      sanitizeContaAzulContractDatesDeep(value, depth + 1, seen);
+      return;
+    }
+    if (!isContaAzulContractDateLikeKey(key)) return;
+    const normalized = normalizeIsoDateFromFinance(value);
+    if (normalized) {
+      node[key] = normalized;
+      return;
+    }
+    delete node[key];
+  });
+  return node;
+}
+
+function pruneContaAzulContractPaymentCondition(payload) {
+  const cond = payload?.condicao_pagamento;
+  if (!cond || typeof cond !== "object" || Array.isArray(cond)) return;
+  const allowed = new Set(["tipo_pagamento", "id_conta_financeira", "dia_vencimento", "primeira_data_vencimento"]);
+  Object.keys(cond).forEach((key) => {
+    if (!allowed.has(key)) delete cond[key];
+  });
+}
+
 function normalizeMergedContaAzulContractDates(payload, basePayload = {}) {
   if (!payload || typeof payload !== "object") return payload;
   normalizeContaAzulContractDateInPlace(payload, "data_emissao", basePayload.data_emissao);
@@ -1447,7 +1505,8 @@ function normalizeMergedContaAzulContractDates(payload, basePayload = {}) {
       basePayload.condicao_pagamento?.primeira_data_vencimento
     );
   }
-  return payload;
+  pruneContaAzulContractPaymentCondition(payload);
+  return sanitizeContaAzulContractDatesDeep(payload);
 }
 
 /**

@@ -692,7 +692,10 @@ test("contaAzulContractPayload com data null em string nao envia data invalida",
       contaAzulContractPayload: {
         data_emissao: "null",
         termos: { data_inicio: "null", data_fim: "null" },
-        condicao_pagamento: { primeira_data_vencimento: "null" },
+        condicao_pagamento: {
+          primeira_data_vencimento: "null",
+          parcelas: [{ data_vencimento: "null", nota: "parcela extra" }, null],
+        },
       },
     },
   });
@@ -700,6 +703,7 @@ test("contaAzulContractPayload com data null em string nao envia data invalida",
   assert.equal(record.payload.termos.data_inicio, "2026-03-01");
   assert.equal("data_fim" in record.payload.termos, false);
   assert.equal(record.payload.condicao_pagamento.primeira_data_vencimento, "2026-03-10");
+  assert.equal("parcelas" in record.payload.condicao_pagamento, false);
   assert.deepEqual(record.missingRequiredFields, []);
 });
 
