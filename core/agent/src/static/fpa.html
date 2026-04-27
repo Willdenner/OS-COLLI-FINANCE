@@ -1027,7 +1027,7 @@
           </div>
           <div class="card-body">
             <p class="field-hint" style="margin-bottom:14px">
-              Conta financeira padrão do contrato, unidade de valor (centavos vs reais) e tabelas entre o Finance e o Conta Azul
+              Conta financeira padrão do contrato, unidade de valor (centavos vs reais) e tabelas entre o Finance/Lovable e o Conta Azul
               (<code>itens.id</code> e condição de pagamento). Para focar só nisso, use a página
               <a href="/fpa/conta-azul-vinculos" style="color:var(--accent)">Vínculos Finance → CA</a>. Use <strong>Salvar Credenciais</strong> no card Conta Azul abaixo para gravar a partir deste painel. Linhas vazias são ignoradas.
             </p>
@@ -1055,14 +1055,14 @@
 
             <div class="field" style="margin-top:12px">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-                <label class="field-label" style="margin:0">Produto no Finance → UUID do item/serviço (Conta Azul)</label>
+                <label class="field-label" style="margin:0">Service ID Lovable/Finance → UUID do item/serviço (Conta Azul)</label>
                 <button class="btn" id="btn-add-conta-azul-product-mapping" type="button">+ Linha</button>
               </div>
               <div class="table-wrap" style="max-height:220px;overflow:auto">
                 <table class="data-table" style="font-size:12px">
                   <thead>
                     <tr>
-                      <th>ID produto (Finance, se houver)</th>
+                      <th><code>service_id</code> / ID produto</th>
                       <th>Nome / texto no Finance (cruzamento)</th>
                       <th>UUID item (Conta Azul)</th>
                       <th style="width:72px"></th>
@@ -3357,7 +3357,7 @@
       function buildContaAzulProductMappingRow(m) {
         const rowId = m.id || `fpm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         return `<tr data-mapping-id="${escapeHtml(rowId)}">
-          <td><input class="field-input" data-mapping-field="financeProductId" type="text" value="${escapeHtml(m.financeProductId || "")}" style="min-width:120px;font-size:12px" /></td>
+          <td><input class="field-input" data-mapping-field="financeProductId" type="text" value="${escapeHtml(m.financeProductId || "")}" style="min-width:120px;font-size:12px" placeholder="service_id do Lovable" /></td>
           <td><input class="field-input" data-mapping-field="financeProductLabel" type="text" value="${escapeHtml(m.financeProductLabel || "")}" style="min-width:120px;font-size:12px" placeholder="Nome do serviço no contrato" /></td>
           <td><input class="field-input" data-mapping-field="contaAzulItemId" type="text" value="${escapeHtml(m.contaAzulItemId || "")}" style="min-width:160px;font-size:12px" placeholder="UUID no Conta Azul" /></td>
           <td><button type="button" class="btn fpa-conta-azul-remove-product-mapping" style="padding:4px 8px">✕</button></td>

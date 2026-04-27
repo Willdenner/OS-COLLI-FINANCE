@@ -846,6 +846,34 @@ test("mapa de produto aceita UUID com casing diferente entre payload e mapa", ()
   assert.equal(record.payload.itens[0].id, "uuid-ca");
 });
 
+test("service_id do Lovable decide o item do Conta Azul antes de outros UUIDs do payload", () => {
+  const settings = mergeContaAzulSettings(
+    { fpaExport: { defaultReceivableCategoryId: "cat_r", defaultFinancialAccountId: "conta_padrao" } },
+    {
+      lovableContracts: {
+        financeProductMappings: [
+          { financeProductId: "contract-as-product", contaAzulItemId: "item-incorreto" },
+          { financeProductId: "service-lovable-123", contaAzulItemId: "item-correto" },
+        ],
+      },
+    }
+  );
+  const record = buildContaAzulContractRecord({
+    settings,
+    nextContractNumber: 1,
+    source: {
+      contractId: "contract-as-product",
+      customerId: "c",
+      service_id: "service-lovable-123",
+      amountCents: 1000,
+      startDate: "2026-01-01",
+      firstDueDate: "2026-01-10",
+    },
+  });
+  assert.equal(record.payload.itens[0].id, "item-correto");
+  assert.deepEqual(record.missingRequiredFields, []);
+});
+
 test("contaAzulContractPayload do webhook nao substitui itens[0].id fora do mapa de produto", () => {
   const record = buildContaAzulContractRecord({
     settings: {

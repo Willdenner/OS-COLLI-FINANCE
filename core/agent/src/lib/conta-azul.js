@@ -1627,7 +1627,10 @@ function collectFinanceProductMappingCandidateKeys(contract) {
     "product_id",
     "financeProductId",
     "sku",
+    "service_id",
+    "serviceId",
     "codigo_produto",
+    "product_code",
     "plano_id",
     "planoId",
     "servico_codigo",
@@ -1638,6 +1641,7 @@ function collectFinanceProductMappingCandidateKeys(contract) {
     "billing.product_id",
     "billing.sku",
     "billing.financeProductId",
+    "billing.service_id",
     "billing.serviceId",
   ]) {
     addFinanceProductMappingCandidateKey(keys, readNestedValue(contract, path));
@@ -1650,11 +1654,21 @@ function collectFinanceProductMappingCandidateKeys(contract) {
     addFinanceProductMappingCandidateKey(keys, productObj.financeProductId);
     addFinanceProductMappingCandidateKey(keys, productObj.sku);
   }
+  const serviceObj = readNestedValue(contract, "service");
+  if (serviceObj && typeof serviceObj === "object") {
+    addFinanceProductMappingCandidateKey(keys, serviceObj.id);
+    addFinanceProductMappingCandidateKey(keys, serviceObj.serviceId);
+    addFinanceProductMappingCandidateKey(keys, serviceObj.service_id);
+    addFinanceProductMappingCandidateKey(keys, serviceObj.productId);
+    addFinanceProductMappingCandidateKey(keys, serviceObj.product_id);
+    addFinanceProductMappingCandidateKey(keys, serviceObj.sku);
+  }
   const lineArrays = [
     readNestedArray(contract, "items"),
     readNestedArray(contract, "line_items"),
     readNestedArray(contract, "lines"),
     readNestedArray(contract, "products"),
+    readNestedArray(contract, "services"),
     readNestedArray(contract, "contract_items"),
     readNestedArray(contract, "billing.items"),
     readNestedArray(contract, "billing.line_items"),
