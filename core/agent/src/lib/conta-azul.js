@@ -1418,6 +1418,38 @@ function compactContaAzulPayload(value) {
   return compacted;
 }
 
+function normalizeContaAzulContractDateInPlace(target, key, fallbackValue) {
+  if (!target || typeof target !== "object") return;
+  const normalized = normalizeIsoDateFromFinance(target[key]);
+  if (normalized) {
+    target[key] = normalized;
+    return;
+  }
+  const fallback = normalizeIsoDateFromFinance(fallbackValue);
+  if (fallback) {
+    target[key] = fallback;
+    return;
+  }
+  delete target[key];
+}
+
+function normalizeMergedContaAzulContractDates(payload, basePayload = {}) {
+  if (!payload || typeof payload !== "object") return payload;
+  normalizeContaAzulContractDateInPlace(payload, "data_emissao", basePayload.data_emissao);
+  if (payload.termos && typeof payload.termos === "object") {
+    normalizeContaAzulContractDateInPlace(payload.termos, "data_inicio", basePayload.termos?.data_inicio);
+    normalizeContaAzulContractDateInPlace(payload.termos, "data_fim", basePayload.termos?.data_fim);
+  }
+  if (payload.condicao_pagamento && typeof payload.condicao_pagamento === "object") {
+    normalizeContaAzulContractDateInPlace(
+      payload.condicao_pagamento,
+      "primeira_data_vencimento",
+      basePayload.condicao_pagamento?.primeira_data_vencimento
+    );
+  }
+  return payload;
+}
+
 /**
  * Mescla o payload canônico calculado a partir do webhook com `contaAzulContractPayload` / `contaAzulPayload` opcional.
  * Um objeto vindo do Lovable com `{}` (ou parcial) não pode substituir o payload inteiro — caso contrário
@@ -1457,7 +1489,7 @@ function mergeContaAzulLovableContractPayload(base, override) {
   if (o.termos && (o.termos.numero == null || o.termos.numero === "") && base.termos?.numero != null) {
     o.termos = { ...o.termos, numero: base.termos.numero };
   }
-  return o;
+  return normalizeMergedContaAzulContractDates(o, base);
 }
 
 function normalizeContaAzulContractFrequency(value) {
