@@ -1257,6 +1257,42 @@ function buildFinanceClientQueries(lookup = {}) {
   return queries;
 }
 
+function buildFinanceClientSyncWindow(businessDate = getBusinessDate(), days = 5) {
+  const safeBusinessDate = getBusinessDate(businessDate);
+  const safeDays = Math.max(1, Math.min(30, Math.trunc(Number(days) || 5)));
+  const end = new Date(`${safeBusinessDate}T00:00:00.000Z`);
+  const start = new Date(end);
+  start.setUTCDate(start.getUTCDate() - (safeDays - 1));
+  const from = start.toISOString().slice(0, 10);
+  const to = safeBusinessDate;
+  return {
+    from,
+    to,
+    days: safeDays,
+    key: `${from}_${to}_${safeDays}`,
+  };
+}
+
+function buildFinanceClientSyncQueries(window) {
+  const safeWindow = window || buildFinanceClientSyncWindow();
+  return [
+    {
+      createdSince: safeWindow.from,
+      dataInicio: safeWindow.from,
+      dataFim: safeWindow.to,
+    },
+    {
+      created_since: safeWindow.from,
+      data_inicio: safeWindow.from,
+      data_fim: safeWindow.to,
+    },
+    {
+      from: safeWindow.from,
+      to: safeWindow.to,
+    },
+  ];
+}
+
 async function fetchFinanceClientForLovableContract(source = {}) {
   const lookup = extractFinanceClientLookupFromContract(source);
   if (!lookup.id && !lookup.documentDigits) return null;
@@ -1341,6 +1377,189 @@ async function resolveContaAzulCustomerForLovableContract(contaAzulSettings, sou
 
   const created = await createContaAzulCustomerFromContract(contaAzulSettings, customerRecord);
   return { action: "created", person: created.person, customerRecord, endpoint: created.endpoint, responseCode: created.responseCode, financeClientMatch };
+}
+
+async function fetchFinanceClientsForPresync(window) {
+  const clientsResource = FINANCE_RESOURCES.clients;
+  let lastPull = null;
+  let lastError = null;
+  for (const query of buildFinanceClientSyncQueries(window)) {
+    try {
+      const pull = await fetchFinanceCollection({
+        body: null,
+        bodyKeys: clientsResource.bodyKeys,
+        envKeys: clientsResource.envKeys,
+        responseKeys: clientsResource.responseKeys,
+        query,
+        resourceLabel: clientsResource.resourceLabel,
+        allowObjectResponse: true,
+      });
+      lastPull = pull;
+      if (!pull.configured || pull.items.length) return pull;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (lastPull) return lastPull;
+  if (lastError) throw lastError;
+  return {
+    configured: false,
+    expectedEnvKey: clientsResource.envKeys[0],
+    source: "not_configured",
+    items: [],
+    message: `Configure ${clientsResource.envKeys[0]} para puxar clientes do Colli Finance.`,
+  };
+}
+
+function buildContaAzulCustomerRecordFromFinanceClient(financeClient) {
+  return buildContaAzulCustomerRecordFromContract(mergeFinanceClientIntoLovableSource({}, financeClient));
+}
+
+async function syncFinanceClientsToContaAzul({ businessDate, days = 5 } = {}) {
+  const window = buildFinanceClientSyncWindow(businessDate, days);
+  const currentSettings = await getSettings();
+  const contaAzulSettings = await ensureContaAzulAccessToken(currentSettings, { allowRefresh: true });
+  if (!contaAzulSettings.enabled || !contaAzulSettings.allowOutbound) {
+    throw createHttpError(400, "Ative a integração Conta Azul antes de sincronizar clientes do Finance.");
+  }
+
+  let run = await createReceivablesRun({
+    businessDate: window.to,
+    title: "Pré-sincronização de clientes Finance",
+  });
+  run = await appendReceivablesStep(run, {
+    key: "sync_finance_clients",
+    title: "Sincronizar clientes Finance",
+    status: "running",
+    summary: `Buscando clientes cadastrados entre ${window.from} e ${window.to}.`,
+    details: { window },
+  });
+
+  try {
+    const pull = await fetchFinanceClientsForPresync(window);
+    if (!pull.configured) {
+      run = await appendReceivablesStep(run, {
+        key: "sync_finance_clients_config",
+        title: "Clientes Finance",
+        status: "warning",
+        summary: pull.message,
+        details: { envKey: pull.expectedEnvKey, source: pull.source, window },
+      });
+      return saveReceivablesRun(run, {
+        status: "waiting_finance_connection",
+        phase: "waiting_client_presync",
+        lastError: `Conexão com Colli Finance pendente: ${pull.expectedEnvKey}.`,
+        financePayload: {
+          ...(run.financePayload || {}),
+          clientSync: { window, ok: false, configured: false, expectedEnvKey: pull.expectedEnvKey, message: pull.message },
+        },
+        finishedAt: null,
+      });
+    }
+
+    const clients = pull.items.map(normalizeFinanceClient).filter((client) => client.id || client.documentDigits || client.name);
+    const summary = {
+      pulled: pull.items.length,
+      normalized: clients.length,
+      found: 0,
+      created: 0,
+      skipped: 0,
+      failed: 0,
+      errors: [],
+      samples: [],
+    };
+
+    for (const client of clients) {
+      const customerRecord = buildContaAzulCustomerRecordFromFinanceClient(client);
+      if (!customerRecord?.documentDigits) {
+        summary.skipped += 1;
+        summary.samples.push({ action: "skipped", id: client.id, name: client.name, reason: "documento ausente ou inválido" });
+        continue;
+      }
+
+      try {
+        const existing = await findContaAzulCustomerByDocument(contaAzulSettings, customerRecord.documentDigits);
+        if (existing?.id) {
+          summary.found += 1;
+          summary.samples.push({ action: "found", id: existing.id, name: existing.name || customerRecord.name, document: customerRecord.document });
+          continue;
+        }
+        const created = await createContaAzulCustomerFromContract(contaAzulSettings, customerRecord);
+        summary.created += 1;
+        summary.samples.push({ action: "created", id: created.person?.id || null, name: created.person?.name || customerRecord.name, document: customerRecord.document });
+      } catch (error) {
+        summary.failed += 1;
+        summary.errors.push({ id: client.id, name: client.name, document: client.document, error: error?.message || "Falha ao sincronizar cliente." });
+      }
+      summary.samples = summary.samples.slice(-30);
+      summary.errors = summary.errors.slice(-30);
+    }
+
+    const ok = summary.failed === 0;
+    run = await appendReceivablesStep(run, {
+      key: "sync_finance_clients",
+      title: "Sincronizar clientes Finance",
+      status: ok ? "success" : "warning",
+      summary: `${summary.created} criado(s), ${summary.found} já existente(s), ${summary.skipped} ignorado(s), ${summary.failed} falha(s).`,
+      details: { ...summary, source: pull.source, envKey: pull.configuredEnvKey || pull.expectedEnvKey, window },
+    });
+    return saveReceivablesRun(run, {
+      status: ok ? "clients_synced" : "client_presync_warning",
+      phase: ok ? "clients_synced" : "waiting_client_presync_review",
+      lastError: ok ? null : "A pré-sincronização de clientes terminou com falhas.",
+      summary: {
+        ...(run.summary || {}),
+        clientsPulled: summary.pulled,
+        clientsFound: summary.found,
+        clientsCreated: summary.created,
+        clientsSkipped: summary.skipped,
+        clientSyncFailures: summary.failed,
+      },
+      financePayload: {
+        ...(run.financePayload || {}),
+        clients: trimReceivablesPayloadItems(pull.items, 500),
+        clientSync: {
+          ok,
+          completedAt: nowIso(),
+          source: pull.source,
+          envKey: pull.configuredEnvKey || pull.expectedEnvKey,
+          window,
+          summary,
+        },
+      },
+      finishedAt: nowIso(),
+    });
+  } catch (error) {
+    return saveReceivablesRun(run, {
+      status: "failed",
+      phase: "client_presync_failed",
+      lastError: error?.message || "Falha ao sincronizar clientes do Finance.",
+      financePayload: {
+        ...(run.financePayload || {}),
+        clientSync: { ok: false, window, error: error?.message || "Falha ao sincronizar clientes do Finance." },
+      },
+      finishedAt: nowIso(),
+    });
+  }
+}
+
+async function findCompletedFinanceClientPresync({ businessDate, days = 5 } = {}) {
+  const window = buildFinanceClientSyncWindow(businessDate, days);
+  const runs = await listReceivablesOrchestratorRuns({ limit: 30 });
+  const run = runs.find((entry) => {
+    const sync = entry?.financePayload?.clientSync;
+    return sync?.ok === true && sync?.window?.key === window.key;
+  });
+  return { window, run: run || null };
+}
+
+async function ensureFinanceClientPresyncCompleted({ businessDate, days = 5 } = {}) {
+  const state = await findCompletedFinanceClientPresync({ businessDate, days });
+  if (state.run) return state;
+  throw createHttpError(
+    428,
+    `Sincronize os clientes do Finance para o Conta Azul antes de executar o ciclo. Janela obrigatória: ${state.window.from} a ${state.window.to}.`
+  );
 }
 
 function applyContaAzulCustomerToLovableSource(source = {}, customerId) {
@@ -2915,6 +3134,7 @@ async function auditAndMaybeSendReceivables(run, { cardIds, startSending = true 
 }
 
 async function runReceivablesOrchestrator({ businessDate, body = {}, startSending = true } = {}) {
+  await ensureFinanceClientPresyncCompleted({ businessDate });
   let run = await createReceivablesRun({ businessDate });
   try {
     run = await appendReceivablesStep(run, {
@@ -3332,16 +3552,27 @@ app.get(
 app.get(
   "/api/fpa/receivables-orchestrator",
   asyncHandler(async (req, res) => {
-    const [latestRun, runs] = await Promise.all([
+    const businessDate = getBusinessDate();
+    const [latestRun, runs, clientPresync] = await Promise.all([
       getLatestReceivablesOrchestratorRun(),
       listReceivablesOrchestratorRuns({ limit: readLargeLimit(req.query?.limit, 10) }),
+      findCompletedFinanceClientPresync({ businessDate }),
     ]);
     res.json({
       ok: true,
       latestRun,
       runs,
       config: {
-        businessDate: getBusinessDate(),
+        businessDate,
+        clientSyncWindow: clientPresync.window,
+        clientSyncReady: Boolean(clientPresync.run),
+        clientSyncRun: clientPresync.run
+          ? {
+              id: clientPresync.run.id,
+              updatedAt: clientPresync.run.updatedAt,
+              summary: clientPresync.run.financePayload?.clientSync?.summary || null,
+            }
+          : null,
         hasContractsPullUrl: Boolean(readFirstEnvValue(FINANCE_RESOURCES.contracts.envKeys)),
         hasClientsPullUrl: Boolean(readFirstEnvValue(FINANCE_RESOURCES.clients.envKeys)),
         hasBillingCardsPullUrl: Boolean(readFirstEnvValue(FINANCE_RESOURCES.billingCards.envKeys)),
@@ -3356,6 +3587,24 @@ app.get(
         })),
       },
     });
+  })
+);
+
+app.post(
+  "/api/fpa/receivables-orchestrator/sync-clients",
+  asyncHandler(async (req, res) => {
+    if (receivablesOrchestratorPromise) {
+      throw createHttpError(409, "Já existe um ciclo de contas a receber em execução.");
+    }
+
+    receivablesOrchestratorPromise = syncFinanceClientsToContaAzul({
+      businessDate: req.body?.businessDate,
+      days: req.body?.days || 5,
+    }).finally(() => {
+      receivablesOrchestratorPromise = null;
+    });
+    const run = await receivablesOrchestratorPromise;
+    res.json({ ok: run.financePayload?.clientSync?.ok === true, run });
   })
 );
 

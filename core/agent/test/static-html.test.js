@@ -26,11 +26,18 @@ test("painel FP&A expõe o orquestrador diário de contas a receber", async () =
   assert.match(html, /btn-open-receivables-analysis/);
   assert.match(html, /btn-resume-receivables-orchestrator/);
   assert.match(html, /btn-close-receivables-day/);
+  assert.match(html, /btn-sync-finance-clients/);
+  assert.match(html, /btn-sync-finance-clients-inline/);
+  assert.match(html, /Clientes Finance → Conta Azul/);
   assert.match(html, /\/api\/fpa\/receivables-orchestrator\/run/);
+  assert.match(html, /\/api\/fpa\/receivables-orchestrator\/sync-clients/);
   assert.match(html, /\/api\/fpa\/receivables-orchestrator\/finance-diagnostics/);
   assert.match(html, /\/api\/fpa\/receivables-orchestrator\/close-day/);
   assert.match(html, /buildAbsoluteAppUrl\("\/fpa\/receivables-analysis"\)/);
   assert.match(server, /runReceivablesOrchestrator/);
+  assert.match(server, /syncFinanceClientsToContaAzul/);
+  assert.match(server, /ensureFinanceClientPresyncCompleted/);
+  assert.match(server, /createdSince/);
   assert.match(server, /buildFinanceDiagnostics/);
   assert.match(server, /waiting_finance_connection/);
   assert.match(server, /due_today/);

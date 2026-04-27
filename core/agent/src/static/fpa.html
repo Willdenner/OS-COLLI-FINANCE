@@ -709,12 +709,25 @@
               <button class="btn" id="btn-test-finance-connection" type="button">Testar Finance</button>
               <button class="btn" id="btn-resume-receivables-orchestrator" type="button">Links incluídos</button>
               <button class="btn" id="btn-close-receivables-day" type="button">Fechar dia</button>
+              <button class="btn btn-primary" id="btn-sync-finance-clients" type="button">Sincronizar clientes</button>
               <button class="btn btn-primary" id="btn-run-receivables-orchestrator" type="button">Executar ciclo</button>
             </div>
           </div>
           <div class="card-body">
             <div class="alert" id="receivables-orchestrator-alert" style="margin-bottom:18px">
               <span id="receivables-orchestrator-status">O ciclo diário ainda não foi executado.</span>
+            </div>
+            <div style="margin-bottom:18px;background:var(--panel-2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                <div>
+                  <div class="field-label" style="margin-bottom:6px">Etapa obrigatória · Clientes Finance → Conta Azul</div>
+                  <div id="receivables-client-sync-status" style="font-size:12px;color:var(--muted);line-height:1.7">
+                    Sincronize os clientes cadastrados no Finance nos últimos 5 dias antes de executar contratos e cobranças.
+                  </div>
+                </div>
+                <button class="btn btn-primary" id="btn-sync-finance-clients-inline" type="button">Sincronizar clientes</button>
+              </div>
+              <div class="imports-list" id="receivables-client-sync-summary" style="margin-top:12px"></div>
             </div>
             <div class="metric-grid" style="margin-bottom:18px">
               <div class="metric-box"><div class="metric-label">Contratos</div><div class="metric-value" id="receivables-contracts-count">0</div></div>
@@ -2226,6 +2239,21 @@
 
         el("btn-resume-receivables-orchestrator").disabled = status !== "waiting_payment_links";
         el("btn-close-receivables-day").disabled = !run;
+        const clientSyncReady = config.clientSyncReady === true;
+        const clientWindow = config.clientSyncWindow || {};
+        const clientSyncSummary = config.clientSyncRun?.summary || {};
+        const syncStatus = el("receivables-client-sync-status");
+        const syncSummary = el("receivables-client-sync-summary");
+        const clientWindowText = clientWindow.from && clientWindow.to ? `${clientWindow.from} a ${clientWindow.to}` : "últimos 5 dias";
+        syncStatus.style.color = clientSyncReady ? "var(--brand)" : "var(--warning)";
+        syncStatus.textContent = clientSyncReady
+          ? `Clientes sincronizados para a janela ${clientWindowText}. O ciclo de contratos e cobranças está liberado.`
+          : `Obrigatório antes do ciclo: sincronize clientes cadastrados no Finance na janela ${clientWindowText}.`;
+        syncSummary.innerHTML = clientSyncReady
+          ? `<div class="import-card"><div class="import-title">Pré-sincronização concluída</div><div class="import-meta">${formatInteger(clientSyncSummary.created || 0)} criado(s), ${formatInteger(clientSyncSummary.found || 0)} já existente(s), ${formatInteger(clientSyncSummary.skipped || 0)} ignorado(s), ${formatInteger(clientSyncSummary.failed || 0)} falha(s).${config.clientSyncRun?.updatedAt ? ` · ${escapeHtml(formatDateTime(config.clientSyncRun.updatedAt))}` : ""}</div></div>`
+          : `<div class="import-card"><div class="import-title">Aguardando sincronização de clientes</div><div class="import-meta">Clique em Sincronizar clientes para criar/encontrar os clientes no Conta Azul antes do ciclo.</div></div>`;
+        el("btn-run-receivables-orchestrator").disabled = !clientSyncReady;
+        el("btn-run-receivables-orchestrator").title = clientSyncReady ? "" : "Sincronize os clientes do Finance antes de executar o ciclo.";
         renderFinanceDiagnostics();
 
         el("receivables-orchestrator-steps").innerHTML = steps.length
@@ -3928,7 +3956,38 @@
         }
       }
 
+      async function syncFinanceClientsForReceivables() {
+        const buttons = [el("btn-sync-finance-clients"), el("btn-sync-finance-clients-inline")];
+        const originalLabels = buttons.map((button) => button.textContent);
+        buttons.forEach((button) => {
+          button.disabled = true;
+          button.textContent = "Sincronizando...";
+        });
+        try {
+          const result = await api("/api/fpa/receivables-orchestrator/sync-clients", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ businessDate: todayIsoDate(), days: 5 }),
+          });
+          state.fpa.receivablesOrchestrator = result.run;
+          await loadReceivablesOrchestrator();
+          toast(result.ok
+            ? "Clientes sincronizados no Conta Azul. Ciclo liberado."
+            : result.run?.lastError || "Sincronização de clientes concluída com pendências.");
+        } finally {
+          buttons.forEach((button, index) => {
+            button.disabled = false;
+            button.textContent = originalLabels[index];
+          });
+          renderReceivablesOrchestrator();
+        }
+      }
+
       async function runReceivablesOrchestrator() {
+        if (state.fpa.receivablesOrchestratorConfig?.clientSyncReady !== true) {
+          toast("Sincronize os clientes do Finance antes de executar o ciclo.");
+          return;
+        }
         const button = el("btn-run-receivables-orchestrator");
         const originalLabel = button.textContent;
         button.disabled = true;
@@ -3949,7 +4008,7 @@
               ? "Ciclo pausado aguardando links de pagamento."
               : "Ciclo de contas a receber executado.");
         } finally {
-          button.disabled = false;
+          button.disabled = state.fpa.receivablesOrchestratorConfig?.clientSyncReady !== true;
           button.textContent = originalLabel;
         }
       }
@@ -4183,6 +4242,8 @@
       el("btn-open-receivables-analysis").addEventListener("click", () => {
         window.location.href = buildAbsoluteAppUrl("/fpa/receivables-analysis");
       });
+      el("btn-sync-finance-clients").addEventListener("click", () => syncFinanceClientsForReceivables().catch((error) => toast(error.message)));
+      el("btn-sync-finance-clients-inline").addEventListener("click", () => syncFinanceClientsForReceivables().catch((error) => toast(error.message)));
       el("btn-run-receivables-orchestrator").addEventListener("click", () => runReceivablesOrchestrator().catch((error) => toast(error.message)));
       el("btn-test-finance-connection").addEventListener("click", () => testFinanceConnection().catch((error) => toast(error.message)));
       el("btn-resume-receivables-orchestrator").addEventListener("click", () => resumeReceivablesOrchestrator().catch((error) => toast(error.message)));
