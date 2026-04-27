@@ -54,6 +54,8 @@ services:
         sync: false
       - key: COLLI_FINANCE_CONTRACTS_URL
         sync: false
+      - key: COLLI_FINANCE_CLIENTS_URL
+        sync: false
       - key: COLLI_FINANCE_BILLING_CARDS_URL
         sync: false
       - key: COLLI_FINANCE_PAYMENTS_URL

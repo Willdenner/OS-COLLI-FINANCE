@@ -1134,17 +1134,180 @@ async function createContaAzulCustomerFromContract(contaAzulSettings, customerRe
   return { person, endpoint: result.endpoint, responseCode: result.response.status };
 }
 
+const FINANCE_CLIENT_ID_PATHS = [
+  "cliente_id",
+  "clienteId",
+  "client_id",
+  "clientId",
+  "customer_id",
+  "customerId",
+  "billing_client_id",
+  "billingClientId",
+  "contract.cliente_id",
+  "contract.clienteId",
+  "contract.client_id",
+  "contract.clientId",
+  "contract.customer_id",
+  "contract.customerId",
+  "client.id",
+  "cliente.id",
+  "customer.id",
+];
+
+const FINANCE_CLIENT_DOCUMENT_PATHS = [
+  "cnpj",
+  "cpf",
+  "cpf_cnpj",
+  "cnpj_cpf",
+  "documento",
+  "document",
+  "customerDocument",
+  "clientDocument",
+  "contract.cnpj",
+  "contract.cpf",
+  "contract.cpf_cnpj",
+  "contract.cnpj_cpf",
+  "contract.documento",
+  "contract.document",
+  "client.cnpj_cpf",
+  "client.cpf_cnpj",
+  "client.cnpj",
+  "client.cpf",
+  "client.documento",
+  "cliente.cnpj_cpf",
+  "cliente.cpf_cnpj",
+  "cliente.cnpj",
+  "cliente.cpf",
+  "cliente.documento",
+  "customer.cnpj_cpf",
+  "customer.cpf_cnpj",
+  "customer.cnpj",
+  "customer.cpf",
+  "customer.documento",
+];
+
+const FINANCE_CLIENT_ARRAY_PATHS = [
+  "billing_clients",
+  "billingClients",
+  "clients",
+  "clientes",
+  "contract.billing_clients",
+  "contract.billingClients",
+  "contract.clients",
+  "contract.clientes",
+];
+
+function extractFinanceClientLookupFromContract(source = {}) {
+  const id =
+    readFirstText(source, FINANCE_CLIENT_ID_PATHS, 160) ||
+    readFirstTextFromRows(
+      source,
+      FINANCE_CLIENT_ARRAY_PATHS,
+      ["id", "uuid", "cliente_id", "clienteId", "client_id", "clientId", "customer_id", "customerId"],
+      160
+    );
+  const rawDocument =
+    readFirstText(source, FINANCE_CLIENT_DOCUMENT_PATHS, 80) ||
+    readFirstTextFromRows(
+      source,
+      FINANCE_CLIENT_ARRAY_PATHS,
+      ["cnpj_cpf", "cpf_cnpj", "cnpj", "cpf", "documento", "document"],
+      80
+    );
+  const documentDigits = normalizeContaAzulDocumentDigits(rawDocument);
+  return {
+    id: id || "",
+    document: rawDocument || "",
+    documentDigits: [11, 14].includes(documentDigits.length) ? documentDigits : "",
+  };
+}
+
+function financeClientMatchesLookup(client, lookup = {}) {
+  if (!client) return false;
+  const raw = client.raw && typeof client.raw === "object" ? client.raw : {};
+  const candidateIds = [
+    client.id,
+    raw.id,
+    raw.uuid,
+    raw.client_id,
+    raw.clientId,
+    raw.cliente_id,
+    raw.clienteId,
+    raw.customer_id,
+    raw.customerId,
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+  if (lookup.id && candidateIds.some((candidate) => candidate === lookup.id)) return true;
+  if (lookup.documentDigits && client.documentDigits === lookup.documentDigits) return true;
+  return false;
+}
+
+async function fetchFinanceClientForLovableContract(source = {}) {
+  const lookup = extractFinanceClientLookupFromContract(source);
+  if (!lookup.id && !lookup.documentDigits) return null;
+
+  const clientsResource = FINANCE_RESOURCES.clients;
+  const pull = await fetchFinanceCollection({
+    body: null,
+    bodyKeys: clientsResource.bodyKeys,
+    envKeys: clientsResource.envKeys,
+    responseKeys: clientsResource.responseKeys,
+    query: clientsResource.queryForDate(),
+    resourceLabel: clientsResource.resourceLabel,
+  });
+  if (!pull.configured || !pull.items.length) return { lookup, pull, client: null };
+
+  const clients = pull.items.map(normalizeFinanceClient).filter((client) => client.id || client.documentDigits || client.name);
+  const exact = clients.find((client) => financeClientMatchesLookup(client, lookup));
+  return {
+    lookup,
+    pull,
+    client: exact || (clients.length === 1 ? clients[0] : null),
+  };
+}
+
+function mergeFinanceClientIntoLovableSource(source = {}, financeClient) {
+  const safeSource = source && typeof source === "object" ? source : {};
+  const rawClient = financeClient?.raw && typeof financeClient.raw === "object" ? financeClient.raw : {};
+  if (!Object.keys(rawClient).length) return safeSource;
+  const mergedClient = {
+    ...(safeSource.client && typeof safeSource.client === "object" ? safeSource.client : {}),
+    ...rawClient,
+  };
+  return {
+    ...safeSource,
+    financeClient: rawClient,
+    client: mergedClient,
+    billing_client: mergedClient,
+    billing_clients: [mergedClient],
+    ...(safeSource.contract && typeof safeSource.contract === "object"
+      ? {
+          contract: {
+            ...safeSource.contract,
+            financeClient: rawClient,
+            client: mergedClient,
+            billing_client: mergedClient,
+            billing_clients: [mergedClient],
+          },
+        }
+      : {}),
+  };
+}
+
 async function resolveContaAzulCustomerForLovableContract(contaAzulSettings, source = {}) {
-  const customerRecord = buildContaAzulCustomerRecordFromContract(source);
+  const financeClientMatch = await fetchFinanceClientForLovableContract(source);
+  const customerSource = financeClientMatch?.client ? mergeFinanceClientIntoLovableSource(source, financeClientMatch.client) : source;
+  const customerRecord = buildContaAzulCustomerRecordFromContract(customerSource);
   if (!customerRecord?.documentDigits) return null;
 
   const existing = await findContaAzulCustomerByDocument(contaAzulSettings, customerRecord.documentDigits);
   if (existing?.id) {
-    return { action: "found", person: existing, customerRecord };
+    return { action: "found", person: existing, customerRecord, financeClientMatch };
   }
 
   const created = await createContaAzulCustomerFromContract(contaAzulSettings, customerRecord);
-  return { action: "created", person: created.person, customerRecord, endpoint: created.endpoint, responseCode: created.responseCode };
+  return { action: "created", person: created.person, customerRecord, endpoint: created.endpoint, responseCode: created.responseCode, financeClientMatch };
 }
 
 function applyContaAzulCustomerToLovableSource(source = {}, customerId) {
@@ -1594,6 +1757,15 @@ async function syncLovableContractToContaAzul(source = {}, { dryRun = false, for
       id: customerResolution.person?.id || null,
       name: customerResolution.person?.name || customerResolution.customerRecord?.name || null,
       document: customerResolution.customerRecord?.document || customerResolution.person?.document || null,
+      financeClient: customerResolution.financeClientMatch
+        ? {
+            source: customerResolution.financeClientMatch.pull?.source || null,
+            configured: customerResolution.financeClientMatch.pull?.configured === true,
+            matched: Boolean(customerResolution.financeClientMatch.client),
+            id: customerResolution.financeClientMatch.client?.id || customerResolution.financeClientMatch.lookup?.id || null,
+            document: customerResolution.financeClientMatch.client?.document || customerResolution.financeClientMatch.lookup?.document || null,
+          }
+        : null,
     };
   }
   if (record.missingRequiredFields.length) {
@@ -1833,6 +2005,31 @@ function normalizeFinanceCategory(raw) {
   };
 }
 
+function normalizeFinanceClient(raw) {
+  const o = raw && typeof raw === "object" ? raw : {};
+  const id = truncateText(
+    String(o.id ?? o.client_id ?? o.clientId ?? o.cliente_id ?? o.clienteId ?? o.customer_id ?? o.customerId ?? o.uuid ?? "").trim(),
+    160
+  );
+  const name = truncateText(
+    String(o.name ?? o.nome ?? o.razao_social ?? o.razaoSocial ?? o.company_name ?? o.companyName ?? o.nome_fantasia ?? o.fantasyName ?? "").trim(),
+    200
+  );
+  const document = truncateText(
+    String(o.cnpj_cpf ?? o.cpf_cnpj ?? o.documento ?? o.document ?? o.cnpj ?? o.cpf ?? o.tax_id ?? o.taxId ?? "").trim(),
+    60
+  );
+  const email = truncateText(String(o.email ?? o.contato_email ?? o.contactEmail ?? "").trim(), 320);
+  return {
+    id: id || null,
+    name: name || null,
+    document: document || null,
+    documentDigits: normalizeContaAzulDocumentDigits(document),
+    email: email || null,
+    raw: o,
+  };
+}
+
 function readFinanceBearerToken() {
   return readFirstEnvValue([
     "COLLI_FINANCE_API_TOKEN",
@@ -1903,6 +2100,15 @@ const FINANCE_RESOURCES = {
       "data",
       "results",
     ],
+    queryForDate: () => ({}),
+  },
+  clients: {
+    key: "clients",
+    title: "Clientes",
+    resourceLabel: "clientes cadastrados no Finance",
+    envKeys: ["COLLI_FINANCE_CLIENTS_URL", "FINANCE_CLIENTS_URL"],
+    bodyKeys: ["clients", "clientes", "billingClients", "billing_clients", "data.clients", "data.clientes", "data.billing_clients", "items"],
+    responseKeys: ["clients", "clientes", "billingClients", "billing_clients", "data.clients", "data.clientes", "data.billing_clients", "data", "items", "records"],
     queryForDate: () => ({}),
   },
   categories: {
@@ -3077,6 +3283,7 @@ app.get(
       config: {
         businessDate: getBusinessDate(),
         hasContractsPullUrl: Boolean(readFirstEnvValue(FINANCE_RESOURCES.contracts.envKeys)),
+        hasClientsPullUrl: Boolean(readFirstEnvValue(FINANCE_RESOURCES.clients.envKeys)),
         hasBillingCardsPullUrl: Boolean(readFirstEnvValue(FINANCE_RESOURCES.billingCards.envKeys)),
         hasPaymentsPullUrl: Boolean(readFirstEnvValue(FINANCE_RESOURCES.payments.envKeys)),
         hasFinanceToken: Boolean(readFinanceBearerToken()),
