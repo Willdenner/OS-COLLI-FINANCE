@@ -105,6 +105,7 @@ const CONTA_AZUL_VINCULOS_INDEX = path.join(STATIC_DIR, "conta-azul-vinculos.htm
 const DEFAULT_COBRANCAS_URL = "https://bot-cobranca-25qf.onrender.com";
 const DEFAULT_EXTRATOR_URL = "https://bot-extrator.onrender.com";
 let receivablesOrchestratorPromise = null;
+let restartFpaScheduled = false;
 
 function nowIso() {
   return new Date().toISOString();
@@ -2897,6 +2898,24 @@ app.get(
   "/api/settings",
   asyncHandler(async (req, res) => {
     res.json(sanitizeSettingsForClient(await getSettings()));
+  })
+);
+
+app.post(
+  "/api/fpa/restart",
+  asyncHandler(async (req, res) => {
+    if (restartFpaScheduled) {
+      res.status(202).json({ ok: true, restartScheduled: true, message: "Reinício do FP&A já agendado." });
+      return;
+    }
+
+    restartFpaScheduled = true;
+    res.status(202).json({ ok: true, restartScheduled: true, message: "Reinício do FP&A agendado." });
+    res.on("finish", () => {
+      setTimeout(() => {
+        process.exit(0);
+      }, 500).unref();
+    });
   })
 );
 

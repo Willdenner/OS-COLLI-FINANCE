@@ -181,6 +181,18 @@ test("pagina FP&A exibe configuracao da integracao Lovable", async () => {
   assert.match(html, /\/api\/integrations\/lovable\/receipts/);
 });
 
+test("pagina FP&A permite solicitar reinicio do servidor", async () => {
+  const html = await fs.readFile(path.join(__dirname, "..", "src", "static", "fpa.html"), "utf8");
+  const server = await fs.readFile(path.join(__dirname, "..", "src", "server.js"), "utf8");
+
+  assert.match(html, /id="btn-restart-fpa"/);
+  assert.match(html, /Reiniciar FP&amp;A/);
+  assert.match(html, /\/api\/fpa\/restart/);
+  assert.match(html, /window\.location\.href = `\/fpa\?deploy=\$\{Date\.now\(\)\}`/);
+  assert.match(server, /app\.post\(\s*"\/api\/fpa\/restart"/);
+  assert.match(server, /process\.exit\(0\)/);
+});
+
 test("pagina FP&A alerta quando persistencia duravel nao esta configurada", async () => {
   const html = await fs.readFile(path.join(__dirname, "..", "src", "static", "fpa.html"), "utf8");
 

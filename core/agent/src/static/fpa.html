@@ -136,6 +136,13 @@
         letter-spacing: 1.4px;
         text-transform: uppercase;
       }
+      .topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
       .page {
         padding: 28px 28px 40px;
       }
@@ -582,6 +589,8 @@
         body { display: block; }
         .sidebar { width: 100%; min-height: auto; position: static; }
         .page { padding: 18px; }
+        .topbar { align-items: flex-start; flex-direction: column; }
+        .topbar-actions { justify-content: flex-start; }
         .workflow-rail { grid-template-columns: 1fr; }
         .workflow-brief { align-items: flex-start; flex-direction: column; }
         .g2, .metric-grid { grid-template-columns: 1fr; }
@@ -623,7 +632,10 @@
           <div class="topbar-title">Analista FP&A</div>
           <div class="topbar-sub">Extratos, caixa, DRE e leitura gerencial</div>
         </div>
-        <button class="btn btn-primary" id="btn-sync" type="button">Sincronizar</button>
+        <div class="topbar-actions">
+          <button class="btn" id="btn-restart-fpa" type="button" title="Reinicia o servidor para carregar o ultimo deploy">Reiniciar FP&amp;A</button>
+          <button class="btn btn-primary" id="btn-sync" type="button">Sincronizar</button>
+        </div>
       </div>
 
       <div class="page">
@@ -3185,6 +3197,26 @@
         renderFpa();
       }
 
+      async function restartFpaServer() {
+        const confirmed = window.confirm("Reiniciar o FP&A agora? O painel ficará indisponível por alguns segundos enquanto o deploy atual sobe novamente.");
+        if (!confirmed) return;
+        const button = el("btn-restart-fpa");
+        const originalLabel = button.textContent;
+        button.disabled = true;
+        button.textContent = "Reiniciando...";
+        try {
+          await api("/api/fpa/restart", { method: "POST" });
+          toast("Reinício solicitado. A página será recarregada em alguns segundos.");
+          setTimeout(() => {
+            window.location.href = `/fpa?deploy=${Date.now()}`;
+          }, 8000);
+        } catch (error) {
+          button.disabled = false;
+          button.textContent = originalLabel;
+          toast(error.message || "Falha ao reiniciar o FP&A.");
+        }
+      }
+
       async function importStatement() {
         const file = readFiles("fpa-statement-file")[0];
         if (!file) {
@@ -4055,6 +4087,7 @@
         );
       }
 
+      el("btn-restart-fpa").addEventListener("click", () => restartFpaServer().catch((error) => toast(error.message)));
       el("btn-sync").addEventListener("click", () => refreshFpa().then(() => toast("FP&A sincronizado.")).catch((error) => toast(error.message)));
       el("btn-refresh-fpa").addEventListener("click", () => refreshFpa().then(() => toast("FP&A sincronizado.")).catch((error) => toast(error.message)));
       el("btn-generate-fpa-report").addEventListener("click", () => refreshFpa().catch((error) => toast(error.message)));
