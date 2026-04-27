@@ -2245,12 +2245,25 @@
         const syncStatus = el("receivables-client-sync-status");
         const syncSummary = el("receivables-client-sync-summary");
         const clientWindowText = clientWindow.from && clientWindow.to ? `${clientWindow.from} a ${clientWindow.to}` : "últimos 5 dias";
+        const skippedReasons = clientSyncSummary.skippedReasons && typeof clientSyncSummary.skippedReasons === "object" ? clientSyncSummary.skippedReasons : {};
+        const skippedReasonText = Object.entries(skippedReasons)
+          .map(([reason, count]) => `${reason}: ${formatInteger(count)}`)
+          .join(" · ");
+        const skippedSamples = Array.isArray(clientSyncSummary.samples)
+          ? clientSyncSummary.samples.filter((sample) => sample.action === "skipped").slice(0, 5)
+          : [];
+        const skippedDetails = skippedSamples.length
+          ? `<br>Amostras ignoradas: ${skippedSamples.map((sample) => {
+              const keys = Array.isArray(sample.rawKeys) && sample.rawKeys.length ? ` campos: ${sample.rawKeys.join(", ")}` : "";
+              return `${sample.name || sample.id || "cliente"} (${sample.reason || "sem motivo"}${sample.document ? ` · doc ${sample.document}` : ""}${keys})`;
+            }).map(escapeHtml).join(" | ")}`
+          : "";
         syncStatus.style.color = clientSyncReady ? "var(--brand)" : "var(--warning)";
         syncStatus.textContent = clientSyncReady
           ? `Clientes sincronizados para a janela ${clientWindowText}. O ciclo de contratos e cobranças está liberado.`
           : `Obrigatório antes do ciclo: sincronize clientes cadastrados no Finance na janela ${clientWindowText}.`;
         syncSummary.innerHTML = clientSyncReady
-          ? `<div class="import-card"><div class="import-title">Pré-sincronização concluída</div><div class="import-meta">${formatInteger(clientSyncSummary.created || 0)} criado(s), ${formatInteger(clientSyncSummary.found || 0)} já existente(s), ${formatInteger(clientSyncSummary.skipped || 0)} ignorado(s), ${formatInteger(clientSyncSummary.failed || 0)} falha(s).${config.clientSyncRun?.updatedAt ? ` · ${escapeHtml(formatDateTime(config.clientSyncRun.updatedAt))}` : ""}</div></div>`
+          ? `<div class="import-card"><div class="import-title">Pré-sincronização concluída</div><div class="import-meta">${formatInteger(clientSyncSummary.created || 0)} criado(s), ${formatInteger(clientSyncSummary.found || 0)} já existente(s), ${formatInteger(clientSyncSummary.skipped || 0)} ignorado(s), ${formatInteger(clientSyncSummary.failed || 0)} falha(s).${skippedReasonText ? `<br>Motivos dos ignorados: ${escapeHtml(skippedReasonText)}` : ""}${skippedDetails}${config.clientSyncRun?.updatedAt ? ` · ${escapeHtml(formatDateTime(config.clientSyncRun.updatedAt))}` : ""}</div></div>`
           : `<div class="import-card"><div class="import-title">Aguardando sincronização de clientes</div><div class="import-meta">Clique em Sincronizar clientes para criar/encontrar os clientes no Conta Azul antes do ciclo.</div></div>`;
         el("btn-run-receivables-orchestrator").disabled = !clientSyncReady;
         el("btn-run-receivables-orchestrator").title = clientSyncReady ? "" : "Sincronize os clientes do Finance antes de executar o ciclo.";

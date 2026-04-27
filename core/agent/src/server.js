@@ -1275,20 +1275,35 @@ function buildFinanceClientSyncWindow(businessDate = getBusinessDate(), days = 5
 
 function buildFinanceClientSyncQueries(window) {
   const safeWindow = window || buildFinanceClientSyncWindow();
+  const paging = {
+    limit: 500,
+    pageSize: 500,
+    page_size: 500,
+  };
   return [
     {
+      ...paging,
       createdSince: safeWindow.from,
+      createdTo: safeWindow.to,
       dataInicio: safeWindow.from,
       dataFim: safeWindow.to,
+      order: "created_at.desc",
     },
     {
+      ...paging,
       created_since: safeWindow.from,
+      created_to: safeWindow.to,
       data_inicio: safeWindow.from,
       data_fim: safeWindow.to,
+      sort: "created_at",
+      direction: "desc",
     },
     {
+      ...paging,
       from: safeWindow.from,
       to: safeWindow.to,
+      orderBy: "created_at",
+      orderDirection: "desc",
     },
   ];
 }
@@ -1465,6 +1480,7 @@ async function syncFinanceClientsToContaAzul({ businessDate, days = 5 } = {}) {
       created: 0,
       skipped: 0,
       failed: 0,
+      skippedReasons: {},
       errors: [],
       samples: [],
     };
@@ -1472,8 +1488,18 @@ async function syncFinanceClientsToContaAzul({ businessDate, days = 5 } = {}) {
     for (const client of clients) {
       const customerRecord = buildContaAzulCustomerRecordFromFinanceClient(client);
       if (!customerRecord?.documentDigits) {
+        const reason = describeFinanceClientSkipReason(client);
         summary.skipped += 1;
-        summary.samples.push({ action: "skipped", id: client.id, name: client.name, reason: "documento ausente ou inválido" });
+        summary.skippedReasons[reason] = (summary.skippedReasons[reason] || 0) + 1;
+        summary.samples.push({
+          action: "skipped",
+          id: client.id,
+          name: client.name,
+          document: client.document || null,
+          documentDigits: client.documentDigits || null,
+          reason,
+          rawKeys: Object.keys(client.raw || {}).slice(0, 24),
+        });
         continue;
       }
 
@@ -2285,7 +2311,9 @@ function normalizeFinanceClient(raw) {
   const nestedClient = o.client && typeof o.client === "object" ? o.client : {};
   const nestedCliente = o.cliente && typeof o.cliente === "object" ? o.cliente : {};
   const nestedCustomer = o.customer && typeof o.customer === "object" ? o.customer : {};
-  const merged = { ...o, ...nestedClient, ...nestedCliente, ...nestedCustomer };
+  const nestedBillingClient = o.billing_client && typeof o.billing_client === "object" ? o.billing_client : {};
+  const nestedBillingClients = Array.isArray(o.billing_clients) && o.billing_clients[0] && typeof o.billing_clients[0] === "object" ? o.billing_clients[0] : {};
+  const merged = { ...o, ...nestedClient, ...nestedCliente, ...nestedCustomer, ...nestedBillingClient, ...nestedBillingClients };
   const id = truncateText(
     String(merged.id ?? merged.client_id ?? merged.clientId ?? merged.cliente_id ?? merged.clienteId ?? merged.customer_id ?? merged.customerId ?? merged.uuid ?? "").trim(),
     160
@@ -2295,7 +2323,23 @@ function normalizeFinanceClient(raw) {
     200
   );
   const document = truncateText(
-    String(merged.cnpj_cpf ?? merged.cpf_cnpj ?? merged.documento ?? merged.document ?? merged.cnpj ?? merged.cpf ?? merged.tax_id ?? merged.taxId ?? "").trim(),
+    String(
+      merged.cnpj_cpf ??
+        merged.cnpjCpf ??
+        merged.cpf_cnpj ??
+        merged.cpfCnpj ??
+        merged.documento ??
+        merged.document ??
+        merged.document_number ??
+        merged.documentNumber ??
+        merged.numero_documento ??
+        merged.numeroDocumento ??
+        merged.tax_id ??
+        merged.taxId ??
+        merged.cnpj ??
+        merged.cpf ??
+        ""
+    ).trim(),
     60
   );
   const email = truncateText(String(merged.email ?? merged.contato_email ?? merged.contactEmail ?? "").trim(), 320);
@@ -2307,6 +2351,12 @@ function normalizeFinanceClient(raw) {
     email: email || null,
     raw: o,
   };
+}
+
+function describeFinanceClientSkipReason(client) {
+  if (!client?.document) return "documento ausente";
+  if (![11, 14].includes(String(client.documentDigits || "").length)) return "documento inválido";
+  return "dados insuficientes";
 }
 
 function readFinanceBearerToken() {
