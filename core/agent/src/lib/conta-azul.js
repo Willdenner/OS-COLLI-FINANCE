@@ -1482,17 +1482,50 @@ function normalizeContaAzulPaymentMethod(value, fallback = "BOLETO_BANCARIO") {
     .replace(/^_+|_+$/g, "");
   const aliases = {
     BOLETO: "BOLETO_BANCARIO",
+    PIX: "PIX_PAGAMENTO_INSTANTANEO",
+    PIX_PAGAMENTO: "PIX_PAGAMENTO_INSTANTANEO",
+    PIX_INSTANTANEO: "PIX_PAGAMENTO_INSTANTANEO",
+    PIX_COBRANCA_QRCODE: "PIX_COBRANCA",
     CARTAO: "CARTAO_CREDITO",
     CARTAO_CREDITO: "CARTAO_CREDITO",
     CARTAO_DEBITO: "CARTAO_DEBITO",
+    CARTAO_LINK: "CARTAO_CREDITO_VIA_LINK",
+    CARTAO_CREDITO_LINK: "CARTAO_CREDITO_VIA_LINK",
     CREDITO: "CARTAO_CREDITO",
     DEBITO: "CARTAO_DEBITO",
     DEPOSITO: "DEPOSITO_BANCARIO",
     TRANSFERENCIA: "TRANSFERENCIA_BANCARIA",
     TED: "TRANSFERENCIA_BANCARIA",
     DOC: "TRANSFERENCIA_BANCARIA",
+    OUTROS: "OUTRO",
+    SEM_PAGAMENTO: "SEM_PAGAMENTO",
   };
-  return aliases[raw] || raw || fallback;
+  const normalized = aliases[raw] || raw || fallback;
+  const valid = new Set([
+    "BOLETO_BANCARIO",
+    "CARTAO_CREDITO",
+    "CARTAO_DEBITO",
+    "CARTEIRA_DIGITAL",
+    "CASHBACK",
+    "CHEQUE",
+    "CREDITO_LOJA",
+    "CREDITO_VIRTUAL",
+    "DEPOSITO_BANCARIO",
+    "DINHEIRO",
+    "OUTRO",
+    "DEBITO_AUTOMATICO",
+    "CARTAO_CREDITO_VIA_LINK",
+    "PIX_PAGAMENTO_INSTANTANEO",
+    "PIX_COBRANCA",
+    "PROGRAMA_FIDELIDADE",
+    "SEM_PAGAMENTO",
+    "TRANSFERENCIA_BANCARIA",
+    "VALE_ALIMENTACAO",
+    "VALE_COMBUSTIVEL",
+    "VALE_PRESENTE",
+    "VALE_REFEICAO",
+  ]);
+  return valid.has(normalized) ? normalized : fallback;
 }
 
 function normalizeContaAzulDueDay(value, fallbackDate) {

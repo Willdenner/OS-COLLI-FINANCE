@@ -1084,7 +1084,7 @@
                     <tr>
                       <th>Chave (Finance)</th>
                       <th>Nota</th>
-                      <th><code>condicao_pagamento.tipo</code></th>
+                      <th><code>condicao_pagamento.tipo_pagamento</code></th>
                       <th><code>id_conta_financeira</code></th>
                       <th><code>itens[0].id</code> <span style="color:var(--muted);font-weight:400">(não usado)</span></th>
                       <th><code>itens[0].valor</code> (R$, opc.)</th>
@@ -1095,7 +1095,7 @@
                 </table>
               </div>
               <div class="field-hint">
-                A chave precisa bater (sem diferenciar maiúsculas) com <code>paymentMethod</code>, <code>forma_pagamento</code>, etc. O item do contrato vem só do mapa de produto acima; aqui use <code>tipo</code>, conta e opcionalmente <code>itens[0].valor</code>.
+                A chave precisa bater (sem diferenciar maiúsculas) com <code>paymentMethod</code>, <code>forma_pagamento</code>, etc. O item do contrato vem só do mapa de produto acima; aqui use <code>tipo_pagamento</code>, conta e opcionalmente <code>itens[0].valor</code>.
               </div>
             </div>
           </div>
@@ -1442,14 +1442,15 @@
                 <select class="field-select" id="fpa-fpl-ca-payment-type">
                   <option value="">— Selecione (opcional) —</option>
                   <option value="BOLETO_BANCARIO">Boleto Bancário</option>
-                  <option value="PIX">PIX</option>
+                  <option value="PIX_PAGAMENTO_INSTANTANEO">PIX - Pagamento Instantâneo</option>
+                  <option value="PIX_COBRANCA">PIX Cobrança</option>
                   <option value="CARTAO_CREDITO">Cartão de Crédito</option>
                   <option value="CARTAO_DEBITO">Cartão de Débito</option>
                   <option value="TRANSFERENCIA_BANCARIA">Transferência Bancária</option>
                   <option value="DEPOSITO_BANCARIO">Depósito Bancário</option>
                   <option value="DINHEIRO">Dinheiro</option>
                   <option value="CHEQUE">Cheque</option>
-                  <option value="OUTROS">Outros</option>
+                  <option value="OUTRO">Outros</option>
                 </select>
                 <div class="field-hint">Mapeia para <code>condicao_pagamento.tipo_pagamento</code>.</div>
               </div>
@@ -3369,7 +3370,7 @@
         return `<tr data-mapping-id="${escapeHtml(rowId)}">
           <td><input class="field-input" data-mapping-field="financePaymentKey" type="text" value="${escapeHtml(m.financePaymentKey || "")}" style="min-width:100px;font-size:12px" placeholder="ex.: pix" /></td>
           <td><input class="field-input" data-mapping-field="financePaymentLabel" type="text" value="${escapeHtml(m.financePaymentLabel || "")}" style="min-width:88px;font-size:12px" /></td>
-          <td><input class="field-input" data-mapping-field="contaAzulTipoPagamento" type="text" value="${escapeHtml(m.contaAzulTipoPagamento || "")}" style="min-width:100px;font-size:12px" placeholder="PIX" /></td>
+          <td><input class="field-input" data-mapping-field="contaAzulTipoPagamento" type="text" value="${escapeHtml(m.contaAzulTipoPagamento || "")}" style="min-width:100px;font-size:12px" placeholder="PIX_PAGAMENTO_INSTANTANEO" /></td>
           <td><input class="field-input" data-mapping-field="contaAzulFinancialAccountId" type="text" value="${escapeHtml(m.contaAzulFinancialAccountId || "")}" style="min-width:120px;font-size:12px" placeholder="UUID conta" /></td>
           <td><input class="field-input" data-mapping-field="contaAzulItemId" type="text" value="${escapeHtml(m.contaAzulItemId || "")}" style="min-width:120px;font-size:12px" placeholder="UUID item" /></td>
           <td><input class="field-input" data-mapping-field="contaAzulItemValor" type="text" value="${escapeHtml(m.contaAzulItemValor != null && m.contaAzulItemValor !== "" ? String(m.contaAzulItemValor) : "")}" style="min-width:72px;font-size:12px" placeholder="—" /></td>
@@ -3787,9 +3788,9 @@
         }
 
         const paymentTypeLabels = {
-          BOLETO_BANCARIO: "Boleto Bancário", PIX: "PIX", CARTAO_CREDITO: "Cartão de Crédito",
+          BOLETO_BANCARIO: "Boleto Bancário", PIX: "PIX", PIX_PAGAMENTO_INSTANTANEO: "PIX - Pagamento Instantâneo", PIX_COBRANCA: "PIX Cobrança", CARTAO_CREDITO: "Cartão de Crédito",
           CARTAO_DEBITO: "Cartão de Débito", TRANSFERENCIA_BANCARIA: "Transferência Bancária",
-          DEPOSITO_BANCARIO: "Depósito Bancário", DINHEIRO: "Dinheiro", CHEQUE: "Cheque", OUTROS: "Outros",
+          DEPOSITO_BANCARIO: "Depósito Bancário", DINHEIRO: "Dinheiro", CHEQUE: "Cheque", OUTROS: "Outros", OUTRO: "Outros",
         };
 
         container.innerHTML = `

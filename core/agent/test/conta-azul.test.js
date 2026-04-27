@@ -570,8 +570,34 @@ test("forma de pagamento nao altera itens[0].id; item vem so do mapa de produto"
     },
   });
   assert.equal(record.payload.itens[0].id, "uuid-servico-mapeado");
-  assert.equal(record.payload.condicao_pagamento.tipo_pagamento, "PIX");
+  assert.equal(record.payload.condicao_pagamento.tipo_pagamento, "PIX_PAGAMENTO_INSTANTANEO");
   assert.equal(record.payload.condicao_pagamento.id_conta_financeira, "conta_pix_uuid");
+});
+
+test("normaliza aliases de tipo_pagamento para enums aceitos em contratos", () => {
+  const settings = mergeContaAzulSettings(
+    { fpaExport: { defaultReceivableCategoryId: "cat_r", defaultFinancialAccountId: "conta_padrao" } },
+    {
+      lovableContracts: {
+        financeProductMappings: [{ financeProductId: "prod", contaAzulItemId: "item-prod" }],
+        financePaymentMappings: [{ financePaymentKey: "outros", contaAzulTipoPagamento: "OUTROS" }],
+      },
+    }
+  );
+  const record = buildContaAzulContractRecord({
+    settings,
+    nextContractNumber: 78,
+    source: {
+      customerId: "c1",
+      productId: "prod",
+      amountCents: 99000,
+      startDate: "2026-01-01",
+      firstDueDate: "2026-01-10",
+      paymentMethod: "outros",
+    },
+  });
+  assert.equal(record.payload.condicao_pagamento.tipo_pagamento, "OUTRO");
+  assert.deepEqual(record.missingRequiredFields, []);
 });
 
 test("baixa Lovable usa conta e metodo do financePaymentMappings quando a chave bate", () => {
@@ -595,7 +621,7 @@ test("baixa Lovable usa conta e metodo do financePaymentMappings quando a chave 
     source: { paymentMethod: "pix", amountCents: 10000 },
   });
   assert.equal(record.payload.conta_financeira, "conta_pix_mapeada");
-  assert.equal(record.payload.metodo_pagamento, "PIX");
+  assert.equal(record.payload.metodo_pagamento, "PIX_PAGAMENTO_INSTANTANEO");
 });
 
 test("contaAzulContractPayload vazio nao descarta o payload calculado (merge com base)", () => {
@@ -993,7 +1019,7 @@ test("monta payload de baixa de recebimento do Lovable para o Conta Azul", () =>
   assert.equal(record.payload.data_pagamento, "2026-05-10");
   assert.equal(record.payload.composicao_valor.valor_bruto, 990);
   assert.equal(record.payload.conta_financeira, "conta_default");
-  assert.equal(record.payload.metodo_pagamento, "PIX");
+  assert.equal(record.payload.metodo_pagamento, "PIX_PAGAMENTO_INSTANTANEO");
   assert.equal(record.payload.nsu, "abc123");
   assert.deepEqual(record.missingRequiredFields, []);
   assert.equal(response.id, "baixa_123");

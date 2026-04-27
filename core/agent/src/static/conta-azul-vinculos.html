@@ -336,7 +336,7 @@
         >
           <strong style="color: var(--brand)">Como funciona:</strong> o UUID em <code>itens[0].id</code> do contrato no Conta Azul vem <strong>só</strong> da tabela
           <strong>Produto Finance → Item</strong>, cruzando <strong><code>service_id</code> / ID</strong> e/ou <strong>nome do serviço</strong> (coluna de descrição) com o que vem no contrato — vínculos FP&amp;A e forma de pagamento não alteram esse id. Na tabela de
-          <strong>forma de pagamento</strong> use <code>tipo</code> e <code>id_conta_financeira</code>; <code>itens[0].valor</code> ali só altera o valor da linha quando preenchido.
+          <strong>forma de pagamento</strong> use <code>tipo_pagamento</code> e <code>id_conta_financeira</code>; <code>itens[0].valor</code> ali só altera o valor da linha quando preenchido.
           Com o Conta Azul conectado, use <strong>Carregar lista</strong> para preencher UUIDs.
         </div>
 
@@ -470,7 +470,7 @@
           </div>
           <div class="card-body">
             <p class="field-hint" style="margin-bottom: 12px">
-              Chave sem diferenciar maiúsculas. O <code>itens[0].id</code> do contrato vem só do mapa de produto acima; nesta tabela use <code>tipo</code>, conta e opcionalmente valor da linha.
+              Chave sem diferenciar maiúsculas. O <code>itens[0].id</code> do contrato vem só do mapa de produto acima; nesta tabela use <code>tipo_pagamento</code>, conta e opcionalmente valor da linha.
             </p>
             <div class="table-wrap" style="max-height: 280px; overflow: auto">
               <table class="data-table" style="font-size: 12px">
@@ -478,7 +478,7 @@
                   <tr>
                     <th>Chave (Finance)</th>
                     <th>Nota</th>
-                    <th><code>tipo</code></th>
+                    <th><code>tipo_pagamento</code></th>
                     <th><code>id_conta_financeira</code></th>
                     <th><code>itens[0].id</code> <span style="color: var(--muted); font-weight: 400">(não usado)</span></th>
                     <th><code>itens[0].valor</code></th>
@@ -668,7 +668,7 @@
         return `<tr data-mapping-id="${escapeHtml(rowId)}">
           <td><input class="field-input" data-mapping-field="financePaymentKey" type="text" value="${escapeHtml(m.financePaymentKey || "")}" style="min-width:100px;font-size:12px" placeholder="ex.: pix" /></td>
           <td><input class="field-input" data-mapping-field="financePaymentLabel" type="text" value="${escapeHtml(m.financePaymentLabel || "")}" style="min-width:88px;font-size:12px" /></td>
-          <td><input class="field-input" data-mapping-field="contaAzulTipoPagamento" type="text" value="${escapeHtml(m.contaAzulTipoPagamento || "")}" style="min-width:100px;font-size:12px" placeholder="PIX" /></td>
+          <td><input class="field-input" data-mapping-field="contaAzulTipoPagamento" type="text" value="${escapeHtml(m.contaAzulTipoPagamento || "")}" style="min-width:100px;font-size:12px" placeholder="PIX_PAGAMENTO_INSTANTANEO" /></td>
           <td><input class="field-input" data-mapping-field="contaAzulFinancialAccountId" type="text" value="${escapeHtml(m.contaAzulFinancialAccountId || "")}" style="min-width:120px;font-size:12px" /></td>
           <td>${itemPickerCellHtml(m)}</td>
           <td><input class="field-input" data-mapping-field="contaAzulItemValor" type="text" value="${escapeHtml(m.contaAzulItemValor != null && m.contaAzulItemValor !== "" ? String(m.contaAzulItemValor) : "")}" style="min-width:72px;font-size:12px" placeholder="—" /></td>
