@@ -1243,28 +1243,59 @@ function financeClientMatchesLookup(client, lookup = {}) {
   return false;
 }
 
+function buildFinanceClientQueries(lookup = {}) {
+  const queries = [];
+  if (lookup.id) {
+    queries.push({ cliente_id: lookup.id });
+    queries.push({ id: lookup.id });
+  }
+  if (lookup.documentDigits) {
+    queries.push({ documento: lookup.documentDigits });
+    queries.push({ document: lookup.documentDigits });
+  }
+  queries.push({});
+  return queries;
+}
+
 async function fetchFinanceClientForLovableContract(source = {}) {
   const lookup = extractFinanceClientLookupFromContract(source);
   if (!lookup.id && !lookup.documentDigits) return null;
 
   const clientsResource = FINANCE_RESOURCES.clients;
-  const pull = await fetchFinanceCollection({
-    body: null,
-    bodyKeys: clientsResource.bodyKeys,
-    envKeys: clientsResource.envKeys,
-    responseKeys: clientsResource.responseKeys,
-    query: clientsResource.queryForDate(),
-    resourceLabel: clientsResource.resourceLabel,
-  });
-  if (!pull.configured || !pull.items.length) return { lookup, pull, client: null };
+  let lastPull = null;
+  let lastError = null;
+  for (const query of buildFinanceClientQueries(lookup)) {
+    let pull;
+    try {
+      pull = await fetchFinanceCollection({
+        body: null,
+        bodyKeys: clientsResource.bodyKeys,
+        envKeys: clientsResource.envKeys,
+        responseKeys: clientsResource.responseKeys,
+        query,
+        resourceLabel: clientsResource.resourceLabel,
+        allowObjectResponse: true,
+      });
+    } catch (error) {
+      lastError = error;
+      continue;
+    }
+    lastPull = pull;
+    if (!pull.configured || !pull.items.length) return { lookup, pull, client: null };
 
-  const clients = pull.items.map(normalizeFinanceClient).filter((client) => client.id || client.documentDigits || client.name);
-  const exact = clients.find((client) => financeClientMatchesLookup(client, lookup));
-  return {
-    lookup,
-    pull,
-    client: exact || (clients.length === 1 ? clients[0] : null),
-  };
+    const clients = pull.items.map(normalizeFinanceClient).filter((client) => client.id || client.documentDigits || client.name);
+    const exact = clients.find((client) => financeClientMatchesLookup(client, lookup));
+    if (exact || clients.length === 1 || !Object.keys(query).length) {
+      return {
+        lookup,
+        pull,
+        client: exact || (clients.length === 1 ? clients[0] : null),
+      };
+    }
+  }
+  if (lastPull) return { lookup, pull: lastPull, client: null };
+  if (lastError) throw lastError;
+  return { lookup, pull: null, client: null };
 }
 
 function mergeFinanceClientIntoLovableSource(source = {}, financeClient) {
@@ -1299,7 +1330,9 @@ async function resolveContaAzulCustomerForLovableContract(contaAzulSettings, sou
   const financeClientMatch = await fetchFinanceClientForLovableContract(source);
   const customerSource = financeClientMatch?.client ? mergeFinanceClientIntoLovableSource(source, financeClientMatch.client) : source;
   const customerRecord = buildContaAzulCustomerRecordFromContract(customerSource);
-  if (!customerRecord?.documentDigits) return null;
+  if (!customerRecord?.documentDigits) {
+    return { action: "missing_customer_data", person: null, customerRecord, financeClientMatch };
+  }
 
   const existing = await findContaAzulCustomerByDocument(contaAzulSettings, customerRecord.documentDigits);
   if (existing?.id) {
@@ -1989,9 +2022,15 @@ function readCollectionPayload(source, keys) {
   return collections.length ? collections : null;
 }
 
-function extractFinanceResponseItems(body, keys) {
+function extractFinanceResponseItems(body, keys, { allowObject = false } = {}) {
   const items = readCollectionPayload(body, keys);
-  return Array.isArray(items) ? items : [];
+  if (Array.isArray(items)) return items;
+  if (!allowObject || !body || typeof body !== "object" || Array.isArray(body)) return [];
+  for (const key of keys) {
+    const value = readNestedValue(body, key);
+    if (value && typeof value === "object" && !Array.isArray(value)) return [value];
+  }
+  return [body];
 }
 
 function normalizeFinanceProduct(raw) {
@@ -2024,19 +2063,23 @@ function normalizeFinanceCategory(raw) {
 
 function normalizeFinanceClient(raw) {
   const o = raw && typeof raw === "object" ? raw : {};
+  const nestedClient = o.client && typeof o.client === "object" ? o.client : {};
+  const nestedCliente = o.cliente && typeof o.cliente === "object" ? o.cliente : {};
+  const nestedCustomer = o.customer && typeof o.customer === "object" ? o.customer : {};
+  const merged = { ...o, ...nestedClient, ...nestedCliente, ...nestedCustomer };
   const id = truncateText(
-    String(o.id ?? o.client_id ?? o.clientId ?? o.cliente_id ?? o.clienteId ?? o.customer_id ?? o.customerId ?? o.uuid ?? "").trim(),
+    String(merged.id ?? merged.client_id ?? merged.clientId ?? merged.cliente_id ?? merged.clienteId ?? merged.customer_id ?? merged.customerId ?? merged.uuid ?? "").trim(),
     160
   );
   const name = truncateText(
-    String(o.name ?? o.nome ?? o.razao_social ?? o.razaoSocial ?? o.company_name ?? o.companyName ?? o.nome_fantasia ?? o.fantasyName ?? "").trim(),
+    String(merged.name ?? merged.nome ?? merged.razao_social ?? merged.razaoSocial ?? merged.company_name ?? merged.companyName ?? merged.nome_fantasia ?? merged.fantasyName ?? "").trim(),
     200
   );
   const document = truncateText(
-    String(o.cnpj_cpf ?? o.cpf_cnpj ?? o.documento ?? o.document ?? o.cnpj ?? o.cpf ?? o.tax_id ?? o.taxId ?? "").trim(),
+    String(merged.cnpj_cpf ?? merged.cpf_cnpj ?? merged.documento ?? merged.document ?? merged.cnpj ?? merged.cpf ?? merged.tax_id ?? merged.taxId ?? "").trim(),
     60
   );
-  const email = truncateText(String(o.email ?? o.contato_email ?? o.contactEmail ?? "").trim(), 320);
+  const email = truncateText(String(merged.email ?? merged.contato_email ?? merged.contactEmail ?? "").trim(), 320);
   return {
     id: id || null,
     name: name || null,
@@ -2124,8 +2167,8 @@ const FINANCE_RESOURCES = {
     title: "Clientes",
     resourceLabel: "clientes cadastrados no Finance",
     envKeys: ["COLLI_FINANCE_CLIENTS_URL", "FINANCE_CLIENTS_URL"],
-    bodyKeys: ["clients", "clientes", "billingClients", "billing_clients", "data.clients", "data.clientes", "data.billing_clients", "items"],
-    responseKeys: ["clients", "clientes", "billingClients", "billing_clients", "data.clients", "data.clientes", "data.billing_clients", "data", "items", "records"],
+    bodyKeys: ["client", "cliente", "clients", "clientes", "billingClient", "billing_client", "billingClients", "billing_clients", "data.client", "data.cliente", "data.clients", "data.clientes", "data.billing_client", "data.billing_clients", "items"],
+    responseKeys: ["client", "cliente", "clients", "clientes", "billingClient", "billing_client", "billingClients", "billing_clients", "data.client", "data.cliente", "data.clients", "data.clientes", "data.billing_client", "data.billing_clients", "data", "items", "records"],
     queryForDate: () => ({}),
   },
   categories: {
@@ -2334,7 +2377,7 @@ function buildFinancePreviewItems(resource, items = [], limit = 5) {
     .filter(Boolean);
 }
 
-async function fetchFinanceCollection({ body, bodyKeys, envKeys, responseKeys, query = {}, resourceLabel }) {
+async function fetchFinanceCollection({ body, bodyKeys, envKeys, responseKeys, query = {}, resourceLabel, allowObjectResponse = false }) {
   const manualItems = readCollectionPayload(body, bodyKeys);
   if (Array.isArray(manualItems)) {
     return {
@@ -2371,7 +2414,7 @@ async function fetchFinanceCollection({ body, bodyKeys, envKeys, responseKeys, q
     throw createHttpError(response.status, `Colli Finance recusou a busca de ${resourceLabel}. ${json.error || json.message || `HTTP ${response.status}`}`);
   }
 
-  const items = extractFinanceResponseItems(json, responseKeys);
+  const items = extractFinanceResponseItems(json, responseKeys, { allowObject: allowObjectResponse });
   return {
     configured: true,
     configuredEnvKey: envEntry.key,
