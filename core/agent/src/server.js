@@ -2319,7 +2319,21 @@ function normalizeFinanceClient(raw) {
     160
   );
   const name = truncateText(
-    String(merged.name ?? merged.nome ?? merged.razao_social ?? merged.razaoSocial ?? merged.company_name ?? merged.companyName ?? merged.nome_fantasia ?? merged.fantasyName ?? "").trim(),
+    String(
+      merged.name ??
+        merged.nome ??
+        merged.razao_social ??
+        merged.razaoSocial ??
+        merged.company_name ??
+        merged.companyName ??
+        merged.organization?.legal_name ??
+        merged.organization?.legalName ??
+        merged.organization?.trade_name ??
+        merged.organization?.tradeName ??
+        merged.nome_fantasia ??
+        merged.fantasyName ??
+        ""
+    ).trim(),
     200
   );
   const document = truncateText(
@@ -2328,6 +2342,8 @@ function normalizeFinanceClient(raw) {
         merged.cnpjCpf ??
         merged.cpf_cnpj ??
         merged.cpfCnpj ??
+        merged.document_digits ??
+        merged.documentDigits ??
         merged.documento ??
         merged.document ??
         merged.document_number ??
@@ -2342,7 +2358,7 @@ function normalizeFinanceClient(raw) {
     ).trim(),
     60
   );
-  const email = truncateText(String(merged.email ?? merged.contato_email ?? merged.contactEmail ?? "").trim(), 320);
+  const email = truncateText(String(merged.email ?? merged.contato_email ?? merged.contactEmail ?? merged.contact?.email ?? "").trim(), 320);
   return {
     id: id || null,
     name: name || null,

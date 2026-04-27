@@ -523,6 +523,32 @@ test("monta payload de cliente Conta Azul a partir do CNPJ do contrato Finance",
   assert.equal(customer.payload.email, "financeiro@cliente.test");
 });
 
+test("monta payload de cliente Conta Azul a partir do JSON padronizado do Finance", () => {
+  const customer = buildContaAzulCustomerRecordFromContract({
+    id: "7d8f06cc-28a8-47cf-a81e-ce8ea9b0164f",
+    name: "Cliente Teste Ltda",
+    document: "",
+    document_digits: "12345678000190",
+    document_type: "CNPJ",
+    contact: {
+      email: "financeiro@clienteteste.com",
+    },
+    organization: {
+      legal_name: "Cliente Teste Razão Social Ltda",
+      trade_name: "Cliente Teste",
+    },
+    is_active: true,
+    created_at: "2026-04-27T14:00:00.000Z",
+    updated_at: "2026-04-27T14:00:00.000Z",
+  });
+
+  assert.equal(customer.documentDigits, "12345678000190");
+  assert.equal(customer.payload.nome, "Cliente Teste Ltda");
+  assert.equal(customer.payload.tipo_pessoa, "Jurídica");
+  assert.equal(customer.payload.cnpj, "12.345.678/0001-90");
+  assert.equal(customer.payload.email, "financeiro@clienteteste.com");
+});
+
 test("financePaymentMappings aplica condicao_pagamento, id_conta_financeira e valor; itens[0].id vem do mapa de produto", () => {
   const settings = mergeContaAzulSettings(
     {
