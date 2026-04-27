@@ -12,6 +12,7 @@ const {
   buildContaAzulContractRecord,
   buildContaAzulFinancialAccountsPath,
   buildContaAzulFinancialCategoriesPath,
+  buildContaAzulCustomerRecordFromContract,
   buildContaAzulInventoryListPath,
   buildContaAzulProductsPath,
   buildContaAzulServicosPath,
@@ -231,6 +232,7 @@ test("monta consultas e normaliza listas de pessoas, contas e categorias do Cont
   const peoplePath = buildContaAzulPeoplePath({
     profileType: "Fornecedor",
     search: "Acme Ltda",
+    document: "12.345.678/0001-99",
     pageSize: 50,
   });
   const accountsPath = buildContaAzulFinancialAccountsPath({
@@ -286,6 +288,7 @@ test("monta consultas e normaliza listas de pessoas, contas e categorias do Cont
   assert.match(peoplePath, /^\/v1\/pessoas\?/);
   assert.match(peoplePath, /tipo_perfil=Fornecedor/);
   assert.match(peoplePath, /busca=Acme\+Ltda/);
+  assert.match(peoplePath, /documentos=12345678000199/);
   assert.match(accountsPath, /^\/v1\/conta-financeira\?/);
   assert.match(accountsPath, /nome=Banco\+do\+Brasil/);
   assert.match(categoriesPath, /^\/v1\/categorias\?/);
@@ -497,6 +500,27 @@ test("lovableContracts.defaultContractFinancialAccountId tem precedencia sobre f
     source: { customerId: "c1", productId: "p1", amountCents: 1000, startDate: "2026-01-01", firstDueDate: "2026-01-10" },
   });
   assert.equal(record.payload.condicao_pagamento.id_conta_financeira, "conta_somente_contrato");
+});
+
+test("monta payload de cliente Conta Azul a partir do CNPJ do contrato Finance", () => {
+  const customer = buildContaAzulCustomerRecordFromContract({
+    contract: {
+      billing_clients: [
+        {
+          razao_social: "Cliente Finance Ltda",
+          cnpj_cpf: "12.345.678/0001-99",
+          email: "financeiro@cliente.test",
+        },
+      ],
+    },
+  });
+
+  assert.equal(customer.documentDigits, "12345678000199");
+  assert.equal(customer.payload.nome, "Cliente Finance Ltda");
+  assert.equal(customer.payload.tipo_pessoa, "Jurídica");
+  assert.equal(customer.payload.cnpj, "12.345.678/0001-99");
+  assert.deepEqual(customer.payload.perfis, [{ tipo_perfil: "Cliente" }]);
+  assert.equal(customer.payload.email, "financeiro@cliente.test");
 });
 
 test("financePaymentMappings aplica condicao_pagamento, id_conta_financeira e valor; itens[0].id vem do mapa de produto", () => {

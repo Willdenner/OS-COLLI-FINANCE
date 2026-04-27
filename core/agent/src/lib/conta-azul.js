@@ -71,6 +71,21 @@ function normalizeAmountCents(value) {
   return Math.round(Math.abs(parsed) * 100);
 }
 
+function normalizeContaAzulDocumentDigits(value) {
+  return String(value == null ? "" : value).replace(/\D+/g, "");
+}
+
+function formatContaAzulBrazilianDocument(value) {
+  const digits = normalizeContaAzulDocumentDigits(value);
+  if (digits.length === 14) {
+    return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+  }
+  if (digits.length === 11) {
+    return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
+  }
+  return normalizeOptionalText(value, 40);
+}
+
 function normalizeCentsValue(value) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return null;
@@ -654,12 +669,14 @@ function normalizeContaAzulFinancialInstallment(installment, type) {
   };
 }
 
-function buildContaAzulPeoplePath({ profileType, search, page = 1, pageSize = 20 } = {}) {
+function buildContaAzulPeoplePath({ profileType, search, document, documentos, page = 1, pageSize = 20 } = {}) {
   const params = new URLSearchParams();
   const safeProfileType = normalizeContaAzulPersonProfileType(profileType);
   if (safeProfileType) params.set("tipo_perfil", safeProfileType);
   const safeSearch = normalizeOptionalText(search, 160);
   if (safeSearch) params.set("busca", safeSearch);
+  const safeDocument = normalizeContaAzulDocumentDigits(document || documentos);
+  if (safeDocument) params.set("documentos", safeDocument);
   params.set("pagina", String(clampInteger(page, 1, 10000, 1)));
   params.set("tamanho_pagina", String(clampInteger(pageSize, 1, 100, 20)));
   return `${CONTA_AZUL_PEOPLE_PATH}?${params.toString()}`;
@@ -2109,6 +2126,117 @@ function resolveContaAzulPaymentFromMapping(rawKey, mappings) {
   return row?.contaAzulTipoPagamento ? row.contaAzulTipoPagamento : "";
 }
 
+const CONTRACT_CUSTOMER_NAME_PATHS = [
+  "customerName",
+  "clientName",
+  "clienteNome",
+  "cliente_nome",
+  "nome_cliente",
+  "razao_social",
+  "razaoSocial",
+  "companyName",
+  "company_name",
+  "billing_clients.name",
+  "billing_clients.nome",
+  "billing_clients.razao_social",
+  "billing_clients.razaoSocial",
+  "billing_client.name",
+  "billing_client.nome",
+  "billing_client.razao_social",
+  "billing_client.razaoSocial",
+  "customer.name",
+  "customer.nome",
+  "customer.razao_social",
+  "client.name",
+  "client.nome",
+  "client.razao_social",
+  "cliente.name",
+  "cliente.nome",
+  "cliente.razao_social",
+];
+
+const CONTRACT_CUSTOMER_DOCUMENT_PATHS = [
+  "cnpj",
+  "cpf",
+  "cpf_cnpj",
+  "cpfCnpj",
+  "documento",
+  "document",
+  "customerDocument",
+  "clientDocument",
+  "billing_clients.cnpj_cpf",
+  "billing_clients.cpf_cnpj",
+  "billing_clients.cnpj",
+  "billing_clients.cpf",
+  "billing_clients.documento",
+  "billing_client.cnpj_cpf",
+  "billing_client.cpf_cnpj",
+  "billing_client.cnpj",
+  "billing_client.cpf",
+  "billing_client.documento",
+  "customer.cnpj_cpf",
+  "customer.cpf_cnpj",
+  "customer.cnpj",
+  "customer.cpf",
+  "customer.documento",
+  "client.cnpj_cpf",
+  "client.cpf_cnpj",
+  "client.cnpj",
+  "client.cpf",
+  "client.documento",
+  "cliente.cnpj_cpf",
+  "cliente.cpf_cnpj",
+  "cliente.cnpj",
+  "cliente.cpf",
+  "cliente.documento",
+];
+
+const CONTRACT_CUSTOMER_EMAIL_PATHS = [
+  "email",
+  "customerEmail",
+  "clientEmail",
+  "billing_clients.email",
+  "billing_client.email",
+  "customer.email",
+  "client.email",
+  "cliente.email",
+];
+
+function getContractWithNestedPayload(source = {}) {
+  const baseSource = source && typeof source === "object" ? source : {};
+  const nestedContract = baseSource.contract && typeof baseSource.contract === "object" ? baseSource.contract : {};
+  return { ...baseSource, ...nestedContract };
+}
+
+function buildContaAzulCustomerRecordFromContract(source = {}) {
+  const contract = getContractWithNestedPayload(source);
+  const rawDocument = pickFirstNested(contract, CONTRACT_CUSTOMER_DOCUMENT_PATHS);
+  const documentDigits = normalizeContaAzulDocumentDigits(rawDocument);
+  if (![11, 14].includes(documentDigits.length)) return null;
+
+  const name =
+    pickFirstText(pickFirstNested(contract, CONTRACT_CUSTOMER_NAME_PATHS)) ||
+    (documentDigits.length === 14 ? `Cliente ${formatContaAzulBrazilianDocument(documentDigits)}` : `Cliente ${formatContaAzulBrazilianDocument(documentDigits)}`);
+  const email = pickFirstText(pickFirstNested(contract, CONTRACT_CUSTOMER_EMAIL_PATHS));
+  const payload = {
+    nome: name,
+    tipo_pessoa: documentDigits.length === 14 ? "Jurídica" : "Física",
+    perfis: [{ tipo_perfil: "Cliente" }],
+    ...(documentDigits.length === 14
+      ? { cnpj: formatContaAzulBrazilianDocument(documentDigits) }
+      : { cpf: formatContaAzulBrazilianDocument(documentDigits) }),
+    ...(email ? { email } : {}),
+  };
+
+  return {
+    document: formatContaAzulBrazilianDocument(documentDigits),
+    documentDigits,
+    name,
+    email,
+    payload,
+  };
+}
+
 function buildContaAzulContractRecord({ settings, source, nextContractNumber, financePaymentLinks } = {}) {
   const safeSettings = normalizeContaAzulSettings(settings);
   const lc = safeSettings.lovableContracts;
@@ -2709,6 +2837,7 @@ module.exports = {
   buildContaAzulFinancialEventsSearchPath,
   buildContaAzulFpaExportPayload,
   buildContaAzulFpaFinancialEventRecord,
+  buildContaAzulCustomerRecordFromContract,
   buildContaAzulTestFinancialEventRecord,
   buildContaAzulHeaders,
   buildContaAzulPeoplePath,
@@ -2731,6 +2860,7 @@ module.exports = {
   normalizeContaAzulListItems,
   normalizeContaAzulPerson,
   normalizeContaAzulPersonProfileType,
+  normalizeContaAzulDocumentDigits,
   normalizeContaAzulProduct,
   normalizeContaAzulProductsPageSize,
   normalizeContaAzulServicosPageSize,

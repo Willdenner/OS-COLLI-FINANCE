@@ -58,6 +58,7 @@ const {
   CONTA_AZUL_CONNECTED_ACCOUNT_PATH,
   CONTA_AZUL_LOVABLE_CONTRACTS_RESOURCE,
   CONTA_AZUL_LOVABLE_RECEIPTS_RESOURCE,
+  CONTA_AZUL_PEOPLE_PATH,
   getContaAzulLovableContractPaths,
   applyContaAzulTokenPayload,
   buildContaAzulAcquittanceRecord,
@@ -66,6 +67,7 @@ const {
   buildContaAzulFinancialAccountsPath,
   buildContaAzulFinancialCategoriesPath,
   buildContaAzulInventoryListPath,
+  buildContaAzulCustomerRecordFromContract,
   buildContaAzulProductsPath,
   buildContaAzulServicosPath,
   buildContaAzulFinancialEventsSearchPath,
@@ -88,6 +90,7 @@ const {
   normalizeContaAzulProduct,
   normalizeContaAzulListItems,
   normalizeContaAzulPerson,
+  normalizeContaAzulDocumentDigits,
   normalizeContaAzulProductsPageSize,
   normalizeContaAzulServicosPageSize,
   normalizeContaAzulSettings,
@@ -1094,6 +1097,80 @@ async function postContaAzulJson(contaAzulSettings, endpointPath, payload) {
   return { endpoint, response, parsed };
 }
 
+async function findContaAzulCustomerByDocument(contaAzulSettings, documentDigits) {
+  const safeDocument = normalizeContaAzulDocumentDigits(documentDigits);
+  if (!safeDocument) return null;
+
+  const endpointPath = buildContaAzulPeoplePath({
+    profileType: "Cliente",
+    document: safeDocument,
+    pageSize: 20,
+  });
+  const result = await fetchContaAzulJson(contaAzulSettings, endpointPath);
+  const people = normalizeContaAzulListItems(result.parsed.json).map(normalizeContaAzulPerson).filter((person) => person.id);
+  const exact = people.find((person) => normalizeContaAzulDocumentDigits(person.document) === safeDocument);
+  return exact || null;
+}
+
+async function createContaAzulCustomerFromContract(contaAzulSettings, customerRecord) {
+  const result = await postContaAzulJson(contaAzulSettings, CONTA_AZUL_PEOPLE_PATH, customerRecord.payload);
+  if (!result.response.ok) {
+    throw createHttpError(
+      result.response.status === 401 ? 401 : 400,
+      `Conta Azul recusou o cadastro do cliente do contrato Lovable. ${result.parsed.preview || `HTTP ${result.response.status}`}`
+    );
+  }
+
+  const personCandidates = [
+    result.parsed.json,
+    result.parsed.json?.data,
+    result.parsed.json?.pessoa,
+    normalizeContaAzulListItems(result.parsed.json)[0],
+  ].map(normalizeContaAzulPerson);
+  const person = personCandidates.find((candidate) => candidate?.id) || personCandidates[0];
+  if (!person.id) {
+    throw createHttpError(400, "Conta Azul criou/retornou cliente sem UUID.");
+  }
+  return { person, endpoint: result.endpoint, responseCode: result.response.status };
+}
+
+async function resolveContaAzulCustomerForLovableContract(contaAzulSettings, source = {}) {
+  const customerRecord = buildContaAzulCustomerRecordFromContract(source);
+  if (!customerRecord?.documentDigits) return null;
+
+  const existing = await findContaAzulCustomerByDocument(contaAzulSettings, customerRecord.documentDigits);
+  if (existing?.id) {
+    return { action: "found", person: existing, customerRecord };
+  }
+
+  const created = await createContaAzulCustomerFromContract(contaAzulSettings, customerRecord);
+  return { action: "created", person: created.person, customerRecord, endpoint: created.endpoint, responseCode: created.responseCode };
+}
+
+function applyContaAzulCustomerToLovableSource(source = {}, customerId) {
+  const safeSource = source && typeof source === "object" ? source : {};
+  const id = String(customerId || "").trim();
+  if (!id) return safeSource;
+  return {
+    ...safeSource,
+    customerId: id,
+    clientId: id,
+    contaAzulCustomerId: id,
+    conta_azul_customer_id: id,
+    ...(safeSource.contract && typeof safeSource.contract === "object"
+      ? {
+          contract: {
+            ...safeSource.contract,
+            customerId: id,
+            clientId: id,
+            contaAzulCustomerId: id,
+            conta_azul_customer_id: id,
+          },
+        }
+      : {}),
+  };
+}
+
 async function fetchContaAzulNextContractNumber(contaAzulSettings) {
   const { nextContractNumberPath } = getContaAzulLovableContractPaths(contaAzulSettings);
   const result = await fetchContaAzulJson(contaAzulSettings, nextContractNumberPath);
@@ -1484,24 +1561,41 @@ async function syncLovableContractToContaAzul(source = {}, { dryRun = false, for
     throw createHttpError(400, "Ative a integração Conta Azul antes de receber contratos do Lovable.");
   }
 
-  const contractNumberFromSource = readFirstValue(source || {}, ["contractNumber", "number", "numero", "contract.contractNumber", "contract.termos.numero"]);
+  const externalId = readFirstText(source || {}, ["externalId", "contractId", "id", "uuid", "codigo", "code", "contract.externalId", "contract.contractId", "contract.id"]);
+  if (!externalId) throw createHttpError(400, "Informe externalId, contractId ou id do contrato Lovable.");
+  const existing = await findLovableContractSync(externalId);
+  if (existing?.status === "success" && !force) {
+    return { statusCode: 200, body: { ok: true, idempotent: true, contract: existing } };
+  }
+
+  let customerResolution = null;
+  let contractSource = source || {};
+  if (!dryRun) {
+    customerResolution = await resolveContaAzulCustomerForLovableContract(contaAzulSettings, source || {});
+    if (customerResolution?.person?.id) {
+      contractSource = applyContaAzulCustomerToLovableSource(source || {}, customerResolution.person.id);
+    }
+  }
+
+  const contractNumberFromSource = readFirstValue(contractSource || {}, ["contractNumber", "number", "numero", "contract.contractNumber", "contract.termos.numero"]);
   const [nextContractNumber, financePaymentLinks] = await Promise.all([
     contractNumberFromSource || fetchContaAzulNextContractNumber(contaAzulSettings),
     listFinancePaymentLinks(),
   ]);
   const record = buildContaAzulContractRecord({
     settings: contaAzulSettings,
-    source: source || {},
+    source: contractSource || {},
     nextContractNumber,
     financePaymentLinks,
   });
-  if (!record.externalId) throw createHttpError(400, "Informe externalId, contractId ou id do contrato Lovable.");
-
-  const existing = await findLovableContractSync(record.externalId);
-  if (existing?.status === "success" && !force) {
-    return { statusCode: 200, body: { ok: true, idempotent: true, contract: existing } };
+  if (customerResolution) {
+    record.customerResolution = {
+      action: customerResolution.action,
+      id: customerResolution.person?.id || null,
+      name: customerResolution.person?.name || customerResolution.customerRecord?.name || null,
+      document: customerResolution.customerRecord?.document || customerResolution.person?.document || null,
+    };
   }
-
   if (record.missingRequiredFields.length) {
     const mapDbg = record.productMappingDebug;
     const mapHint =
