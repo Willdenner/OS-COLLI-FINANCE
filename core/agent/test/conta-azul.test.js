@@ -1000,6 +1000,29 @@ test("contaAzulContractPayload do webhook nao substitui itens[0].id fora do mapa
   assert.equal(record.payload.itens[0].id, "uuid-vinculo");
 });
 
+test("ids genericos do Finance nao viram id_cliente do contrato Conta Azul", () => {
+  const record = buildContaAzulContractRecord({
+    settings: {
+      fpaExport: { defaultReceivableCategoryId: "categoria_receita" },
+      lovableContracts: { financeProductMappings: [{ financeProductId: "pid", contaAzulItemId: "uuid-vinculo" }] },
+    },
+    nextContractNumber: 1,
+    source: {
+      contractId: "c1",
+      clientId: "cliente-finance-id",
+      cliente_id: "cliente-finance-id-2",
+      billing_clients: [{ id: "billing-client-finance-id" }],
+      productId: "pid",
+      amountCents: 1000,
+      startDate: "2026-01-01",
+      firstDueDate: "2026-01-10",
+    },
+  });
+
+  assert.ok(!record.payload.id_cliente);
+  assert.ok(record.missingRequiredFields.includes("id_cliente"));
+});
+
 test("mapeia contrato vindo do Finance com billing_clients em lista e campos em snake_case", () => {
   const settings = {
     fpaExport: {

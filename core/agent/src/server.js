@@ -1316,16 +1316,16 @@ function applyContaAzulCustomerToLovableSource(source = {}, customerId) {
   if (!id) return safeSource;
   return {
     ...safeSource,
+    id_cliente: id,
     customerId: id,
-    clientId: id,
     contaAzulCustomerId: id,
     conta_azul_customer_id: id,
     ...(safeSource.contract && typeof safeSource.contract === "object"
       ? {
           contract: {
             ...safeSource.contract,
+            id_cliente: id,
             customerId: id,
-            clientId: id,
             contaAzulCustomerId: id,
             conta_azul_customer_id: id,
           },
@@ -1735,9 +1735,26 @@ async function syncLovableContractToContaAzul(source = {}, { dryRun = false, for
   let contractSource = source || {};
   if (!dryRun) {
     customerResolution = await resolveContaAzulCustomerForLovableContract(contaAzulSettings, source || {});
-    if (customerResolution?.person?.id) {
-      contractSource = applyContaAzulCustomerToLovableSource(source || {}, customerResolution.person.id);
+    if (!customerResolution?.person?.id) {
+      const lookup = customerResolution?.financeClientMatch?.lookup || extractFinanceClientLookupFromContract(source || {});
+      const financeMessage = customerResolution?.financeClientMatch?.pull?.configured === false
+        ? ` Configure ${customerResolution.financeClientMatch.pull.expectedEnvKey}.`
+        : "";
+      const errText = [
+        "Cliente do contrato ainda não foi criado/resolvido no Conta Azul.",
+        lookup?.id ? `cliente_id Finance: ${lookup.id}.` : "",
+        lookup?.document ? `documento: ${lookup.document}.` : "",
+        financeMessage,
+      ].filter(Boolean).join(" ");
+      await upsertLovableContractSync({
+        externalId,
+        status: "error",
+        errorMessage: errText,
+        requestPayload: source || {},
+      });
+      throw createHttpError(400, errText);
     }
+    contractSource = applyContaAzulCustomerToLovableSource(source || {}, customerResolution.person.id);
   }
 
   const contractNumberFromSource = readFirstValue(contractSource || {}, ["contractNumber", "number", "numero", "contract.contractNumber", "contract.termos.numero"]);
