@@ -1534,6 +1534,9 @@ function normalizeMergedContaAzulContractDates(payload, basePayload = {}) {
 function mergeContaAzulLovableContractPayload(base, override) {
   if (!override || typeof override !== "object") return { ...base };
   const o = { ...base, ...override };
+  if (normalizeOptionalText(base.id_cliente, 160)) {
+    o.id_cliente = base.id_cliente;
+  }
   o.termos = { ...base.termos, ...override.termos };
   o.composicao_de_valor = { ...base.composicao_de_valor, ...override.composicao_de_valor };
   const baseCond = base.condicao_pagamento && typeof base.condicao_pagamento === "object" ? base.condicao_pagamento : {};

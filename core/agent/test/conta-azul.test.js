@@ -698,6 +698,29 @@ test("contaAzulContractPayload com strings vazias nao apaga id_conta_financeira 
   assert.deepEqual(record.missingRequiredFields, []);
 });
 
+test("contaAzulContractPayload nao sobrescreve cliente resolvido para o contrato", () => {
+  const record = buildContaAzulContractRecord({
+    settings: {
+      fpaExport: { defaultReceivableCategoryId: "categoria_receita" },
+      lovableContracts: { financeProductMappings: [{ financeProductId: "prod-client", contaAzulItemId: "prod-client" }] },
+    },
+    nextContractNumber: 202,
+    source: {
+      contractId: "c_cliente_resolvido",
+      customerId: "cliente-resolvido-conta-azul",
+      productId: "prod-client",
+      amountCents: 5000,
+      startDate: "2026-03-01",
+      firstDueDate: "2026-03-10",
+      contaAzulContractPayload: {
+        id_cliente: "cliente-antigo-finance",
+      },
+    },
+  });
+  assert.equal(record.payload.id_cliente, "cliente-resolvido-conta-azul");
+  assert.deepEqual(record.missingRequiredFields, []);
+});
+
 test("contaAzulContractPayload com data null em string nao envia data invalida", () => {
   const record = buildContaAzulContractRecord({
     settings: {
