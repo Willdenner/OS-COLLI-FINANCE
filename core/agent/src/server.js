@@ -1427,7 +1427,18 @@ async function fetchFinanceClientsForPresync(window) {
 }
 
 function buildContaAzulCustomerRecordFromFinanceClient(financeClient) {
-  return buildContaAzulCustomerRecordFromContract(mergeFinanceClientIntoLovableSource({}, financeClient));
+  const raw = financeClient?.raw && typeof financeClient.raw === "object" ? financeClient.raw : {};
+  return buildContaAzulCustomerRecordFromContract({
+    ...raw,
+    name: financeClient?.name || raw.name,
+    document: financeClient?.document || raw.document,
+    document_digits: financeClient?.documentDigits || raw.document_digits,
+    email: financeClient?.email || raw.email,
+    contact: {
+      ...(raw.contact && typeof raw.contact === "object" ? raw.contact : {}),
+      ...(financeClient?.email ? { email: financeClient.email } : {}),
+    },
+  });
 }
 
 async function syncFinanceClientsToContaAzul({ businessDate, days = 5 } = {}) {

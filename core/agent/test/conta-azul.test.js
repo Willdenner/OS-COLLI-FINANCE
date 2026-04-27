@@ -549,6 +549,26 @@ test("monta payload de cliente Conta Azul a partir do JSON padronizado do Financ
   assert.equal(customer.payload.email, "financeiro@clienteteste.com");
 });
 
+test("monta payload de cliente Conta Azul quando JSON padronizado vem aninhado em billing_client", () => {
+  const customer = buildContaAzulCustomerRecordFromContract({
+    billing_client: {
+      id: "bioativos-id",
+      name: "Bioativos",
+      document: "45008168000181",
+      document_digits: "45008168000181",
+      document_type: "CNPJ",
+      contact: {
+        email: "financeiro@bioativos.test",
+      },
+    },
+  });
+
+  assert.equal(customer.documentDigits, "45008168000181");
+  assert.equal(customer.payload.nome, "Bioativos");
+  assert.equal(customer.payload.cnpj, "45.008.168/0001-81");
+  assert.equal(customer.payload.email, "financeiro@bioativos.test");
+});
+
 test("financePaymentMappings aplica condicao_pagamento, id_conta_financeira e valor; itens[0].id vem do mapa de produto", () => {
   const settings = mergeContaAzulSettings(
     {
