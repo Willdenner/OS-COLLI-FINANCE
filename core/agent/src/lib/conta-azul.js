@@ -1670,11 +1670,16 @@ function normalizeContaAzulAcquittanceResponse(responseBody) {
 
 const CONTRACT_MONEY_CENTAVOS_PATHS = [
   "amountCents",
+  "amount_cents",
   "valueCents",
+  "value_cents",
   "monthlyAmountCents",
+  "monthly_amount_cents",
   "valorCentavos",
   "valor_centavos",
   "item.valorCentavos",
+  "item.amount_cents",
+  "items.0.amount_cents",
 ];
 const CONTRACT_MONEY_DECIMAL_PATHS = [
   "amount",
@@ -2133,6 +2138,7 @@ const CONTRACT_CUSTOMER_NAME_PATHS = [
   "name",
   "customerName",
   "clientName",
+  "client_name",
   "clienteNome",
   "cliente_nome",
   "nome_cliente",
@@ -2180,6 +2186,7 @@ const CONTRACT_CUSTOMER_DOCUMENT_PATHS = [
   "document",
   "customerDocument",
   "clientDocument",
+  "client_document",
   "billing_clients.cnpj_cpf",
   "billing_clients.cpf_cnpj",
   "billing_clients.document_digits",
@@ -2235,6 +2242,7 @@ const CONTRACT_CUSTOMER_EMAIL_PATHS = [
   "email",
   "customerEmail",
   "clientEmail",
+  "client_email",
   "contact.email",
   "billing_clients.email",
   "billing_clients.contact.email",
@@ -2306,10 +2314,20 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
     (contract.contaAzulPayload && typeof contract.contaAzulPayload === "object" && contract.contaAzulPayload) ||
     (contract.contaAzulContractPayload && typeof contract.contaAzulContractPayload === "object" && contract.contaAzulContractPayload) ||
     null;
-  const externalId = pickFirstText(contract.externalId, contract.contractId, contract.id, contract.uuid, contract.codigo, contract.code);
+  const externalId = pickFirstText(
+    contract.externalId,
+    contract.external_id,
+    contract.contractId,
+    contract.contract_id,
+    contract.id,
+    contract.uuid,
+    contract.codigo,
+    contract.code
+  );
   const firstDueDate = normalizeIsoDateFromFinance(
     pickFirstNested(contract, [
       "firstDueDate",
+      "first_due_date",
       "first_charge_date",
       "firstChargeDate",
       "primeiraDataVencimento",
@@ -2441,7 +2459,10 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
       lineValor = paymentMapping.contaAzulItemValor;
     }
   }
-  const dueDay = normalizeContaAzulDueDay(pickFirstNested(contract, ["dueDay", "diaVencimento", "billing.dueDay"]), firstDueDate || startDate);
+  const dueDay = normalizeContaAzulDueDay(
+    pickFirstNested(contract, ["dueDay", "due_day", "payment_due_day", "diaVencimento", "billing.dueDay", "billing.payment_due_day"]),
+    firstDueDate || startDate
+  );
   const issueDate =
     normalizeIsoDateFromFinance(
       pickFirstNested(contract, [
@@ -2580,7 +2601,16 @@ function buildContaAzulAcquittanceRecord({ settings, source, installmentId } = {
     (payment.contaAzulPayload && typeof payment.contaAzulPayload === "object" && payment.contaAzulPayload) ||
     (payment.contaAzulAcquittancePayload && typeof payment.contaAzulAcquittancePayload === "object" && payment.contaAzulAcquittancePayload) ||
     null;
-  const externalId = pickFirstText(payment.externalId, payment.paymentId, payment.receiptId, payment.id, payment.uuid);
+  const externalId = pickFirstText(
+    payment.externalId,
+    payment.external_id,
+    payment.paymentId,
+    payment.payment_id,
+    payment.receiptId,
+    payment.receipt_id,
+    payment.id,
+    payment.uuid
+  );
   const safeInstallmentId = pickFirstText(
     installmentId,
     pickFirstNested(payment, ["installmentId", "parcelaId", "contaAzulInstallmentId", "id_parcela"])

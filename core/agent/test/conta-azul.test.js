@@ -1026,6 +1026,51 @@ test("service_id do Lovable decide o item do Conta Azul antes de outros UUIDs do
   assert.deepEqual(record.missingRequiredFields, []);
 });
 
+test("contrato padronizado do Lovable usa contract_id, amount_cents, first_due_date e payment_method", () => {
+  const settings = mergeContaAzulSettings(
+    { fpaExport: { defaultReceivableCategoryId: "cat_r", defaultFinancialAccountId: "conta_padrao" } },
+    {
+      lovableContracts: {
+        financeProductMappings: [{ financeProductId: "assessoria_recorrente", contaAzulItemId: "item-assessoria-ca" }],
+        financePaymentMappings: [
+          {
+            financePaymentKey: "pix",
+            contaAzulTipoPagamento: "PIX_PAGAMENTO_INSTANTANEO",
+            contaAzulFinancialAccountId: "conta-pix-ca",
+          },
+        ],
+      },
+    }
+  );
+  const record = buildContaAzulContractRecord({
+    settings,
+    nextContractNumber: 44,
+    source: {
+      contract_id: "ct_padronizado_001",
+      customerId: "cliente-ca-resolvido",
+      client_name: "Cliente Padronizado",
+      client_document: "12345678000190",
+      service_id: "assessoria_recorrente",
+      service_name: "Assessoria Recorrente",
+      payment_method: "pix",
+      payment_due_day: 10,
+      contract_start_date: "2026-05-01",
+      first_due_date: "2026-05-10",
+      amount_cents: 99000,
+      items: [{ service_id: "assessoria_recorrente", service_name: "Assessoria Recorrente", amount_cents: 99000, quantity: 1 }],
+    },
+  });
+
+  assert.equal(record.externalId, "ct_padronizado_001");
+  assert.equal(record.payload.itens[0].id, "item-assessoria-ca");
+  assert.equal(record.payload.itens[0].valor, 990);
+  assert.equal(record.payload.condicao_pagamento.tipo_pagamento, "PIX_PAGAMENTO_INSTANTANEO");
+  assert.equal(record.payload.condicao_pagamento.id_conta_financeira, "conta-pix-ca");
+  assert.equal(record.payload.condicao_pagamento.dia_vencimento, 10);
+  assert.equal(record.payload.condicao_pagamento.primeira_data_vencimento, "2026-05-10");
+  assert.deepEqual(record.missingRequiredFields, []);
+});
+
 test("contaAzulContractPayload do webhook nao substitui itens[0].id fora do mapa de produto", () => {
   const record = buildContaAzulContractRecord({
     settings: {

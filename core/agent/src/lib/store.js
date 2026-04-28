@@ -407,7 +407,7 @@ function normalizeFpaDreAccountRecord(account) {
 
 function normalizeLovableContractSyncRecord(record) {
   if (!record || typeof record !== "object") return null;
-  const externalId = normalizeOptionalText(record.externalId || record.contractId || record.id, 160);
+  const externalId = normalizeOptionalText(record.externalId || record.external_id || record.contractId || record.contract_id || record.id, 160);
   if (!externalId) return null;
   const amountCents = Number(record.amountCents);
 
@@ -458,7 +458,10 @@ function normalizeFinancePaymentLink(record) {
 
 function normalizeLovableReceiptSyncRecord(record) {
   if (!record || typeof record !== "object") return null;
-  const externalId = normalizeOptionalText(record.externalId || record.receiptId || record.paymentId || record.id, 160);
+  const externalId = normalizeOptionalText(
+    record.externalId || record.external_id || record.receiptId || record.receipt_id || record.paymentId || record.payment_id || record.id,
+    160
+  );
   if (!externalId) return null;
   const amountCents = Number(record.amountCents);
 

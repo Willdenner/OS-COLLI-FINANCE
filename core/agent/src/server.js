@@ -2013,8 +2013,22 @@ async function syncLovableContractToContaAzul(source = {}, { dryRun = false, for
     throw createHttpError(400, "Ative a integração Conta Azul antes de receber contratos do Lovable.");
   }
 
-  const externalId = readFirstText(source || {}, ["externalId", "contractId", "id", "uuid", "codigo", "code", "contract.externalId", "contract.contractId", "contract.id"]);
-  if (!externalId) throw createHttpError(400, "Informe externalId, contractId ou id do contrato Lovable.");
+  const externalId = readFirstText(source || {}, [
+    "externalId",
+    "external_id",
+    "contractId",
+    "contract_id",
+    "id",
+    "uuid",
+    "codigo",
+    "code",
+    "contract.externalId",
+    "contract.external_id",
+    "contract.contractId",
+    "contract.contract_id",
+    "contract.id",
+  ]);
+  if (!externalId) throw createHttpError(400, "Informe externalId, contractId, contract_id ou id do contrato Lovable.");
   const existing = await findLovableContractSync(externalId);
   if (existing?.status === "success" && !force) {
     return { statusCode: 200, body: { ok: true, idempotent: true, contract: existing } };
@@ -2156,8 +2170,20 @@ async function syncLovableContractToContaAzul(source = {}, { dryRun = false, for
 }
 
 async function syncLovableReceiptToContaAzul(source = {}, { dryRun = false, force = false } = {}) {
-  const externalId = readFirstText(source || {}, ["externalId", "paymentId", "receiptId", "id", "payment.id", "receipt.id"]);
-  if (!externalId) throw createHttpError(400, "Informe externalId, paymentId, receiptId ou id do recebimento Lovable.");
+  const externalId = readFirstText(source || {}, [
+    "externalId",
+    "external_id",
+    "paymentId",
+    "payment_id",
+    "receiptId",
+    "receipt_id",
+    "id",
+    "payment.id",
+    "payment.payment_id",
+    "receipt.id",
+    "receipt.receipt_id",
+  ]);
+  if (!externalId) throw createHttpError(400, "Informe externalId, paymentId, payment_id, receiptId ou id do recebimento Lovable.");
 
   const existing = await findLovableReceiptSync(externalId);
   if (existing?.status === "success" && !force) {
@@ -2180,7 +2206,7 @@ async function syncLovableReceiptToContaAzul(source = {}, { dryRun = false, forc
   if (record.missingRequiredFields.length) {
     await upsertLovableReceiptSync({
       externalId: record.externalId || externalId,
-      externalContractId: readFirstText(source || {}, ["contractId", "externalContractId", "contract.id"]),
+      externalContractId: readFirstText(source || {}, ["contractId", "contract_id", "externalContractId", "external_contract_id", "contract.id", "contract.contract_id"]),
       amountCents: record.amountCents,
       paymentDate: record.paymentDate,
       status: "error",
@@ -2201,7 +2227,7 @@ async function syncLovableReceiptToContaAzul(source = {}, { dryRun = false, forc
   const errorMessage = result.response.ok ? null : result.parsed.preview || `HTTP ${result.response.status}`;
   const savedReceipt = await upsertLovableReceiptSync({
     externalId: record.externalId || externalId,
-    externalContractId: readFirstText(source || {}, ["contractId", "externalContractId", "contract.id"]),
+    externalContractId: readFirstText(source || {}, ["contractId", "contract_id", "externalContractId", "external_contract_id", "contract.id", "contract.contract_id"]),
     amountCents: record.amountCents,
     paymentDate: record.paymentDate,
     status: result.response.ok ? "success" : "error",
@@ -2889,6 +2915,7 @@ async function requestCobrancaJson(pathname, { method = "GET", params = {}, body
 function extractFinanceExternalId(item = {}) {
   return readFirstText(item, [
     "externalId",
+    "external_id",
     "cardId",
     "card_id",
     "walletItemId",
@@ -2897,6 +2924,7 @@ function extractFinanceExternalId(item = {}) {
     "billing_card_id",
     "id",
     "data.externalId",
+    "data.external_id",
     "data.cardId",
     "data.card_id",
     "data.id",
@@ -2907,6 +2935,8 @@ function extractFinanceExternalId(item = {}) {
 
 function extractPaymentExternalId(payment = {}) {
   return readFirstText(payment, [
+    "externalId",
+    "external_id",
     "cardId",
     "card_id",
     "walletItemId",
@@ -2914,12 +2944,19 @@ function extractPaymentExternalId(payment = {}) {
     "billingCardId",
     "billing_card_id",
     "externalContractId",
+    "external_contract_id",
     "contractId",
+    "contract_id",
     "invoiceExternalId",
+    "invoice_external_id",
     "payment.cardId",
+    "payment.card_id",
     "receipt.cardId",
+    "receipt.card_id",
     "payment.contractId",
+    "payment.contract_id",
     "receipt.contractId",
+    "receipt.contract_id",
   ]);
 }
 
@@ -2989,7 +3026,7 @@ async function createReceivablesRun({ businessDate, title = "Ciclo diário de co
 async function syncContractsForReceivablesRun(run, contracts) {
   const summary = { total: contracts.length, success: 0, idempotent: 0, failed: 0, errors: [], results: [] };
   for (const contract of contracts) {
-    const externalId = readFirstText(contract, ["externalId", "contractId", "id"]);
+    const externalId = readFirstText(contract, ["externalId", "external_id", "contractId", "contract_id", "id"]);
     const contractNumber = readFirstText(contract, ["contractNumber", "contract_number", "number", "numero"]);
     try {
       const result = await syncLovableContractToContaAzul(contract, { force: false });
@@ -3454,8 +3491,8 @@ async function closeReceivablesDay({ businessDate, body = {} } = {}) {
         }
         const receiptPayload = {
           ...payment,
-          externalId: readFirstText(payment, ["externalId", "paymentId", "receiptId", "id"]) || `payment_${externalId || Date.now()}`,
-          externalContractId: readFirstText(payment, ["externalContractId", "contractId"]) || externalId,
+          externalId: readFirstText(payment, ["externalId", "external_id", "paymentId", "payment_id", "receiptId", "receipt_id", "id"]) || `payment_${externalId || Date.now()}`,
+          externalContractId: readFirstText(payment, ["externalContractId", "external_contract_id", "contractId", "contract_id"]) || externalId,
           amountCents: readFirstValue(payment, ["amountCents", "paidAmountCents", "valueCents"]) || invoice?.valueCents,
           paymentDate: readFirstText(payment, ["paymentDate", "paidAt", "dataPagamento", "data_pagamento"], 10) || run.businessDate,
         };
