@@ -1418,6 +1418,216 @@ function buildContaAzulTestFinancialEventRecord({
   };
 }
 
+/** Unwraps Finance/Lovable shapes like `{ id }` / `{ uuid }` so IDs are scalar strings accepted by CA. */
+function coerceContaAzulApiId(raw, maxLength = 160) {
+  const visit = (value, depth) => {
+    if (value === undefined || value === null || value === "") return null;
+    if (typeof value === "string" || typeof value === "number") {
+      const text = normalizeOptionalText(String(value), maxLength);
+      return text || null;
+    }
+    if (typeof value === "boolean") {
+      const text = normalizeOptionalText(value ? "true" : "false", maxLength);
+      return text || null;
+    }
+    if (!value || typeof value !== "object" || depth > 8) return null;
+    const obj = /** @type {Record<string, unknown>} */ (value);
+    const direct =
+      obj.id ??
+      obj.uuid ??
+      obj.value ??
+      obj.conta_azul_id ??
+      obj.contaAzulId ??
+      obj.id_parcela ??
+      undefined;
+    if (direct !== undefined && direct !== value) return visit(direct, depth + 1);
+    const singleton = Object.entries(obj).filter(([k]) => /^id$/i.test(k) || /^uuid$/i.test(k));
+    if (singleton.length === 1) return visit(singleton[0][1], depth + 1);
+    return null;
+  };
+  return visit(raw, 0);
+}
+
+/** Long text fields: CA expects strings — objects/arrays from Lovable would become "[object Object]" via truncateText elsewhere. */
+function coerceContaAzulContractLongText(raw, maxLength) {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw === "string" || typeof raw === "number") {
+    const text = normalizeOptionalText(String(raw), maxLength);
+    return text || null;
+  }
+  if (Array.isArray(raw)) {
+    const text = normalizeOptionalText(
+      raw.map((chunk) => normalizeOptionalText(String(chunk ?? "").trim(), 160)).filter(Boolean).join(" · ").trim(),
+      maxLength
+    );
+    return text || null;
+  }
+  if (typeof raw !== "object") return null;
+  const obj = raw;
+  const candidates = ["label", "text", "titulo", "title", "name", "nome", "description", "descricao", "message", "mensagem"];
+  for (const key of candidates) {
+    const inner = coerceContaAzulContractLongText(/** @type {Record<string, unknown>} */ (obj)[key], Math.min(maxLength, 640));
+    if (inner) return truncateText(inner, maxLength);
+  }
+  try {
+    return normalizeOptionalText(JSON.stringify(obj).slice(0, maxLength + 240), maxLength);
+  } catch {
+    return null;
+  }
+}
+
+function coerceContaAzulContractMoneyNumber(raw) {
+  if (raw === undefined || raw === null) return NaN;
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : NaN;
+  if (typeof raw === "string" && raw.trim()) {
+    const parsed = parseBrazilianDecimal(raw);
+    return Number.isFinite(parsed) ? parsed : NaN;
+  }
+  if (raw && typeof raw === "object" && "valor" in raw && /** @type {Record<string, unknown>} */ (raw).valor != null) {
+    return coerceContaAzulContractMoneyNumber(/** @type {Record<string, unknown>} */ (raw).valor);
+  }
+  return NaN;
+}
+
+function isResolvableContractLineValor(value) {
+  const n = coerceContaAzulContractMoneyNumber(value);
+  return Number.isFinite(n);
+}
+
+/**
+ * Conta Azul often answers `{"code":400,"message":"Formato JSON inválido"}` when the body is valid JSON
+ * but field types are wrong (UUID as object, número do contrato como string, valor como objeto, etc.).
+ */
+function sanitizeContaAzulContractPayloadTypes(input) {
+  let safe;
+  try {
+    safe = JSON.parse(JSON.stringify(input));
+  } catch {
+    safe = input;
+  }
+  if (!safe || typeof safe !== "object") return safe;
+
+  for (const key of ["id_cliente", "id_categoria", "id_centro_custo", "id_vendedor"]) {
+    if (!(key in safe)) continue;
+    const id = coerceContaAzulApiId(safe[key]);
+    if (!id) delete safe[key];
+    else safe[key] = id;
+  }
+
+  for (const field of ["observacoes", "observacoes_pagamento"]) {
+    if (!(field in safe)) continue;
+    const text = coerceContaAzulContractLongText(safe[field], field === "observacoes" ? 3200 : 640);
+    if (!text) delete safe[field];
+    else safe[field] = text;
+  }
+
+  if (safe.data_emissao != null && safe.data_emissao !== "") {
+    const iso = normalizeIsoDateFromFinance(safe.data_emissao);
+    if (!iso) delete safe.data_emissao;
+    else safe.data_emissao = iso;
+  }
+
+  const termos = safe.termos;
+  if (termos && typeof termos === "object" && !Array.isArray(termos)) {
+    if (termos.tipo_frequencia != null && termos.tipo_frequencia !== "")
+      termos.tipo_frequencia = normalizeContaAzulContractFrequency(termos.tipo_frequencia);
+    if (termos.tipo_expiracao != null && termos.tipo_expiracao !== "") {
+      termos.tipo_expiracao = normalizeContaAzulContractExpiration(termos.tipo_expiracao, termos.data_fim);
+    }
+    ["data_inicio", "data_fim"].forEach((dk) => {
+      if (!(dk in termos) || termos[dk] == null || termos[dk] === "") return;
+      const isoDate = normalizeIsoDateFromFinance(termos[dk]);
+      if (!isoDate) delete termos[dk];
+      else termos[dk] = isoDate;
+    });
+    if (termos.numero !== undefined && termos.numero !== null && termos.numero !== "") {
+      const n = typeof termos.numero === "number" ? termos.numero : Number.parseInt(String(termos.numero).trim(), 10);
+      if (Number.isFinite(n) && n > 0) termos.numero = Math.trunc(n);
+      else delete termos.numero;
+    }
+    if (termos.intervalo_frequencia != null) {
+      termos.intervalo_frequencia = normalizePositiveInteger(termos.intervalo_frequencia, 1);
+    }
+    if (termos.dia_emissao_venda != null) {
+      termos.dia_emissao_venda = normalizeContaAzulDueDay(termos.dia_emissao_venda, safe.data_emissao || termos.data_inicio);
+    }
+  }
+
+  const cond = safe.condicao_pagamento;
+  if (cond && typeof cond === "object" && !Array.isArray(cond)) {
+    if (cond.tipo_pagamento != null)
+      cond.tipo_pagamento = normalizeContaAzulPaymentMethod(cond.tipo_pagamento);
+    const acc = coerceContaAzulApiId(cond.id_conta_financeira);
+    if (!acc) delete cond.id_conta_financeira;
+    else cond.id_conta_financeira = acc;
+    if (cond.dia_vencimento != null && cond.dia_vencimento !== "") {
+      cond.dia_vencimento = normalizeContaAzulDueDay(
+        cond.dia_vencimento,
+        cond.primeira_data_vencimento || safe.termos?.data_inicio
+      );
+    }
+    if (cond.primeira_data_vencimento != null && cond.primeira_data_vencimento !== "") {
+      const ipv = normalizeIsoDateFromFinance(cond.primeira_data_vencimento);
+      if (!ipv) delete cond.primeira_data_vencimento;
+      else cond.primeira_data_vencimento = ipv;
+    }
+  }
+
+  if (Array.isArray(safe.itens)) {
+    safe.itens = safe.itens.map((row, index) => {
+      if (!row || typeof row !== "object") return row;
+      const item = { ...row };
+      if (item.id != null && item.id !== "") {
+        const iid = coerceContaAzulApiId(item.id);
+        if (!iid) delete item.id;
+        else item.id = iid;
+      }
+      if (item.descricao != null && item.descricao !== "") {
+        const desc = coerceContaAzulContractLongText(item.descricao, 500);
+        if (desc) item.descricao = desc;
+        else {
+          delete item.descricao;
+          if (index === 0) item.descricao = "Contrato recorrente";
+        }
+      }
+      if (item.quantidade != null) item.quantidade = normalizePositiveInteger(item.quantidade, 1);
+      if (item.valor !== undefined && item.valor !== null && item.valor !== "") {
+        const vn = coerceContaAzulContractMoneyNumber(item.valor);
+        if (!Number.isFinite(vn)) delete item.valor;
+        else item.valor = vn;
+      }
+      if (item.valor_custo !== undefined && item.valor_custo !== null && item.valor_custo !== "") {
+        const vc = coerceContaAzulContractMoneyNumber(item.valor_custo);
+        if (!Number.isFinite(vc)) delete item.valor_custo;
+        else item.valor_custo = vc;
+      }
+      return item;
+    });
+  }
+
+  const comp = safe.composicao_de_valor;
+  if (comp && typeof comp === "object" && !Array.isArray(comp)) {
+    if (comp.frete != null && comp.frete !== "") {
+      const f = coerceContaAzulContractMoneyNumber(comp.frete);
+      if (!Number.isFinite(f)) delete comp.frete;
+      else comp.frete = f;
+    }
+    const dsc = comp.desconto;
+    if (dsc && typeof dsc === "object" && !Array.isArray(dsc)) {
+      if (dsc.tipo != null)
+        dsc.tipo = normalizeOptionalText(String(dsc.tipo || "").trim().replace(/\s+/g, "_").toUpperCase(), 48) || "VALOR";
+      if (dsc.valor != null && dsc.valor !== "") {
+        const dv = coerceContaAzulContractMoneyNumber(dsc.valor);
+        if (!Number.isFinite(dv)) delete dsc.valor;
+        else dsc.valor = dv;
+      }
+    }
+    if (!Object.keys(comp).length) delete safe.composicao_de_valor;
+  }
+
+  return safe;
+}
+
 function compactContaAzulPayload(value) {
   const shouldDrop = (entry) =>
     entry === undefined ||
@@ -1569,7 +1779,7 @@ function mergeContaAzulLovableContractPayload(base, override) {
     if (!normalizeOptionalText(row0.id, 160) && normalizeOptionalText(b0.id, 160)) {
       row0.id = b0.id;
     }
-    if (!Number.isFinite(Number(row0.valor)) && Number.isFinite(Number(b0.valor))) {
+    if (!isResolvableContractLineValor(row0.valor) && isResolvableContractLineValor(b0.valor)) {
       row0.valor = b0.valor;
     }
     o.itens[0] = row0;
@@ -2544,7 +2754,7 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
   if (itemId && mergedContractPayload.itens?.[0]) {
     mergedContractPayload.itens[0] = { ...mergedContractPayload.itens[0], id: itemId };
   }
-  const payload = compactContaAzulPayload(mergedContractPayload);
+  const payload = compactContaAzulPayload(sanitizeContaAzulContractPayloadTypes(mergedContractPayload));
 
   const missingRequiredFields = [];
   const firstItem = payload.itens?.[0];

@@ -857,6 +857,37 @@ test("payload de contrato remove valores nullish e numeros nao finitos antes do 
   assert.deepEqual(record.missingRequiredFields, []);
 });
 
+test("contrato coage tipos do Conta Azul (id em objeto, numero como string, valor string BR)", () => {
+  const record = buildContaAzulContractRecord({
+    settings: {
+      fpaExport: { defaultReceivableCategoryId: "categoria_receita" },
+      lovableContracts: {
+        financeProductMappings: [{ financeProductId: "serv_x", contaAzulItemId: "item-uuid-1" }],
+      },
+    },
+    nextContractNumber: 418,
+    source: {
+      contract_id: "c_tipagem",
+      customerId: "pessoa-cc-01",
+      service_id: "serv_x",
+      amount_cents: 15000,
+      contract_start_date: "2026-04-01",
+      first_due_date: "2026-04-10",
+      contaAzulContractPayload: {
+        id_centro_custo: { uuid: "cc9824c1-cc00-4111-af11-cccccccccccc" },
+        id_vendedor: { id: "vend-cc-2233-4455-aabbccddeeff" },
+        termos: { numero: " 418 " },
+        itens: [{ valor: "150,50" }],
+      },
+    },
+  });
+
+  assert.equal(record.payload.id_centro_custo, "cc9824c1-cc00-4111-af11-cccccccccccc");
+  assert.equal(record.payload.id_vendedor, "vend-cc-2233-4455-aabbccddeeff");
+  assert.equal(record.payload.termos.numero, 418);
+  assert.equal(record.payload.itens[0].valor, 150.5);
+});
+
 test("mapa de produto casa com items[0].productId no payload (webhook em linhas)", () => {
   const settings = mergeContaAzulSettings(
     { fpaExport: { defaultReceivableCategoryId: "cat_r", defaultFinancialAccountId: "conta_padrao" } },
