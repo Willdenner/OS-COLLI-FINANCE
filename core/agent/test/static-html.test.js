@@ -87,6 +87,19 @@ test("servidor nao entrega a home estatica antes do Basic Auth", async () => {
   assert.match(server, /express\.static\(STATIC_DIR,\s*\{\s*index:\s*false\s*\}\)/);
 });
 
+test("servidor expoe exportacao consolidada para n8n via Basic Auth", async () => {
+  const server = await fs.readFile(path.join(__dirname, "..", "src", "server.js"), "utf8");
+  const readme = await fs.readFile(path.join(__dirname, "..", "README.md"), "utf8");
+
+  assert.match(server, /app\.use\(adminAuthMiddleware\)[\s\S]*\/api\/integrations\/n8n\/export/);
+  assert.match(server, /listReceivablesOrchestratorRuns\(\{\s*limit\s*\}\)/);
+  assert.match(server, /listLovableContractSyncs\(\{\s*limit\s*\}\)/);
+  assert.match(server, /listLovableReceiptSyncs\(\{\s*limit\s*\}\)/);
+  assert.match(server, /sanitizeSettingsForClient\(settings\)/);
+  assert.match(readme, /GET \/api\/integrations\/n8n\/export/);
+  assert.match(readme, /HTTP Basic Auth/);
+});
+
 test("servidor resolve links dos modulos web pelo Render ou por variaveis", async () => {
   const server = await fs.readFile(path.join(__dirname, "..", "src", "server.js"), "utf8");
   const renderYaml = await fs.readFile(path.join(__dirname, "..", "..", "..", "render.yaml"), "utf8");

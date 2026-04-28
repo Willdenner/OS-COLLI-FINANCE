@@ -3589,6 +3589,74 @@ app.get(
 );
 
 app.get(
+  "/api/integrations/n8n/export",
+  asyncHandler(async (req, res) => {
+    const limit = readLargeLimit(req.query?.limit, 200);
+    const from = String(req.query?.from || "").trim() || null;
+    const to = String(req.query?.to || "").trim() || null;
+    const months = readFpaMonths(req.query?.months);
+    const accountName = readFpaAccountName(req.query?.accountName);
+    const [
+      settings,
+      imports,
+      allTransactions,
+      dreAccounts,
+      categoryRules,
+      financePaymentLinks,
+      latestReceivablesRun,
+      receivablesRuns,
+      lovableContracts,
+      lovableReceipts,
+    ] = await Promise.all([
+      getSettings(),
+      listFpaImports(),
+      listFpaTransactions({ limit: 5000 }),
+      listFpaDreAccounts(),
+      listFpaCategoryRules({ limit }),
+      listFinancePaymentLinks(),
+      getLatestReceivablesOrchestratorRun(),
+      listReceivablesOrchestratorRuns({ limit }),
+      listLovableContractSyncs({ limit }),
+      listLovableReceiptSyncs({ limit }),
+    ]);
+    const filteredTransactions = filterTransactions(allTransactions, { from, to, months, accountName }).slice(0, limit);
+    const availableCategories = buildAvailableCategories(allTransactions, dreAccounts);
+
+    res.json({
+      ok: true,
+      generatedAt: nowIso(),
+      service: "analista-fpa",
+      storage: getStorageStatus(),
+      filters: { from, to, months, accountName, limit },
+      settings: sanitizeSettingsForClient(settings),
+      fpa: {
+        imports: imports.slice(0, limit),
+        transactions: filteredTransactions,
+        overview: buildFpaOverview(allTransactions, { from, to, months, accountName }),
+        availableAccounts: buildAvailableAccounts(allTransactions),
+        availableMonths: buildAvailableMonths(allTransactions),
+        categories: availableCategories.length ? availableCategories : CATEGORY_OPTIONS,
+        dreAccounts,
+        dreReconciliation: buildDreReconciliation({ dreAccounts, categories: availableCategories, transactions: allTransactions }),
+        categoryLearning: {
+          rulesCount: categoryRules.length,
+          rules: categoryRules,
+        },
+      },
+      financePaymentLinks,
+      receivables: {
+        latestRun: latestReceivablesRun,
+        runs: receivablesRuns,
+      },
+      lovable: {
+        contracts: lovableContracts,
+        receipts: lovableReceipts,
+      },
+    });
+  })
+);
+
+app.get(
   "/api/fpa/finance-payment-links",
   asyncHandler(async (req, res) => {
     const links = await listFinancePaymentLinks();

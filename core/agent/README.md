@@ -164,6 +164,29 @@ Campos mínimos recomendados:
 
 Se `installmentId` não for enviado, o sistema tenta localizar a parcela por `eventId`/`contaAzulEventId` ou por busca de recebíveis com data e valor. Para testes sem enviar ao Conta Azul, use `?dryRun=true`.
 
+## Exportação para n8n
+
+Para automações no n8n puxarem dados consolidados do FP&A hospedado no Render, use:
+
+```text
+GET /api/integrations/n8n/export
+```
+
+A rota usa o mesmo HTTP Basic Auth do painel (`ADMIN_USER` e `ADMIN_PASSWORD`). No n8n, configure um node HTTP Request com autenticação Basic e a URL do Render, por exemplo:
+
+```text
+https://seu-servico.onrender.com/api/integrations/n8n/export?limit=200
+```
+
+Parâmetros opcionais:
+
+- `limit`: controla o volume retornado, com teto seguro no servidor.
+- `from` e `to`: filtram transações por período.
+- `months`: filtra meses, separado por vírgula.
+- `accountName`: filtra por conta bancária/importada.
+
+O JSON retorna um snapshot com `settings` sanitizado, status de persistência, transações/importações FP&A, contas DRE, vínculos Finance, últimas execuções do orquestrador de recebíveis e histórico de sincronizações Lovable/Conta Azul.
+
 ## Persistência das conexões
 
 As conexões do Conta Azul e do Lovable são salvas no estado do app. Em produção, use `DATABASE_URL` apontando para um PostgreSQL durável. Se o app rodar em Render, Railway, Fly ou outro deploy com filesystem efêmero e sem banco/disco persistente, os tokens e segredos podem desaparecer quando o serviço reiniciar, o que parece um reset após atualizar a página.
@@ -234,6 +257,7 @@ O compose sobe:
 - `POST /api/fpa/conta-azul/settings`
 - `POST /api/fpa/conta-azul/preview`
 - `POST /api/fpa/conta-azul/push`
+- `GET /api/integrations/n8n/export`
 - `POST /api/integrations/lovable/settings`
 - `POST /api/integrations/lovable/contracts`
 - `POST /api/integrations/lovable/receipts`
