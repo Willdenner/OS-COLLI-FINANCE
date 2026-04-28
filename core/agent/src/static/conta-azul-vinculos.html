@@ -336,7 +336,7 @@
         >
           <strong style="color: var(--brand)">Como funciona:</strong> o UUID em <code>itens[0].id</code> do contrato no Conta Azul vem <strong>só</strong> da tabela
           <strong>Produto Finance → Item</strong>, cruzando <strong><code>service_id</code> / ID</strong> e/ou <strong>nome do serviço</strong> (coluna de descrição) com o que vem no contrato — vínculos FP&amp;A e forma de pagamento não alteram esse id. Na tabela de
-          <strong>forma de pagamento</strong> use <code>tipo_pagamento</code> e <code>id_conta_financeira</code>; <code>itens[0].valor</code> ali só altera o valor da linha quando preenchido.
+          <strong>forma de pagamento</strong> use <code>tipo_pagamento</code> e <code>id_conta_financeira</code>; eles precisam ser compatíveis no Conta Azul (ex.: PIX com conta que aceita PIX, boleto com conta de boleto). <code>itens[0].valor</code> ali só altera o valor da linha quando preenchido.
           Com o Conta Azul conectado, use <strong>Carregar lista</strong> para preencher UUIDs.
         </div>
 
@@ -469,8 +469,23 @@
             </div>
           </div>
           <div class="card-body">
+            <div class="alert" style="margin-bottom: 12px; border-color: rgba(245, 158, 11, 0.45); background: rgba(245, 158, 11, 0.1); color: var(--text)">
+              <strong>Atenção:</strong> o Conta Azul valida a combinação entre <code>condicao_pagamento.tipo_pagamento</code> e <code>condicao_pagamento.id_conta_financeira</code>. Se a forma e a conta não forem compatíveis, o contrato será recusado com "Forma de pagamento e conta de recebimento escolhidos não são compatíveis".
+            </div>
+            <div class="inline-tools" style="margin-bottom: 12px; gap: 10px; flex-wrap: wrap; align-items: center">
+              <input
+                class="field-input"
+                id="cazv-financial-accounts-search"
+                type="search"
+                placeholder="Filtrar contas financeiras (opcional)"
+                autocomplete="off"
+                style="max-width: 240px; font-size: 11px"
+              />
+              <button class="btn btn-primary" id="cazv-btn-load-financial-accounts" type="button">Carregar contas financeiras</button>
+              <span class="field-hint" id="cazv-financial-accounts-status" style="flex: 1; min-width: 180px"></span>
+            </div>
             <p class="field-hint" style="margin-bottom: 12px">
-              Chave sem diferenciar maiúsculas. O <code>itens[0].id</code> do contrato vem só do mapa de produto acima; nesta tabela use <code>tipo_pagamento</code>, conta e opcionalmente valor da linha.
+              Chave sem diferenciar maiúsculas. O <code>itens[0].id</code> do contrato vem só do mapa de produto acima. Nesta tabela, cada chave do Finance/Lovable deve apontar para o <code>tipo_pagamento</code> aceito e para a conta financeira correta do Conta Azul.
             </p>
             <div class="table-wrap" style="max-height: 280px; overflow: auto">
               <table class="data-table" style="font-size: 12px">
@@ -496,7 +511,22 @@
     <div class="toast" id="toast"></div>
 
     <script>
-      const cazvState = { catalogItems: [], financeProducts: [] };
+      const cazvState = { catalogItems: [], financeProducts: [], financialAccounts: [] };
+      const CAZV_PAYMENT_TYPES = [
+        ["", "Selecione o tipo"],
+        ["BOLETO_BANCARIO", "BOLETO_BANCARIO"],
+        ["PIX_PAGAMENTO_INSTANTANEO", "PIX_PAGAMENTO_INSTANTANEO"],
+        ["PIX_COBRANCA", "PIX_COBRANCA"],
+        ["CARTAO_CREDITO", "CARTAO_CREDITO"],
+        ["CARTAO_CREDITO_VIA_LINK", "CARTAO_CREDITO_VIA_LINK"],
+        ["CARTAO_DEBITO", "CARTAO_DEBITO"],
+        ["TRANSFERENCIA_BANCARIA", "TRANSFERENCIA_BANCARIA"],
+        ["DEPOSITO_BANCARIO", "DEPOSITO_BANCARIO"],
+        ["DINHEIRO", "DINHEIRO"],
+        ["DEBITO_AUTOMATICO", "DEBITO_AUTOMATICO"],
+        ["OUTRO", "OUTRO"],
+        ["SEM_PAGAMENTO", "SEM_PAGAMENTO"],
+      ];
 
       function el(id) {
         return document.getElementById(id);
@@ -638,12 +668,60 @@
         });
       }
 
+      function financialAccountOptionsHtml(selectedId) {
+        const sel = selectedId ? String(selectedId).trim() : "";
+        const hint = cazvState.financialAccounts.length
+          ? "— Escolher conta financeira —"
+          : "— Carregue contas financeiras —";
+        const opts = [`<option value="">${hint}</option>`];
+        for (const it of cazvState.financialAccounts) {
+          const id = it.id;
+          if (!id) continue;
+          const meta = [it.bank, it.type, it.active === false ? "Inativa" : ""].filter(Boolean).join(" · ");
+          const label = `${it.name || it.label || id}${meta ? ` (${meta})` : ""}`;
+          opts.push(`<option value="${escapeHtml(id)}"${id === sel ? " selected" : ""}>${escapeHtml(label)}</option>`);
+        }
+        return opts.join("");
+      }
+
+      function syncFinancialAccountPickersWithInputs() {
+        document.querySelectorAll("#cazv-payment-tbody tr").forEach((row) => {
+          const pick = row.querySelector(".cazv-pick-financial-account");
+          const inp = row.querySelector('[data-mapping-field="contaAzulFinancialAccountId"]');
+          if (!pick || !inp) return;
+          const v = inp.value.trim();
+          pick.innerHTML = financialAccountOptionsHtml(v);
+          if (v && cazvState.financialAccounts.some((x) => x.id === v)) pick.value = v;
+          else pick.value = "";
+        });
+      }
+
       function itemPickerCellHtml(m) {
         const uuid = escapeHtml(m.contaAzulItemId || "");
         return `<div class="cazv-item-cell" style="min-width: 210px">
           <select class="field-select cazv-pick-item" aria-label="Escolher item no Conta Azul" style="font-size: 11px; margin-bottom: 6px; max-width: 100%"></select>
           <input class="field-input" data-mapping-field="contaAzulItemId" type="text" value="${uuid}" style="font-size: 11px" placeholder="UUID (preenchido pela lista)" />
           <div class="field-hint" style="margin: 4px 0 0; font-size: 10px">Ou digite/cole o UUID manualmente.</div>
+        </div>`;
+      }
+
+      function paymentTypeOptionsHtml(selected) {
+        const current = String(selected || "").trim();
+        const hasCurrent = current && !CAZV_PAYMENT_TYPES.some(([value]) => value === current);
+        return [
+          ...(hasCurrent ? [[current, `Valor salvo · ${current}`]] : []),
+          ...CAZV_PAYMENT_TYPES,
+        ]
+          .map(([value, label]) => `<option value="${escapeHtml(value)}" ${value === current ? "selected" : ""}>${escapeHtml(label)}</option>`)
+          .join("");
+      }
+
+      function financialAccountPickerCellHtml(m) {
+        const uuid = escapeHtml(m.contaAzulFinancialAccountId || "");
+        return `<div class="cazv-financial-account-cell" style="min-width: 230px">
+          <select class="field-select cazv-pick-financial-account" aria-label="Escolher conta financeira no Conta Azul" style="font-size: 11px; margin-bottom: 6px; max-width: 100%"></select>
+          <input class="field-input" data-mapping-field="contaAzulFinancialAccountId" type="text" value="${uuid}" style="font-size: 11px" placeholder="UUID da conta financeira" />
+          <div class="field-hint" style="margin: 4px 0 0; font-size: 10px">Escolha uma conta compatível com o tipo de pagamento.</div>
         </div>`;
       }
 
@@ -668,8 +746,8 @@
         return `<tr data-mapping-id="${escapeHtml(rowId)}">
           <td><input class="field-input" data-mapping-field="financePaymentKey" type="text" value="${escapeHtml(m.financePaymentKey || "")}" style="min-width:100px;font-size:12px" placeholder="ex.: pix" /></td>
           <td><input class="field-input" data-mapping-field="financePaymentLabel" type="text" value="${escapeHtml(m.financePaymentLabel || "")}" style="min-width:88px;font-size:12px" /></td>
-          <td><input class="field-input" data-mapping-field="contaAzulTipoPagamento" type="text" value="${escapeHtml(m.contaAzulTipoPagamento || "")}" style="min-width:100px;font-size:12px" placeholder="PIX_PAGAMENTO_INSTANTANEO" /></td>
-          <td><input class="field-input" data-mapping-field="contaAzulFinancialAccountId" type="text" value="${escapeHtml(m.contaAzulFinancialAccountId || "")}" style="min-width:120px;font-size:12px" /></td>
+          <td><select class="field-select" data-mapping-field="contaAzulTipoPagamento" style="min-width:180px;font-size:12px">${paymentTypeOptionsHtml(m.contaAzulTipoPagamento)}</select></td>
+          <td>${financialAccountPickerCellHtml(m)}</td>
           <td>${itemPickerCellHtml(m)}</td>
           <td><input class="field-input" data-mapping-field="contaAzulItemValor" type="text" value="${escapeHtml(m.contaAzulItemValor != null && m.contaAzulItemValor !== "" ? String(m.contaAzulItemValor) : "")}" style="min-width:72px;font-size:12px" placeholder="—" /></td>
           <td><button type="button" class="btn cazv-remove-payment" style="padding:4px 8px">✕</button></td>
@@ -688,6 +766,7 @@
         payBody.innerHTML = payments.length ? payments.map((m) => buildPaymentRow(m)).join("") : "";
         syncFinanceProductPickers();
         syncItemPickersWithInputs();
+        syncFinancialAccountPickersWithInputs();
         el("cazv-alert").textContent =
           "Revise as linhas e clique em Salvar vínculos. Alterações passam a valer para contratos e baixas enviados pelo Lovable.";
       }
@@ -721,6 +800,36 @@
           if (btn) {
             btn.disabled = false;
             btn.textContent = original || "Carregar produtos do Finance";
+          }
+        }
+      }
+
+      async function loadFinancialAccounts(opts) {
+        const silent = opts && opts.silent === true;
+        const btn = el("cazv-btn-load-financial-accounts");
+        const statusEl = el("cazv-financial-accounts-status");
+        const searchInp = el("cazv-financial-accounts-search");
+        const search = searchInp ? searchInp.value.trim() : "";
+        const original = btn ? btn.textContent : "";
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = "Carregando…";
+        }
+        try {
+          const result = await api(`/api/conta-azul/financial-accounts${buildQueryString({ search, pageSize: 100 })}`);
+          cazvState.financialAccounts = Array.isArray(result.items) ? result.items : [];
+          statusEl.textContent = `${cazvState.financialAccounts.length} conta(s) financeira(s) carregada(s). Escolha a conta compatível com o tipo de pagamento.`;
+          syncFinancialAccountPickersWithInputs();
+          if (!silent) toast(`Contas financeiras: ${cazvState.financialAccounts.length}.`);
+        } catch (e) {
+          statusEl.textContent = silent
+            ? "Contas financeiras não carregadas automaticamente. Conecte o Conta Azul e clique em Carregar contas financeiras."
+            : e.message || "Falha ao buscar contas financeiras.";
+          if (!silent) toast(e.message || "Falha ao buscar contas financeiras.");
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = original || "Carregar contas financeiras";
           }
         }
       }
@@ -832,6 +941,26 @@
         else pick.value = "";
       }
 
+      function onFinancialAccountPickerChange(ev) {
+        const t = ev.target;
+        if (!t.classList.contains("cazv-pick-financial-account")) return;
+        const row = t.closest("tr");
+        const inp = row && row.querySelector('[data-mapping-field="contaAzulFinancialAccountId"]');
+        if (!inp || !t.value) return;
+        inp.value = t.value;
+      }
+
+      function onFinancialAccountIdInput(ev) {
+        const t = ev.target;
+        if (t.getAttribute("data-mapping-field") !== "contaAzulFinancialAccountId") return;
+        const row = t.closest("tr");
+        const pick = row && row.querySelector(".cazv-pick-financial-account");
+        if (!pick) return;
+        const v = t.value.trim();
+        if (v && cazvState.financialAccounts.some((x) => x.id === v)) pick.value = v;
+        else pick.value = "";
+      }
+
       function onFinanceProductPickerChange(ev) {
         const t = ev.target;
         if (!t.classList.contains("cazv-pick-finance-product")) return;
@@ -858,6 +987,7 @@
       el("cazv-btn-save").addEventListener("click", () => saveVinculos().catch((e) => toast(e.message)));
       el("cazv-btn-load-catalog").addEventListener("click", () => loadCatalog({}).catch((e) => toast(e.message)));
       el("cazv-btn-load-finance-products").addEventListener("click", () => loadFinanceProducts({}).catch((e) => toast(e.message)));
+      el("cazv-btn-load-financial-accounts").addEventListener("click", () => loadFinancialAccounts({}).catch((e) => toast(e.message)));
       el("cazv-btn-add-product").addEventListener("click", () => {
         el("cazv-product-tbody").insertAdjacentHTML("beforeend", buildProductRow({}));
         syncFinanceProductPickers();
@@ -866,6 +996,7 @@
       el("cazv-btn-add-payment").addEventListener("click", () => {
         el("cazv-payment-tbody").insertAdjacentHTML("beforeend", buildPaymentRow({}));
         syncItemPickersWithInputs();
+        syncFinancialAccountPickersWithInputs();
       });
       el("cazv-product-tbody").addEventListener("click", (e) => {
         if (e.target.closest(".cazv-remove-product")) e.target.closest("tr")?.remove();
@@ -876,12 +1007,14 @@
       el("cazv-product-tbody").addEventListener("change", onFinanceProductPickerChange);
       el("cazv-product-tbody").addEventListener("change", onItemPickerChange);
       el("cazv-payment-tbody").addEventListener("change", onItemPickerChange);
+      el("cazv-payment-tbody").addEventListener("change", onFinancialAccountPickerChange);
       el("cazv-product-tbody").addEventListener("input", onFinanceProductIdInput);
       el("cazv-product-tbody").addEventListener("input", onItemIdInput);
       el("cazv-payment-tbody").addEventListener("input", onItemIdInput);
+      el("cazv-payment-tbody").addEventListener("input", onFinancialAccountIdInput);
 
       loadSettings()
-        .then(() => Promise.all([loadCatalog({ silent: true }), loadFinanceProducts({ silent: true })]))
+        .then(() => Promise.all([loadCatalog({ silent: true }), loadFinanceProducts({ silent: true }), loadFinancialAccounts({ silent: true })]))
         .catch(() => {});
     </script>
   </body>

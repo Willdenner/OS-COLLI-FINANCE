@@ -236,6 +236,11 @@ test("pagina dedicada de vínculos Finance Conta Azul e rota no servidor", async
   assert.match(server, /\/api\/conta-azul\/products/);
   assert.match(html, /\/api\/finance\/products/);
   assert.match(server, /\/api\/finance\/products/);
+  assert.match(html, /cazv-btn-load-financial-accounts/);
+  assert.match(html, /\/api\/conta-azul\/financial-accounts/);
+  assert.match(html, /PIX_PAGAMENTO_INSTANTANEO/);
+  assert.match(html, /tipo_pagamento[\s\S]*id_conta_financeira/);
+  assert.match(html, /compatíveis no Conta Azul/);
   assert.match(html, /cazv-embed/);
   assert.match(html, /fpa-cazv-vinculos-saved/);
 });
@@ -247,4 +252,5 @@ test("menu lateral FP&A aponta para página de vínculos Conta Azul", async () =
   assert.match(html, /Vínculos Finance → CA/);
   assert.match(html, /fpa-cazv-modal/);
   assert.match(html, /embed=1/);
+  assert.match(html, /tipo_pagamento[\s\S]*id_conta_financeira/);
 });
