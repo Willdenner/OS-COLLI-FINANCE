@@ -800,6 +800,30 @@ test("contaAzulContractPayload com data null em string nao envia data invalida",
   assert.deepEqual(record.missingRequiredFields, []);
 });
 
+test("contrato sem payload customizado nao envia data_fim null ao Conta Azul", () => {
+  const record = buildContaAzulContractRecord({
+    settings: {
+      fpaExport: { defaultReceivableCategoryId: "categoria_receita" },
+      lovableContracts: { financeProductMappings: [{ financeProductId: "assessoria_recorrente", contaAzulItemId: "item-assessoria-ca" }] },
+    },
+    nextContractNumber: 202,
+    source: {
+      contract_id: "c_sem_data_fim",
+      customerId: "pessoa-3",
+      service_id: "assessoria_recorrente",
+      amount_cents: 5000,
+      contract_start_date: "2026-03-01",
+      contract_end_date: null,
+      first_due_date: "2026-03-10",
+    },
+  });
+
+  assert.equal(record.payload.termos.data_inicio, "2026-03-01");
+  assert.equal("data_fim" in record.payload.termos, false);
+  assert.equal(record.payload.termos.tipo_expiracao, "NUNCA");
+  assert.deepEqual(record.missingRequiredFields, []);
+});
+
 test("mapa de produto casa com items[0].productId no payload (webhook em linhas)", () => {
   const settings = mergeContaAzulSettings(
     { fpaExport: { defaultReceivableCategoryId: "cat_r", defaultFinancialAccountId: "conta_padrao" } },

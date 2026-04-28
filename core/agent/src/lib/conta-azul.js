@@ -1447,6 +1447,7 @@ function isContaAzulNullishText(value) {
 }
 
 function isContaAzulContractDateLikeKey(key) {
+  if (/^(dia_vencimento|due_day|payment_due_day|diaVencimento)$/i.test(String(key || ""))) return false;
   return /(^|_)(data|date)(_|$)|vencimento|emissao|inicio|fim|competencia/i.test(String(key || ""));
 }
 
@@ -1532,7 +1533,7 @@ function normalizeMergedContaAzulContractDates(payload, basePayload = {}) {
  * faltam id_conta_financeira, itens e valor.
  */
 function mergeContaAzulLovableContractPayload(base, override) {
-  if (!override || typeof override !== "object") return { ...base };
+  if (!override || typeof override !== "object") return normalizeMergedContaAzulContractDates({ ...base }, base);
   const o = { ...base, ...override };
   if (normalizeOptionalText(base.id_cliente, 160)) {
     o.id_cliente = base.id_cliente;
