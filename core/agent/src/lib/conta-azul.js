@@ -1,6 +1,7 @@
 const {
   formatMoneyBRL,
   truncateText,
+  isIsoDate,
 } = require("./domain");
 
 const CONTA_AZUL_AUTH_URL = "https://auth.contaazul.com/login";
@@ -1258,6 +1259,13 @@ function normalizeIsoDateFromFinance(value) {
   return normalizeIsoDate(value);
 }
 
+/** Descarta valores que viram yyyy-mm-dd inválidos (ex.: 2026-02-31 após só regex em ISO parcial). */
+function normalizeContaAzulStrictIsoDate(value) {
+  const candidate = normalizeIsoDateFromFinance(value);
+  if (!candidate) return "";
+  return isIsoDate(candidate) ? candidate : "";
+}
+
 function getContaAzulFpaExportCandidates({ settings, transactions }) {
   const safeSettings = normalizeContaAzulSettings(settings);
   const exportSettings = safeSettings.fpaExport;
@@ -1521,10 +1529,10 @@ function sanitizeContaAzulContractPayloadTypes(input) {
     else safe[field] = text;
   }
 
-  if (safe.data_emissao != null && safe.data_emissao !== "") {
-    const iso = normalizeIsoDateFromFinance(safe.data_emissao);
-    if (!iso) delete safe.data_emissao;
-    else safe.data_emissao = iso;
+  if ("data_emissao" in safe && safe.data_emissao != null && safe.data_emissao !== "") {
+    const dem = normalizeContaAzulStrictIsoDate(safe.data_emissao);
+    if (!dem) delete safe.data_emissao;
+    else safe.data_emissao = dem;
   }
 
   const termos = safe.termos;
@@ -1535,8 +1543,12 @@ function sanitizeContaAzulContractPayloadTypes(input) {
       termos.tipo_expiracao = normalizeContaAzulContractExpiration(termos.tipo_expiracao, termos.data_fim);
     }
     ["data_inicio", "data_fim"].forEach((dk) => {
-      if (!(dk in termos) || termos[dk] == null || termos[dk] === "") return;
-      const isoDate = normalizeIsoDateFromFinance(termos[dk]);
+      if (!(dk in termos)) return;
+      if (termos[dk] == null || termos[dk] === "") {
+        delete termos[dk];
+        return;
+      }
+      const isoDate = normalizeContaAzulStrictIsoDate(termos[dk]);
       if (!isoDate) delete termos[dk];
       else termos[dk] = isoDate;
     });
@@ -1566,10 +1578,14 @@ function sanitizeContaAzulContractPayloadTypes(input) {
         cond.primeira_data_vencimento || safe.termos?.data_inicio
       );
     }
-    if (cond.primeira_data_vencimento != null && cond.primeira_data_vencimento !== "") {
-      const ipv = normalizeIsoDateFromFinance(cond.primeira_data_vencimento);
-      if (!ipv) delete cond.primeira_data_vencimento;
-      else cond.primeira_data_vencimento = ipv;
+    if ("primeira_data_vencimento" in cond) {
+      if (cond.primeira_data_vencimento == null || cond.primeira_data_vencimento === "") {
+        delete cond.primeira_data_vencimento;
+      } else {
+        const ipv = normalizeContaAzulStrictIsoDate(cond.primeira_data_vencimento);
+        if (!ipv) delete cond.primeira_data_vencimento;
+        else cond.primeira_data_vencimento = ipv;
+      }
     }
   }
 
@@ -1628,6 +1644,34 @@ function sanitizeContaAzulContractPayloadTypes(input) {
   return safe;
 }
 
+/** Após sanitização/agregação — evita campo de data obrigatório ausente/null no JSON final. */
+function backfillContaAzulContractRequiredDates(payload) {
+  if (!payload || typeof payload !== "object") return payload;
+  const today = new Date().toISOString().slice(0, 10);
+  if (!payload.termos || typeof payload.termos !== "object" || Array.isArray(payload.termos)) payload.termos = {};
+  if (!payload.condicao_pagamento || typeof payload.condicao_pagamento !== "object" || Array.isArray(payload.condicao_pagamento)) {
+    payload.condicao_pagamento = {};
+  }
+
+  let ti = normalizeContaAzulStrictIsoDate(payload.termos?.data_inicio);
+  let pv = normalizeContaAzulStrictIsoDate(payload.condicao_pagamento?.primeira_data_vencimento);
+  let em = normalizeContaAzulStrictIsoDate(payload.data_emissao);
+
+  ti = ti || pv || em || today;
+  pv = pv || ti || em || today;
+  em = em || ti || pv || today;
+
+  payload.data_emissao = em;
+  payload.termos.data_inicio = ti;
+  payload.condicao_pagamento.primeira_data_vencimento = pv;
+
+  const exp = String(payload.termos?.tipo_expiracao || "").trim().toUpperCase().replace(/\s+/g, "_");
+  const df = normalizeContaAzulStrictIsoDate(payload.termos?.data_fim);
+  if ((exp === "DATA" || exp === "DATE") && !df && ti) payload.termos.data_fim = ti;
+
+  return payload;
+}
+
 function compactContaAzulPayload(value) {
   const shouldDrop = (entry) =>
     entry === undefined ||
@@ -1671,12 +1715,12 @@ function isContaAzulContractDateLikeKey(key) {
 
 function normalizeContaAzulContractDateInPlace(target, key, fallbackValue) {
   if (!target || typeof target !== "object") return;
-  const normalized = normalizeIsoDateFromFinance(target[key]);
+  const normalized = normalizeContaAzulStrictIsoDate(target[key]);
   if (normalized) {
     target[key] = normalized;
     return;
   }
-  const fallback = normalizeIsoDateFromFinance(fallbackValue);
+  const fallback = normalizeContaAzulStrictIsoDate(fallbackValue);
   if (fallback) {
     target[key] = fallback;
     return;
@@ -1708,7 +1752,7 @@ function sanitizeContaAzulContractDatesDeep(node, depth = 0, seen = null) {
       return;
     }
     if (!isContaAzulContractDateLikeKey(key)) return;
-    const normalized = normalizeIsoDateFromFinance(value);
+    const normalized = normalizeContaAzulStrictIsoDate(value);
     if (normalized) {
       node[key] = normalized;
       return;
@@ -2754,7 +2798,9 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
   if (itemId && mergedContractPayload.itens?.[0]) {
     mergedContractPayload.itens[0] = { ...mergedContractPayload.itens[0], id: itemId };
   }
-  const payload = compactContaAzulPayload(sanitizeContaAzulContractPayloadTypes(mergedContractPayload));
+  const payload = compactContaAzulPayload(
+    backfillContaAzulContractRequiredDates(sanitizeContaAzulContractPayloadTypes(mergedContractPayload))
+  );
 
   const missingRequiredFields = [];
   const firstItem = payload.itens?.[0];

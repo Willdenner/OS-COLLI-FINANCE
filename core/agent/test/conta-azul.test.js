@@ -800,6 +800,35 @@ test("contaAzulContractPayload com data null em string nao envia data invalida",
   assert.deepEqual(record.missingRequiredFields, []);
 });
 
+test("merge com primeira_data_vencimento null ainda envia datas ISO validas obrigatorias", () => {
+  const record = buildContaAzulContractRecord({
+    settings: {
+      fpaExport: { defaultReceivableCategoryId: "cat_r", defaultFinancialAccountId: "conta_default" },
+      lovableContracts: {
+        financeProductMappings: [{ financeProductId: "svc_a", contaAzulItemId: "cca11111-bbbb-cccc-dddd-eeeeeeeeeeee" }],
+      },
+    },
+    nextContractNumber: 90,
+    source: {
+      contract_id: "contract_date_backfill",
+      customerId: "cliente-bc",
+      service_id: "svc_a",
+      amount_cents: 100000,
+      contract_start_date: "2026-05-01",
+      first_due_date: "2026-05-10",
+      contaAzulContractPayload: {
+        condicao_pagamento: {
+          primeira_data_vencimento: null,
+        },
+      },
+    },
+  });
+  assert.match(record.payload.condicao_pagamento.primeira_data_vencimento, /^\d{4}-\d{2}-\d{2}$/);
+  assert.match(record.payload.termos.data_inicio, /^\d{4}-\d{2}-\d{2}$/);
+  assert.match(record.payload.data_emissao, /^\d{4}-\d{2}-\d{2}$/);
+  assert.deepEqual(record.missingRequiredFields, []);
+});
+
 test("contrato sem payload customizado nao envia data_fim null ao Conta Azul", () => {
   const record = buildContaAzulContractRecord({
     settings: {
