@@ -1419,22 +1419,30 @@ function buildContaAzulTestFinancialEventRecord({
 }
 
 function compactContaAzulPayload(value) {
+  const shouldDrop = (entry) =>
+    entry === undefined ||
+    entry === null ||
+    entry === "" ||
+    (typeof entry === "number" && !Number.isFinite(entry)) ||
+    (typeof entry === "string" && isContaAzulNullishText(entry));
+
   if (Array.isArray(value)) {
     return value
       .map(compactContaAzulPayload)
       .filter((entry) => {
-        if (entry === undefined || entry === null || entry === "") return false;
+        if (shouldDrop(entry)) return false;
         if (Array.isArray(entry) && !entry.length) return false;
         if (typeof entry === "object" && !Array.isArray(entry) && !Object.keys(entry).length) return false;
         return true;
       });
   }
+  if (shouldDrop(value)) return undefined;
   if (!value || typeof value !== "object") return value;
 
   const compacted = {};
   Object.entries(value).forEach(([key, entry]) => {
     const nextValue = compactContaAzulPayload(entry);
-    if (nextValue === undefined || nextValue === null || nextValue === "") return;
+    if (shouldDrop(nextValue)) return;
     if (Array.isArray(nextValue) && !nextValue.length) return;
     if (typeof nextValue === "object" && !Array.isArray(nextValue) && !Object.keys(nextValue).length) return;
     compacted[key] = nextValue;

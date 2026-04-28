@@ -824,6 +824,39 @@ test("contrato sem payload customizado nao envia data_fim null ao Conta Azul", (
   assert.deepEqual(record.missingRequiredFields, []);
 });
 
+test("payload de contrato remove valores nullish e numeros nao finitos antes do envio", () => {
+  const record = buildContaAzulContractRecord({
+    settings: {
+      fpaExport: { defaultReceivableCategoryId: "categoria_receita" },
+      lovableContracts: { financeProductMappings: [{ financeProductId: "assessoria_recorrente", contaAzulItemId: "item-assessoria-ca" }] },
+    },
+    nextContractNumber: 203,
+    source: {
+      contract_id: "c_payload_json_valido",
+      customerId: "pessoa-3",
+      service_id: "assessoria_recorrente",
+      amount_cents: 5000,
+      contract_start_date: "2026-03-01",
+      first_due_date: "2026-03-10",
+      contaAzulContractPayload: {
+        id_vendedor: "null",
+        id_centro_custo: "undefined",
+        observacoes_pagamento: "NaN",
+        composicao_de_valor: { frete: Number.NaN },
+        itens: [{ valor_custo: Number.POSITIVE_INFINITY }],
+      },
+    },
+  });
+
+  assert.equal("id_vendedor" in record.payload, false);
+  assert.equal("id_centro_custo" in record.payload, false);
+  assert.equal("observacoes_pagamento" in record.payload, false);
+  assert.equal("frete" in (record.payload.composicao_de_valor || {}), false);
+  assert.equal("valor_custo" in record.payload.itens[0], false);
+  assert.doesNotMatch(JSON.stringify(record.payload), /:null\b/);
+  assert.deepEqual(record.missingRequiredFields, []);
+});
+
 test("mapa de produto casa com items[0].productId no payload (webhook em linhas)", () => {
   const settings = mergeContaAzulSettings(
     { fpaExport: { defaultReceivableCategoryId: "cat_r", defaultFinancialAccountId: "conta_padrao" } },
