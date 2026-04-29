@@ -2558,8 +2558,17 @@ function buildContaAzulContractRecord({ settings, source, nextContractNumber, fi
   const safeSettings = normalizeContaAzulSettings(settings);
   const lc = safeSettings.lovableContracts;
   const baseSource = source && typeof source === "object" ? source : {};
-  const nestedContract = baseSource.contract && typeof baseSource.contract === "object" ? baseSource.contract : {};
-  const contract = { ...baseSource, ...nestedContract };
+  // Unwrap Lovable's { data: { ... } } webhook wrapper so fields like startDate and
+  // firstDueDate are reachable at the top level of `contract`.
+  const dataWrapper =
+    baseSource.data && typeof baseSource.data === "object" && !Array.isArray(baseSource.data)
+      ? baseSource.data
+      : {};
+  const nestedContract =
+    (baseSource.contract && typeof baseSource.contract === "object" ? baseSource.contract : null) ||
+    (dataWrapper.contract && typeof dataWrapper.contract === "object" ? dataWrapper.contract : {});
+  // Priority (lowest → highest): dataWrapper → baseSource → nestedContract
+  const contract = { ...dataWrapper, ...baseSource, ...nestedContract };
   const safeLinks = Array.isArray(financePaymentLinks) ? financePaymentLinks : [];
   const rawFinancePaymentMethod = String(
     pickFirstNested(contract, ["paymentMethod", "tipoPagamento", "billing.paymentMethod", "formaPagamento", "forma_pagamento", "payment_method"]) || ""
